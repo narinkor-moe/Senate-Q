@@ -1,0 +1,6 @@
+{
+  "name": "Parliamentary Question Scheduler",
+  "description": "ระบบจัดระเบียบวาระกระทู้ถามรายสัปดาห์ทุกวันจันทร์ จัดลำดับกระทู้ถามครั้งละ 3 เรื่อง ไม่ซ้ำผู้ตั้งถาม พร้อมการจัดการเลื่อนตอบกระทู้",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
