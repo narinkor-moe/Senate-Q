@@ -11,12 +11,16 @@ import {
   Sparkles,
   ClipboardPaste,
   Info,
-  Calendar
+  Calendar,
+  Zap
 } from 'lucide-react';
 
 interface GoogleSheetsImportProps {
   onImportQuestions: (questions: QuestionItem[]) => void;
 }
+
+const DEFAULT_SHEET_ID = '18tE6RON_7Z3BO-NtrF4jaqH_qP92A1-FiZ-RPACXGdU';
+const DEFAULT_RANGE = 'Data!A1:G100';
 
 export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
   onImportQuestions,
@@ -24,9 +28,9 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [importMode, setImportMode] = useState<'url' | 'paste'>('url');
   
-  // URL / Range mode
-  const [sheetUrlOrId, setSheetUrlOrId] = useState('');
-  const [sheetRange, setSheetRange] = useState('Sheet1!A2:E100');
+  // URL / Range mode - prefilled with target sheet ID and Data sheet
+  const [sheetUrlOrId, setSheetUrlOrId] = useState(DEFAULT_SHEET_ID);
+  const [sheetRange, setSheetRange] = useState(DEFAULT_RANGE);
   
   // Direct Paste mode
   const [pastedText, setPastedText] = useState('');
@@ -45,64 +49,126 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
   };
 
   const parseRowData = (rows: (string | number | undefined)[][]): QuestionItem[] => {
+    if (!rows || rows.length === 0) return [];
+
+    let headerIndex = -1;
+    let colOrder = -1;
+    let colTopic = -1;
+    let colAsker = -1;
+    let colMinister = -1;
+    let colPostponed = -1;
+    let colScheduled = -1;
+
+    // 1. Try to detect header row
+    for (let r = 0; r < Math.min(rows.length, 5); r++) {
+      const row = rows[r];
+      if (!row) continue;
+      const strRow = row.map((c) => String(c || '').trim().toLowerCase());
+
+      const oIdx = strRow.findIndex((c) => c.includes('ลำดับ'));
+      const tIdx = strRow.findIndex((c) => c.includes('กระทู้') || c.includes('เรื่อง'));
+      const aIdx = strRow.findIndex((c) => c.includes('ผู้ตั้ง') || c.includes('ผู้ถาม'));
+      const mIdx = strRow.findIndex((c) => c.includes('รัฐมนตรี') || c.includes('รมต.'));
+      const pIdx = strRow.findIndex((c) => c.includes('เลื่อนตอบ') || c.includes('เลื่อน') || c.includes('ขอเลื่อน'));
+      const sIdx = strRow.findIndex((c) => c.includes('วันที่บรรจุ') || c.includes('บรรจุ'));
+
+      if (tIdx !== -1 || aIdx !== -1) {
+        headerIndex = r;
+        colOrder = oIdx !== -1 ? oIdx : 0;
+        colTopic = tIdx !== -1 ? tIdx : 3;
+        colAsker = aIdx !== -1 ? aIdx : 4;
+        colMinister = mIdx !== -1 ? mIdx : 5;
+        colPostponed = pIdx !== -1 ? pIdx : 2;
+        colScheduled = sIdx;
+        break;
+      }
+    }
+
+    const startRowIdx = headerIndex !== -1 ? headerIndex + 1 : 0;
     const parsedItems: QuestionItem[] = [];
     let nextAutoOrder = 1;
 
-    rows.forEach((row, idx) => {
-      if (!row || row.length === 0) return;
-
-      const col0 = row[0] !== undefined ? String(row[0]).trim() : '';
-      const col1 = row[1] !== undefined ? String(row[1]).trim() : '';
-      const col2 = row[2] !== undefined ? String(row[2]).trim() : '';
-      const col3 = row[3] !== undefined ? String(row[3]).trim() : '';
-      const col4 = row[4] !== undefined ? String(row[4]).trim() : '';
-
-      // Skip header row if detected
-      if (col0.includes('ลำดับ') || col1.includes('กระทู้') || col1.includes('เรื่อง') || col2.includes('ผู้ตั้ง')) {
-        return;
+    for (let i = startRowIdx; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0 || !row.some((cell) => cell !== undefined && String(cell).trim() !== '')) {
+        continue;
       }
 
-      let order = parseInt(col0, 10);
-      if (isNaN(order)) {
-        order = nextAutoOrder;
+      let orderVal = 0;
+      let topicVal = '';
+      let askerVal = '';
+      let ministerVal = '';
+      let postponedVal = '';
+
+      if (headerIndex !== -1) {
+        // Use detected column indices
+        const rawOrder = colOrder !== -1 && row[colOrder] !== undefined ? String(row[colOrder]).trim() : '';
+        orderVal = parseInt(rawOrder, 10);
+        topicVal = colTopic !== -1 && row[colTopic] !== undefined ? String(row[colTopic]).trim() : '';
+        askerVal = colAsker !== -1 && row[colAsker] !== undefined ? String(row[colAsker]).trim() : '';
+        ministerVal = colMinister !== -1 && row[colMinister] !== undefined ? String(row[colMinister]).trim() : '';
+        postponedVal = colPostponed !== -1 && row[colPostponed] !== undefined ? String(row[colPostponed]).trim() : '';
       } else {
-        nextAutoOrder = order + 1;
+        // Fallback by column count layout
+        if (row.length >= 6) {
+          // Layout: [ลำดับ, วันที่บรรจุ, เลื่อนตอบวันที่, เรื่อง, ผู้ตั้งถาม, รัฐมนตรี, ...]
+          orderVal = parseInt(String(row[0] || '').trim(), 10);
+          postponedVal = String(row[2] || '').trim();
+          topicVal = String(row[3] || '').trim();
+          askerVal = String(row[4] || '').trim();
+          ministerVal = String(row[5] || '').trim();
+        } else if (row.length === 5) {
+          // Layout: [ลำดับ, เรื่อง, ผู้ตั้งถาม, รัฐมนตรี, เลื่อนตอบวันที่]
+          orderVal = parseInt(String(row[0] || '').trim(), 10);
+          topicVal = String(row[1] || '').trim();
+          askerVal = String(row[2] || '').trim();
+          ministerVal = String(row[3] || '').trim();
+          postponedVal = String(row[4] || '').trim();
+        } else {
+          // Layout: [ลำดับ, เรื่อง, ผู้ตั้งถาม, รัฐมนตรี]
+          orderVal = parseInt(String(row[0] || '').trim(), 10);
+          topicVal = String(row[1] || '').trim();
+          askerVal = String(row[2] || '').trim();
+          ministerVal = String(row[3] || '').trim();
+        }
       }
 
-      const topic = col1;
-      const asker = col2;
-      const minister = col3;
-      const postponedDateRaw = col4;
+      if (isNaN(orderVal) || orderVal <= 0) {
+        orderVal = nextAutoOrder;
+      }
+      nextAutoOrder = Math.max(nextAutoOrder, orderVal + 1);
 
-      if (topic) {
-        // Parse postponed date if present
+      if (topicVal) {
         let cleanPostponedDate: string | undefined = undefined;
-        if (postponedDateRaw) {
-          const parsedISO = parseThaiOrISODate(postponedDateRaw);
-          cleanPostponedDate = parsedISO || postponedDateRaw;
+        if (postponedVal && postponedVal.trim().length > 0) {
+          const parsedISO = parseThaiOrISODate(postponedVal);
+          cleanPostponedDate = parsedISO || postponedVal.trim();
         }
 
         parsedItems.push({
-          id: `sheet-q-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
-          submittedOrder: order,
-          topic: topic,
-          asker: asker || 'ไม่ระบุผู้ตั้งถาม',
-          minister: minister || 'ไม่ระบุรัฐมนตรี',
+          id: `sheet-q-${orderVal}-${Date.now()}-${i}`,
+          submittedOrder: orderVal,
+          topic: topicVal,
+          asker: askerVal || 'ไม่ระบุผู้ตั้งถาม',
+          minister: ministerVal || 'ไม่ระบุรัฐมนตรี',
           postponedDate: cleanPostponedDate,
           status: cleanPostponedDate ? 'postponed' : 'pending'
         });
       }
-    });
+    }
 
     return parsedItems;
   };
 
-  const handleImportFromUrl = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleImportFromUrl = async (e?: React.FormEvent, customId?: string, customRange?: string) => {
+    if (e) e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const spreadsheetId = extractSpreadsheetId(sheetUrlOrId);
+    const targetInput = customId || sheetUrlOrId;
+    const targetRange = customRange || sheetRange;
+    const spreadsheetId = extractSpreadsheetId(targetInput);
+
     if (!spreadsheetId) {
       setErrorMsg('กรุณาระบุ URL หรือ Spreadsheet ID ของ Google Sheets');
       return;
@@ -110,7 +176,7 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
 
     try {
       setLoading(true);
-      const rows = await fetchSheetRows(spreadsheetId, sheetRange);
+      const rows = await fetchSheetRows(spreadsheetId, targetRange);
       
       if (!rows || rows.length === 0) {
         setErrorMsg('ไม่พบข้อมูลแถวใน Google Sheet ที่ระบุ');
@@ -120,13 +186,13 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
       const parsedItems = parseRowData(rows);
 
       if (parsedItems.length === 0) {
-        setErrorMsg('ไม่พบข้อมูลกระทู้ที่สามารถแปลงได้จากชีต โปรดตรวจสอบว่าคอลัมน์ตรงตามรูปแบบ [ลำดับ, เรื่อง, ผู้ตั้งถาม, ถามรัฐมนตรี, เลื่อนตอบวันที่]');
+        setErrorMsg('ไม่พบข้อมูลกระทู้ที่สามารถแปลงได้จากชีต โปรดตรวจสอบว่าชีตมีคอลัมน์ชื่อ [ลำดับ, กระทู้ถามเรื่อง, ผู้ตั้งถาม, ถามรัฐมนตรี, เลื่อนตอบวันที่]');
         return;
       }
 
       const postponedCount = parsedItems.filter((q) => !!q.postponedDate).length;
       onImportQuestions(parsedItems);
-      setSuccessMsg(`นำเข้าสำเร็จ ${parsedItems.length} รายการ ${postponedCount > 0 ? `(มีกระทู้ขอเลื่อน ${postponedCount} เรื่อง)` : ''}`);
+      setSuccessMsg(`นำเข้าข้อมูลสำเร็จ ${parsedItems.length} กระทู้ถาม ${postponedCount > 0 ? `(มีกระทู้ขอเลื่อน ${postponedCount} เรื่อง)` : ''}`);
       setTimeout(() => {
         setIsOpen(false);
         setSuccessMsg(null);
@@ -137,6 +203,12 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleQuickLoadDefault = () => {
+    setSheetUrlOrId(DEFAULT_SHEET_ID);
+    setSheetRange(DEFAULT_RANGE);
+    handleImportFromUrl(undefined, DEFAULT_SHEET_ID, DEFAULT_RANGE);
   };
 
   const handleImportFromPaste = (e: React.FormEvent) => {
@@ -150,7 +222,6 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
     }
 
     try {
-      // Split lines and tab/comma separated cells
       const lines = pastedText.trim().split(/\r?\n/);
       const rows: string[][] = lines.map((line) => {
         if (line.includes('\t')) {
@@ -162,7 +233,7 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
       const parsedItems = parseRowData(rows);
 
       if (parsedItems.length === 0) {
-        setErrorMsg('ไม่พบข้อมูลกระทู้ที่สามารถแปลงได้ โปรดตรวจสอบว่าวางข้อมูลอย่างน้อย 4-5 คอลัมน์ [ลำดับ, เรื่อง, ผู้ตั้งถาม, ถามรัฐมนตรี, เลื่อนตอบวันที่]');
+        setErrorMsg('ไม่พบข้อมูลกระทู้ที่สามารถแปลงได้ โปรดตรวจสอบการคัดลอกข้อมูลตาราง');
         return;
       }
 
@@ -179,16 +250,6 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
     }
   };
 
-  const insertSampleData = () => {
-    const sample = `1\tมาตรการแก้ไขปัญหาภัยแล้งและบริหารจัดการลุ่มน้ำยมอย่างยั่งยืน\tนายสมชาย วงศ์สวัสดิ์\tรัฐมนตรีว่าการกระทรวงเกษตรและสหกรณ์\t
-2\tแนวทางการยกระดับราคาพืชผลทางการเกษตร (ข้าวเปลือกและยางพารา)\tนายสมชาย วงศ์สวัสดิ์\tรัฐมนตรีว่าการกระทรวงพาณิชย์\t2026-09-14
-3\tความคืบหน้ารถไฟความเร็วสูงเชื่อม 3 สนามบิน และผลกระทบต่อประชาชน\tนางสาวกานต์รวี ประเสริฐสุข\tรัฐมนตรีว่าการกระทรวงคมนาคม\t
-4\tการจัดสรรงบประมาณพัฒนาคุณภาพการศึกษาในโรงเรียนขนาดเล็ก\tนายวีระพล สุขสมบูรณ์\tรัฐมนตรีว่าการกระทรวงศึกษาธิการ\t
-5\tการแก้ไขปัญหาหนี้สินครัวเรือนและหนี้นอกระบบของเกษตรกรรายย่อย\tนางสาวกานต์รวี ประเสริฐสุข\tรัฐมนตรีว่าการกระทรวงการคลัง\t
-6\tนโยบายควบคุมฝุ่นละออง PM 2.5 ในเขตพื้นที่ภาคเหนือ\tดร.ธนกฤต ชัยเรืองโรจน์\tรัฐมนตรีว่าการกระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม\t`;
-    setPastedText(sample);
-  };
-
   return (
     <div className="relative">
       <button
@@ -198,7 +259,7 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
         className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-colors cursor-pointer"
       >
         <FileSpreadsheet className="w-4 h-4 text-sky-300" />
-        <span>นำเข้าจาก Google Sheets</span>
+        <span>นำเข้า Google Sheets (ID: {DEFAULT_SHEET_ID.substring(0, 8)}...)</span>
       </button>
 
       {isOpen && (
@@ -212,7 +273,7 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
                 </div>
                 <div>
                   <h4 className="text-base font-bold text-slate-900">นำเข้าข้อมูลจาก Google Sheets</h4>
-                  <p className="text-xs text-slate-500">ดึงข้อมูลรายการกระทู้ถาม พร้อมคอลัมน์เลื่อนตอบวันที่</p>
+                  <p className="text-xs text-slate-500">ดึงข้อมูลรายการกระทู้ถามจาก Google Spreadsheet</p>
                 </div>
               </div>
               <button
@@ -221,6 +282,27 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
                 className="text-slate-400 hover:text-slate-600 text-sm p-1 cursor-pointer"
               >
                 ✕
+              </button>
+            </div>
+
+            {/* Quick 1-Click Target Sheet Banner */}
+            <div className="bg-sky-50 rounded-xl p-3 border border-sky-200 flex items-center justify-between gap-2">
+              <div className="text-xs text-sky-950 space-y-0.5">
+                <div className="font-bold flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-[#0369a1]" />
+                  <span>Google Sheet: <strong>Data</strong></span>
+                </div>
+                <div className="text-[11px] text-sky-800 font-mono">
+                  ID: {DEFAULT_SHEET_ID}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleQuickLoadDefault}
+                className="px-3 py-1.5 rounded-lg bg-[#0369a1] hover:bg-[#075985] text-white text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0 disabled:opacity-50"
+              >
+                {loading ? 'กำลังดึง...' : 'ดึงชีตนี้ทันที'}
               </button>
             </div>
 
@@ -249,25 +331,24 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
             </div>
 
             {/* Column Guide */}
-            <div className="bg-sky-50/60 rounded-lg p-3.5 border border-sky-200/80 text-xs text-slate-700 space-y-1.5">
-              <div className="font-bold text-sky-950 flex items-center gap-1.5">
+            <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-xs text-slate-700 space-y-1.5">
+              <div className="font-bold text-slate-900 flex items-center gap-1.5">
                 <Info className="w-4 h-4 text-[#0369a1]" />
-                โครงสร้าง 5 คอลัมน์ที่รองรับใน Google Spreadsheet:
+                โครงสร้างคอลัมน์ในชีต Data:
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px] text-slate-600 pl-1">
-                <div>• <strong>คอลัมน์ A:</strong> ลำดับที่ยื่น (เช่น 1, 2)</div>
-                <div>• <strong>คอลัมน์ B:</strong> กระทู้ถามเรื่อง</div>
-                <div>• <strong>คอลัมน์ C:</strong> ผู้ตั้งถาม</div>
-                <div>• <strong>คอลัมน์ D:</strong> ถามรัฐมนตรี</div>
-                <div className="col-span-full font-medium text-sky-900 bg-white/70 p-1.5 rounded border border-sky-200/50 mt-0.5">
-                  • <strong>คอลัมน์ E (ใหม่):</strong> <span className="font-bold text-[#0369a1]">เลื่อนตอบวันที่</span> (เช่น <code className="bg-sky-100 px-1 py-0.5 rounded text-sky-800">2026-09-14</code> หรือ <code className="bg-sky-100 px-1 py-0.5 rounded text-sky-800">14 ก.ย. 2569</code> หรือเว้นว่าง)
-                </div>
+                <div>• ลำดับที่ยื่น</div>
+                <div>• วันที่บรรจุ</div>
+                <div>• เลื่อนตอบวันที่</div>
+                <div>• กระทู้ถามเรื่อง</div>
+                <div>• ผู้ตั้งถาม</div>
+                <div>• ถามรัฐมนตรี / สถานะ</div>
               </div>
             </div>
 
             {/* URL Mode */}
             {importMode === 'url' ? (
-              <form onSubmit={handleImportFromUrl} className="space-y-4">
+              <form onSubmit={(e) => handleImportFromUrl(e)} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Google Sheet URL หรือ Spreadsheet ID *
@@ -275,23 +356,23 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
+                    placeholder={DEFAULT_SHEET_ID}
                     value={sheetUrlOrId}
                     onChange={(e) => setSheetUrlOrId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-[#0369a1] focus:ring-1 focus:ring-[#0369a1]"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono text-black placeholder:text-slate-400 bg-white font-medium focus:outline-none focus:border-[#0369a1] focus:ring-1 focus:ring-[#0369a1]"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    ช่วงเซลล์ (Range ครอบคลุม 5 คอลัมน์ A ถึง E)
+                    ช่วงข้อมูล (Range / Sheet Name)
                   </label>
                   <input
                     type="text"
                     value={sheetRange}
                     onChange={(e) => setSheetRange(e.target.value)}
-                    placeholder="Sheet1!A2:E100"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-[#0369a1] focus:ring-1 focus:ring-[#0369a1]"
+                    placeholder="Data!A1:G100"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono text-black placeholder:text-slate-400 bg-white font-medium focus:outline-none focus:border-[#0369a1] focus:ring-1 focus:ring-[#0369a1]"
                   />
                 </div>
 
@@ -340,28 +421,19 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
               /* Paste Mode */
               <form onSubmit={handleImportFromPaste} className="space-y-4">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-slate-700">
-                      วางข้อความที่คัดลอกจาก Google Sheets (Ctrl+V) *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={insertSampleData}
-                      className="text-[11px] text-[#0369a1] hover:underline font-semibold cursor-pointer"
-                    >
-                      + เติมตัวอย่างข้อมูล 5 คอลัมน์
-                    </button>
-                  </div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    วางข้อความที่คัดลอกจาก Google Sheets (Ctrl+V) *
+                  </label>
                   <textarea
                     rows={6}
                     required
                     value={pastedText}
                     onChange={(e) => setPastedText(e.target.value)}
-                    placeholder="1	กระทู้เรื่องแรก	นาย ก	รมว. คมนาคม	&#10;2	กระทู้เรื่องสอง	นาย ก	รมว. พาณิชย์	2026-09-14&#10;3	กระทู้เรื่องสาม	นาง ข	รมว. เกษตรฯ	"
-                    className="w-full font-mono text-[11px] p-3 rounded-lg border border-slate-300 focus:outline-none focus:border-[#0369a1] focus:ring-1 focus:ring-[#0369a1]"
+                    placeholder="1	2026-09-07		มาตรการในการกำกับดูแล...	นายประพนธ์ ตั้งศรีเกียรติกุล	นายกรัฐมนตรี	รอการบรรจุ..."
+                    className="w-full font-mono text-[11px] text-black bg-white p-3 rounded-lg border border-slate-300 focus:outline-none focus:border-[#0369a1] focus:ring-1 focus:ring-[#0369a1]"
                   />
                   <p className="text-[11px] text-slate-500 mt-1">
-                    * สามารถคลุมดำแถวใน Google Sheets แล้วกด Copy (Ctrl+C) นำมา Paste ลงในช่องนี้ได้ทันที
+                    * สามารถคลุมแถวในชีต Data แล้วกด Copy (Ctrl+C) นำมา Paste ลงในช่องนี้ได้ทันที
                   </p>
                 </div>
 
@@ -403,3 +475,4 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
     </div>
   );
 };
+

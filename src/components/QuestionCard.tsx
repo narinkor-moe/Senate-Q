@@ -32,9 +32,9 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             ลำดับที่ {slotNumber} (กระทู้ขอเลื่อนมาตอบ)
           </span>
         ) : isPostponedNow ? (
-          <span className="inline-flex items-center gap-1 bg-amber-500 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase shadow-sm tracking-wide">
+          <span className="inline-flex items-center gap-1 bg-amber-600 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase shadow-sm tracking-wide">
             <Clock className="w-3 h-3" />
-            ลำดับที่ {slotNumber} (ขอเลื่อนตอบ)
+            ลำดับที่ {slotNumber} (เลื่อนวันตอบ)
           </span>
         ) : (
           <span className="inline-flex items-center bg-slate-200 text-slate-700 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide">
@@ -52,6 +52,24 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         <h4 className="text-base font-bold text-slate-900 leading-snug tracking-tight">
           เรื่อง: {question.topic}
         </h4>
+
+        {isPostponedNow && (
+          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] bg-amber-100 text-amber-900 px-2.5 py-1 rounded-md font-bold border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+              <Clock className="w-3.5 h-3.5 text-amber-700" />
+              <span>สถานะ: เลื่อนวันตอบ</span>
+              {question.postponedDate ? (
+                <span className="font-normal text-amber-800">
+                  (กำหนดตอบ: {question.postponedDate})
+                </span>
+              ) : (
+                <span className="font-normal text-amber-800">
+                  (เลื่อนไปตอบสัปดาห์ถัดไป)
+                </span>
+              )}
+            </span>
+          </div>
+        )}
 
         {isPostponedFromPrevious && (
           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
@@ -100,10 +118,12 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
           }`}
         >
-          <Clock className={`w-3.5 h-3.5 ${question.postponedDate ? 'text-amber-700' : 'text-slate-500'}`} />
+          <Clock className={`w-3.5 h-3.5 ${question.postponedDate || isPostponedNow ? 'text-amber-700' : 'text-slate-500'}`} />
           <span>
             {question.postponedDate
               ? `เลื่อนตอบ: ${question.postponedDate}`
+              : isPostponedNow
+              ? 'เลื่อนวันตอบ (แก้ไข/ล้าง)'
               : 'ขอเลื่อนวันตอบกระทู้'}
           </span>
         </button>

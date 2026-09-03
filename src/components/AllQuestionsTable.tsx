@@ -16,9 +16,12 @@ import {
   ChevronUp,
   ChevronDown,
   Sparkles,
+  User,
+  FileText,
 } from 'lucide-react';
 
 export type QuestionStatusCategory = 'all' | 'scheduled' | 'pending' | 'postponed';
+export type SearchScope = 'all' | 'asker' | 'topic';
 
 interface AllQuestionsTableProps {
   questions: QuestionItem[];
@@ -31,6 +34,27 @@ interface AllQuestionsTableProps {
   onOpenPostponeModal?: (question: QuestionItem) => void;
 }
 
+const highlightMatch = (text: string, query: string) => {
+  if (!query.trim()) return text;
+  const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  const parts = text.split(regex);
+  if (parts.length <= 1) return text;
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.trim().toLowerCase() ? (
+          <mark key={i} className="bg-amber-200 text-slate-900 rounded-xs px-0.5 font-bold">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+};
+
 export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   questions,
   postponedIds = new Set(),
@@ -42,6 +66,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   onOpenPostponeModal,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchScope, setSearchScope] = useState<SearchScope>('all');
   const [statusFilter, setStatusFilter] = useState<QuestionStatusCategory>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newTopic, setNewTopic] = useState('');
@@ -114,25 +139,48 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
     };
   }, [questions, scheduledMap, postponedIds]);
 
+  // List of top frequent askers for quick 1-click filtering
+  const frequentAskers = useMemo(() => {
+    const map = new Map<string, number>();
+    questions.forEach((q) => {
+      if (q.asker && q.asker !== 'ไม่ระบุผู้ตั้งถาม') {
+        map.set(q.asker, (map.get(q.asker) || 0) + 1);
+      }
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+  }, [questions]);
+
   // Filter questions by search AND status filter
   const filteredQuestions = useMemo(() => {
+    const qLower = searchTerm.trim().toLowerCase();
     return questions.filter((q) => {
       // 1. Search filter
-      const matchesSearch =
-        q.topic.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        q.asker.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        q.minister.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (q.postponedDate && q.postponedDate.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        String(q.submittedOrder).includes(searchTerm);
-
-      if (!matchesSearch) return false;
+      if (qLower) {
+        let matchesSearch = false;
+        if (searchScope === 'asker') {
+          matchesSearch = q.asker.toLowerCase().includes(qLower);
+        } else if (searchScope === 'topic') {
+          matchesSearch = q.topic.toLowerCase().includes(qLower);
+        } else {
+          matchesSearch =
+            q.topic.toLowerCase().includes(qLower) ||
+            q.asker.toLowerCase().includes(qLower) ||
+            q.minister.toLowerCase().includes(qLower) ||
+            (q.postponedDate && q.postponedDate.toLowerCase().includes(qLower)) ||
+            String(q.submittedOrder).includes(qLower);
+        }
+        if (!matchesSearch) return false;
+      }
 
       // 2. Status filter
       if (statusFilter === 'all') return true;
       const qStatus = getQuestionStatus(q.id).category;
       return qStatus === statusFilter;
     });
-  }, [questions, searchTerm, statusFilter, scheduledMap, postponedIds]);
+  }, [questions, searchTerm, searchScope, statusFilter, scheduledMap, postponedIds]);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -268,33 +316,6 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-            <input
-              id="search-questions-input"
-              type="text"
-              aria-label="ค้นหากระทู้ถามตามชื่อเรื่อง หรือ ผู้ตั้งถาม"
-              placeholder="ค้นหาชื่อเรื่อง, ผู้ตั้งถาม..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setSearchTerm('');
-              }}
-              className="text-xs pl-8 pr-7 py-1.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-[#0369a1] focus:ring-1 focus:ring-[#0369a1] w-56 sm:w-64 transition-all"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                id="btn-clear-search"
-                onClick={() => setSearchTerm('')}
-                title="ล้างคำค้นหา (Esc)"
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-
           <button
             type="button"
             id="btn-open-add-question"
@@ -320,6 +341,140 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
             <span>รีเซ็ต</span>
           </button>
         </div>
+      </div>
+
+      {/* Dedicated Search and Quick Filter Bar */}
+      <div className="px-6 py-3 bg-sky-50/50 border-b border-slate-200 space-y-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          {/* Main Search Input */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#0369a1] pointer-events-none" />
+            <input
+              id="search-questions-input"
+              type="text"
+              aria-label="ค้นหากระทู้ถามตามชื่อเรื่อง หรือ ผู้ตั้งถาม"
+              placeholder={
+                searchScope === 'asker'
+                  ? 'พิมพ์ค้นหาตามชื่อผู้ตั้งถาม (ส.ว.)...'
+                  : searchScope === 'topic'
+                  ? 'พิมพ์ค้นหาตามหัวข้อกระทู้ถาม...'
+                  : 'ค้นหากระทู้ถาม: พิมพ์ชื่อผู้ตั้งถาม หรือหัวข้อกระทู้ถาม...'
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setSearchTerm('');
+              }}
+              className="w-full text-xs font-medium pl-10 pr-9 py-2 bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg shadow-2xs focus:outline-none focus:border-[#0369a1] focus:ring-2 focus:ring-[#0369a1]/20 transition-all"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                id="btn-clear-search"
+                onClick={() => setSearchTerm('')}
+                title="ล้างคำค้นหา (Esc)"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Search Scope Filter Buttons */}
+          <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-300 shadow-2xs text-xs font-semibold shrink-0">
+            <button
+              type="button"
+              id="scope-all-btn"
+              onClick={() => setSearchScope('all')}
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                searchScope === 'all'
+                  ? 'bg-[#0369a1] text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              ค้นหาทั้งหมด
+            </button>
+            <button
+              type="button"
+              id="scope-asker-btn"
+              onClick={() => setSearchScope('asker')}
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer inline-flex items-center gap-1 ${
+                searchScope === 'asker'
+                  ? 'bg-[#0369a1] text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <User className="w-3 h-3" />
+              <span>ผู้ตั้งถาม</span>
+            </button>
+            <button
+              type="button"
+              id="scope-topic-btn"
+              onClick={() => setSearchScope('topic')}
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer inline-flex items-center gap-1 ${
+                searchScope === 'topic'
+                  ? 'bg-[#0369a1] text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <FileText className="w-3 h-3" />
+              <span>หัวข้อกระทู้</span>
+            </button>
+          </div>
+
+          {/* Result Count Indicator */}
+          {searchTerm.trim() && (
+            <div className="text-xs font-semibold px-2.5 py-1.5 bg-sky-100 text-sky-900 rounded-lg border border-sky-200 shrink-0 inline-flex items-center gap-1.5">
+              <span>พบ <strong>{filteredQuestions.length}</strong> จาก {questions.length} กระทู้</span>
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="text-sky-700 hover:text-sky-950 font-bold ml-0.5 cursor-pointer"
+                title="ล้างคำค้นหา"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Quick Asker Suggestion Badges */}
+        {frequentAskers.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap text-xs text-slate-500 pt-0.5">
+            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1 mr-0.5">
+              <User className="w-3 h-3 text-[#0369a1]" />
+              ค้นหาด่วนตามผู้ตั้งถาม:
+            </span>
+            {frequentAskers.map(({ name, count }) => {
+              const isSelected = searchTerm === name && (searchScope === 'asker' || searchScope === 'all');
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => {
+                    if (isSelected) {
+                      setSearchTerm('');
+                    } else {
+                      setSearchTerm(name);
+                      setSearchScope('asker');
+                    }
+                  }}
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-all cursor-pointer border ${
+                    isSelected
+                      ? 'bg-[#0369a1] text-white border-[#0369a1] shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-sky-300 hover:bg-sky-50'
+                  }`}
+                  title={`กรองกระทู้ถามของ ${name}`}
+                >
+                  <span>{name}</span>
+                  <span className={`ml-1 text-[10px] ${isSelected ? 'text-white/80' : 'text-slate-400'}`}>
+                    ({count})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Reorder Notification Toast / Helper Banner */}
@@ -467,25 +622,43 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
           <tbody className="text-sm divide-y divide-slate-100">
             {filteredQuestions.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-slate-500 text-xs">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <Search className="w-6 h-6 text-slate-300" />
-                    <span>ไม่พบข้อมูลกระทู้ถามที่ตรงกับ "{searchTerm}" {statusFilter !== 'all' ? `(สถานะ: ${statusFilter})` : ''}</span>
-                    <div className="flex gap-2 mt-1">
+                <td colSpan={6} className="px-6 py-12 text-center text-slate-500 text-xs">
+                  <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-1">
+                      <Search className="w-5 h-5" />
+                    </div>
+                    <p className="font-semibold text-slate-700 text-sm">
+                      ไม่พบข้อมูลกระทู้ถาม
+                    </p>
+                    <p className="text-slate-500 text-xs">
+                      {searchTerm
+                        ? `ไม่พบรายการที่ตรงกับคำค้นหา "${searchTerm}" ${
+                            searchScope === 'asker'
+                              ? '(ในช่องผู้ตั้งถาม)'
+                              : searchScope === 'topic'
+                              ? '(ในช่องหัวข้อกระทู้)'
+                              : ''
+                          }`
+                        : 'ไม่มีรายการกระทู้ในสถานะที่เลือก'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
                       {searchTerm && (
                         <button
                           type="button"
-                          onClick={() => setSearchTerm('')}
-                          className="text-xs text-[#0369a1] hover:underline font-semibold"
+                          onClick={() => {
+                            setSearchTerm('');
+                            setSearchScope('all');
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-[#0369a1] text-white text-xs font-semibold hover:bg-[#075985] cursor-pointer transition-colors shadow-2xs"
                         >
-                          ล้างคำค้นหา
+                          ล้างคำค้นหาทั้งหมด
                         </button>
                       )}
                       {statusFilter !== 'all' && (
                         <button
                           type="button"
                           onClick={() => setStatusFilter('all')}
-                          className="text-xs text-slate-500 hover:underline font-semibold"
+                          className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-50 cursor-pointer transition-colors"
                         >
                           ล้างตัวกรองสถานะ
                         </button>
@@ -540,7 +713,9 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
 
                     <td className="px-6 py-3 font-medium text-slate-900 leading-snug">
                       <div className="flex flex-col gap-1">
-                        <span>{q.topic}</span>
+                        <span className="break-words">
+                          {highlightMatch(q.topic, searchScope === 'asker' ? '' : searchTerm)}
+                        </span>
                         {q.postponedDate && (
                           <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
                             <Clock className="w-3 h-3 text-amber-600" />
@@ -550,10 +725,21 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                       </div>
                     </td>
                     <td className="px-6 py-3 text-slate-700 font-medium text-xs">
-                      {q.asker}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchTerm(q.asker);
+                          setSearchScope('asker');
+                        }}
+                        title={`คลิกเพื่อค้นหากระทู้ทั้งหมดของ ${q.asker}`}
+                        className="text-left hover:text-[#0369a1] hover:underline cursor-pointer group inline-flex items-center gap-1 transition-colors"
+                      >
+                        <span>{highlightMatch(q.asker, searchScope === 'topic' ? '' : searchTerm)}</span>
+                        <Search className="w-3 h-3 opacity-0 group-hover:opacity-100 text-[#0369a1] transition-opacity shrink-0" />
+                      </button>
                     </td>
                     <td className="px-6 py-3 text-slate-700 text-xs">
-                      {q.minister}
+                      {highlightMatch(q.minister, searchScope === 'all' ? searchTerm : '')}
                     </td>
                     <td className="px-6 py-3 text-center">
                       {statusInfo.category === 'postponed' && (

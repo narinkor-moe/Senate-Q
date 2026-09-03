@@ -113,6 +113,45 @@ export function parseThaiOrISODate(inputStr?: string): string | null {
   return null;
 }
 
+export const THAI_DAY_NAMES = [
+  'วันอาทิตย์', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์'
+];
+
+/**
+ * Get Thai day of week name (e.g. วันจันทร์, วันอังคาร)
+ */
+export function getDayOfWeekThai(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return '';
+  return THAI_DAY_NAMES[d.getDay()];
+}
+
+/**
+ * Check if a date is a Monday
+ */
+export function isMondayDate(dateStr: string): boolean {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return false;
+  return d.getDay() === 1;
+}
+
+/**
+ * Format any date string with its actual day of the week in Thai: เช่น วันจันทร์ที่ 6 เมษายน 2569
+ */
+export function formatThaiDateWithDayOfWeek(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  const thaiMonths = [
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+  ];
+  const dayName = THAI_DAY_NAMES[d.getDay()];
+  const day = d.getDate();
+  const month = thaiMonths[d.getMonth()];
+  const year = d.getFullYear() + 543;
+  return `${dayName}ที่ ${day} ${month} ${year}`;
+}
+
 /**
  * Format a Date or date string to Thai full format: วันจันทร์ที่ D MMMM YYYY (พ.ศ.)
  */
@@ -215,10 +254,12 @@ export function findMatchingWorkingMonday(
  * 1. จัดระเบียบวาระครั้งละ 3 เรื่อง ทุกวันจันทร์ (ยกเว้นวันหยุดนักขัตฤกษ์ โดยจะข้ามไปจัดวันจันทร์ทำการถัดไป)
  * 2. รองรับคอลัมน์ "เลื่อนตอบวันที่" (Postponed Date) จาก Google Sheets / ข้อมูลกระทู้
  * 3. ให้กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็นลำดับแรกในสัปดาห์นั้น (เรียงตามลำดับที่ยื่นกระทู้)
- * 4. สามารถจัดเกิน 3 กระทู้ได้ หากมีการเลื่อนกระทู้ถามมาตอบในวันดังกล่าว (ปกติ 3 เรื่อง + กระทู้เลื่อน = 3+N เรื่อง)
- * 5. กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ "ชื่อผู้ตั้งถามสามารถซ้ำกันได้"
- * 6. สำหรับกระทู้ที่จัดตามลำดับปกติ (3 เรื่อง) ห้ามผู้ตั้งถามซ้ำกันในวันเดียวกัน
- * 7. จัดเรียงตามลำดับที่ยื่นกระทู้อย่างเคร่งครัด
+ * 4. หากวันจันทร์เริ่มต้นวาระ มีกระทู้เลื่อนมาตอบ จะจัดเฉพาะกระทู้ที่เลื่อนมา โดยไม่ต้องนำลำดับที่ยื่นมาจัดในวันเริ่มต้นวาระ
+ * 5. สำหรับกระทู้ถามที่ถูกจัดลำดับในสัปดาห์แรกของวันจันทร์เริ่มต้นวาระ หากเลื่อนวันตอบ ไม่ต้องจัดลำดับกระทู้ถามตามลำดับที่ยื่นขึ้นมาแทนของกระทู้ถามสัปดาห์แรก
+ * 6. สำหรับสัปดาห์อื่นๆ สามารถจัดเกิน 3 กระทู้ได้ หากมีการเลื่อนกระทู้ถามมาตอบในวันดังกล่าว (ปกติ 3 เรื่อง + กระทู้เลื่อน = 3+N เรื่อง)
+ * 7. กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ "ชื่อผู้ตั้งถามห้ามซ้ำกัน" และให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
+ * 8. สำหรับกระทู้ที่จัดตามลำดับปกติ (3 เรื่อง) ห้ามผู้ตั้งถามซ้ำกันในวันเดียวกัน
+ * 9. จัดเรียงตามลำดับที่ยื่นกระทู้อย่างเคร่งครัด
  * 
  * @param allQuestions List of all submitted questions
  * @param postponedQuestionIds Set of question IDs currently marked as requested to postpone via UI
@@ -243,11 +284,28 @@ export function computeWeeklySchedules(
   const { workingMondays, skippedHolidays } = getWorkingMondays(startDate, maxWeeks, customHolidays);
   const schedules: WeeklySchedule[] = [];
 
+  // Determine the baseline candidates designated for the first week (w = 0)
+  // based strictly on order of submission and unique askers (up to 3 questions)
+  const firstWeekCandidates: QuestionItem[] = [];
+  const firstWeekAskers = new Set<string>();
+  for (const q of sortedQuestions) {
+    if (!firstWeekAskers.has(q.asker)) {
+      firstWeekCandidates.push(q);
+      firstWeekAskers.add(q.asker);
+      if (firstWeekCandidates.length === 3) break;
+    }
+  }
+  const firstWeekCandidateIds = new Set(firstWeekCandidates.map((q) => q.id));
+
   // Group questions that have explicit "postponedDate" (เลื่อนตอบวันที่) by their target working Monday
   const explicitPostponedByMonday = new Map<string, QuestionItem[]>();
   const regularPool: QuestionItem[] = [];
 
   for (const q of sortedQuestions) {
+    // First week candidates are handled specifically in week 0
+    if (firstWeekCandidateIds.has(q.id)) {
+      continue;
+    }
     if (q.postponedDate && q.postponedDate.trim() !== '') {
       const parsedISO = parseThaiOrISODate(q.postponedDate);
       if (parsedISO) {
@@ -270,8 +328,9 @@ export function computeWeeklySchedules(
     const mondayDate = workingMondays[w];
     const scheduledQuestions: ScheduledQuestion[] = [];
     
-    // Track askers specifically for the REGULAR queue questions scheduled today
-    const regularAskersInThisSession = new Set<string>();
+    // Track ALL askers scheduled for this Monday session (both postponed and regular)
+    // to strictly enforce: "กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ ชื่อผู้ตั้งถามห้ามซ้ำกันได้ และให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ"
+    const askersScheduledToday = new Set<string>();
 
     // 1. Collect all Postponed questions for this Monday:
     // A) Explicit postponed questions mapped to this Monday (from Google Sheets / data field)
@@ -285,8 +344,21 @@ export function computeWeeklySchedules(
 
     allPostponedForToday.sort((a, b) => a.question.submittedOrder - b.question.submittedOrder);
 
+    // Carry-overs to the next session
+    const nextDynamicPostponedCarryOver: { question: QuestionItem; originalDate: string }[] = [];
     let placedPostponedCount = 0;
+
     for (const item of allPostponedForToday) {
+      // ตรวจสอบว่าผู้ตั้งถามซ้ำกับกระทู้ที่ได้จัดในวันนี้แล้วหรือไม่
+      if (askersScheduledToday.has(item.question.asker)) {
+        // หากผู้ตั้งถามซ้ำกับกระทู้ที่จัดในวันนี้ -> ให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
+        nextDynamicPostponedCarryOver.push({
+          question: item.question,
+          originalDate: item.originalDate || mondayDate
+        });
+        continue;
+      }
+
       const isPostponedAgain = postponedQuestionIds.has(item.question.id);
       scheduledQuestions.push({
         question: item.question,
@@ -295,69 +367,126 @@ export function computeWeeklySchedules(
         postponedFromDate: item.originalDate,
         isPostponedNow: isPostponedAgain
       });
+      askersScheduledToday.add(item.question.asker);
       placedPostponedCount++;
-    }
 
-    // Reset carry-overs
-    dynamicPostponedCarryOver = [];
-
-    // 2. Fill 3 REGULAR slots from the general pool:
-    // "ให้นำไปจัดลำดับรวมกับกระทู้ถามที่จัดตามเงื่อนไข 3 กระทู้ถามต่อวันด้วย"
-    // "โดยกระทู้ถามที่ขอเลื่อนให้ยกเว้นเงื่อนไขเรื่องชื่อซ้ำ"
-    let regularScheduledCount = 0;
-    const newPool: QuestionItem[] = [];
-
-    for (const q of pool) {
-      if (regularScheduledCount < 3) {
-        // Check rule: No duplicate asker AMONG the regular questions scheduled today
-        // (Note: It is explicitly ALLOWED to share asker name with postponed questions)
-        if (!regularAskersInThisSession.has(q.asker)) {
-          const isPostponed = postponedQuestionIds.has(q.id);
-          scheduledQuestions.push({
-            question: q,
-            slotNumber: scheduledQuestions.length + 1,
-            isPostponedFromPrevious: false,
-            isPostponedNow: isPostponed
-          });
-          regularAskersInThisSession.add(q.asker);
-          regularScheduledCount++;
-        } else {
-          // Cannot place today due to duplicate asker with another regular question, stays in pool
-          newPool.push(q);
-        }
-      } else {
-        // Regular capacity of 3 reached for today, stays in pool
-        newPool.push(q);
-      }
-    }
-    pool = newPool;
-
-    // 3. Check if any question scheduled today was marked as "Postponed" (ขอเลื่อน) via interactive button
-    // If postponed, they move to dynamicPostponedCarryOver for the NEXT working Monday!
-    const effectiveScheduled: ScheduledQuestion[] = [];
-    for (const sq of scheduledQuestions) {
-      if (sq.isPostponedNow) {
-        dynamicPostponedCarryOver.push({
-          question: sq.question,
+      if (isPostponedAgain) {
+        nextDynamicPostponedCarryOver.push({
+          question: item.question,
           originalDate: mondayDate
         });
       }
-      effectiveScheduled.push(sq);
+    }
+
+    // Reset carry-overs and initialize with carryovers from today's postponed queue
+    dynamicPostponedCarryOver = nextDynamicPostponedCarryOver;
+
+    // 2. Schedule regular slots:
+    if (w === 0) {
+      // สัปดาห์แรกของวันเริ่มต้นวาระ:
+      // จัดเฉพาะกระทู้ถามชุดแรก (firstWeekCandidates ไม่เกิน 3 เรื่อง ตามลำดับที่ยื่น)
+      // กฎเกณฑ์สำคัญ: หากเลื่อนวันตอบ ไม่ต้องจัดลำดับกระทู้ถามตามลำดับที่ยื่นขึ้นมาแทนของกระทู้ถามสัปดาห์แรก
+      // แต่ให้คงชื่อเรื่องแสดงไว้ และแสดงสถานะเป็นเลื่อนวันตอบ
+      for (const candidate of firstWeekCandidates) {
+        // ตรวจสอบว่าผู้ตั้งถามซ้ำกับกระทู้ที่เลื่อนมาตอบในสัปดาห์แรกหรือไม่
+        if (askersScheduledToday.has(candidate.asker)) {
+          // หากผู้ตั้งถามซ้ำ ให้เลื่อนไปจัดในสัปดาห์ถัดๆ ไป
+          pool.push(candidate);
+          continue;
+        }
+
+        const isPostponed =
+          postponedQuestionIds.has(candidate.id) ||
+          !!(candidate.postponedDate && candidate.postponedDate.trim() !== '');
+
+        scheduledQuestions.push({
+          question: candidate,
+          slotNumber: scheduledQuestions.length + 1,
+          isPostponedFromPrevious: false,
+          isPostponedNow: isPostponed
+        });
+        askersScheduledToday.add(candidate.asker);
+
+        // หากกระทู้ในสัปดาห์แรกนี้มีการเลื่อนวันตอบ:
+        // ให้ส่งต่อไปยังวันตอบที่กำหนด (หรือวันจันทร์ถัดไป) โดยได้สิทธิ์เป็นลำดับแรก
+        if (isPostponed) {
+          let assignedTarget = false;
+          if (candidate.postponedDate && candidate.postponedDate.trim() !== '') {
+            const parsedISO = parseThaiOrISODate(candidate.postponedDate);
+            if (parsedISO) {
+              const targetMonday = findMatchingWorkingMonday(parsedISO, workingMondays);
+              if (targetMonday && targetMonday !== mondayDate) {
+                const list = explicitPostponedByMonday.get(targetMonday) || [];
+                list.push(candidate);
+                explicitPostponedByMonday.set(targetMonday, list);
+                assignedTarget = true;
+              }
+            }
+          }
+          if (!assignedTarget) {
+            // ยกยอดไปยังสัปดาห์ทำการถัดไป
+            dynamicPostponedCarryOver.push({
+              question: candidate,
+              originalDate: mondayDate
+            });
+          }
+        }
+      }
+      pool.sort((a, b) => a.submittedOrder - b.submittedOrder);
+      // ในสัปดาห์แรก: ไม่ดึงกระทู้จาก pool ขึ้นมาแทนอย่างเด็ดขาด คง pool ไว้สำหรับสัปดาห์ถัดไป
+    } else {
+      // สัปดาห์ถัดไป (w > 0): จัดตามลำดับปกติ (สูงสุด 3 เรื่อง, ห้ามผู้ตั้งถามซ้ำกันกับทุกกระทู้ในวันนี้)
+      let regularScheduledCount = 0;
+      const newPool: QuestionItem[] = [];
+
+      for (const q of pool) {
+        const isPostponedViaUI = postponedQuestionIds.has(q.id);
+
+        if (regularScheduledCount < 3) {
+          // กฎเกณฑ์: กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ ชื่อผู้ตั้งถามห้ามซ้ำกันได้
+          // และให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
+          if (!askersScheduledToday.has(q.asker)) {
+            scheduledQuestions.push({
+              question: q,
+              slotNumber: scheduledQuestions.length + 1,
+              isPostponedFromPrevious: false,
+              isPostponedNow: isPostponedViaUI
+            });
+            askersScheduledToday.add(q.asker);
+            regularScheduledCount++;
+
+            if (isPostponedViaUI) {
+              dynamicPostponedCarryOver.push({
+                question: q,
+                originalDate: mondayDate
+              });
+            }
+          } else {
+            // ผู้ตั้งถามซ้ำกับกระทู้ที่จัดในวันนี้ (ทั้งกระทู้เลื่อนมาตอบ และกระทู้ปกติก่อนหน้า)
+            // -> เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
+            newPool.push(q);
+          }
+        } else {
+          newPool.push(q);
+        }
+      }
+      pool = newPool;
     }
 
     // Re-number slot numbers for clean display
-    effectiveScheduled.forEach((sq, idx) => {
+    scheduledQuestions.forEach((sq, idx) => {
       sq.slotNumber = idx + 1;
     });
 
     const dynamicCapacity = 3 + placedPostponedCount;
+    const baseCapacity = 3;
 
     schedules.push({
       date: mondayDate,
       thaiDateFormatted: formatThaiDate(mondayDate),
-      questions: effectiveScheduled,
+      questions: scheduledQuestions,
       capacity: dynamicCapacity,
-      baseCapacity: 3,
+      baseCapacity: baseCapacity,
       postponedCount: placedPostponedCount
     });
 

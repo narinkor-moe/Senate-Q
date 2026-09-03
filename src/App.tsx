@@ -1,17 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import { QuestionItem } from './types';
 import { INITIAL_QUESTIONS } from './mockData';
-import { computeWeeklySchedules } from './scheduler';
+import { computeWeeklySchedules, THAI_PUBLIC_HOLIDAYS } from './scheduler';
 import { WeeklySection } from './components/WeeklySection';
 import { AllQuestionsTable } from './components/AllQuestionsTable';
 import { GoogleSheetsImport } from './components/GoogleSheetsImport';
 import { PostponeModal } from './components/PostponeModal';
+import { HolidayManagerModal } from './components/HolidayManagerModal';
 import {
   Calendar,
   Layers,
   Info,
   CheckCircle2,
   CalendarCheck,
+  CalendarOff,
+  CalendarDays,
   Clock,
   Sliders,
   Printer,
@@ -21,6 +24,8 @@ import {
   Plus
 } from 'lucide-react';
 
+const STORAGE_KEY_HOLIDAYS = 'senate_official_holidays';
+
 export default function App() {
   // 1. All questions state
   const [questions, setQuestions] = useState<QuestionItem[]>(INITIAL_QUESTIONS);
@@ -28,14 +33,73 @@ export default function App() {
   // 2. Set of postponed question IDs
   const [postponedIds, setPostponedIds] = useState<Set<string>>(new Set());
 
-  // 3. Postpone Modal State
+  // 3. Official Public Holidays state (persisted to localStorage)
+  const [holidays, setHolidays] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_HOLIDAYS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Error loading holidays from localStorage', e);
+    }
+    return THAI_PUBLIC_HOLIDAYS;
+  });
+
+  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
+
+  // 4. Postpone Modal State
   const [postponeModalQuestion, setPostponeModalQuestion] = useState<QuestionItem | null>(null);
   const [isPostponeModalOpen, setIsPostponeModalOpen] = useState(false);
 
-  // 4. Configuration for starting Monday date
+  // 5. Configuration for starting Monday date
   const [startDate, setStartDate] = useState<string>('2026-09-07');
   const [maxWeeks, setMaxWeeks] = useState<number>(6);
   const [selectedWeekFilter, setSelectedWeekFilter] = useState<string | 'all'>('all');
+
+  // Save / Add / Edit a Holiday
+  const handleSaveHoliday = (date: string, name: string, oldDate?: string) => {
+    setHolidays((prev) => {
+      const next = { ...prev };
+      if (oldDate && oldDate !== date) {
+        delete next[oldDate];
+      }
+      next[date] = name;
+      try {
+        localStorage.setItem(STORAGE_KEY_HOLIDAYS, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
+
+  // Delete a Holiday
+  const handleDeleteHoliday = (date: string) => {
+    setHolidays((prev) => {
+      const next = { ...prev };
+      delete next[date];
+      try {
+        localStorage.setItem(STORAGE_KEY_HOLIDAYS, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
+
+  // Reset Holidays to official Thai defaults
+  const handleResetHolidays = () => {
+    setHolidays(THAI_PUBLIC_HOLIDAYS);
+    try {
+      localStorage.removeItem(STORAGE_KEY_HOLIDAYS);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Open Postpone Modal for a question
   const handleOpenPostponeModal = (question: QuestionItem) => {
@@ -68,10 +132,10 @@ export default function App() {
     });
   };
 
-  // Compute Weekly Schedules using Core Algorithm
+  // Compute Weekly Schedules using Core Algorithm with custom/configured holidays
   const { schedules, remainingQuestions, skippedHolidays } = useMemo(() => {
-    return computeWeeklySchedules(questions, postponedIds, startDate, maxWeeks);
-  }, [questions, postponedIds, startDate, maxWeeks]);
+    return computeWeeklySchedules(questions, postponedIds, startDate, maxWeeks, holidays);
+  }, [questions, postponedIds, startDate, maxWeeks, holidays]);
 
   // Filtered schedules if a specific week is clicked in sidebar
   const displayedSchedules = useMemo(() => {
@@ -146,6 +210,19 @@ export default function App() {
 
           {/* User badge & Actions */}
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsHolidayModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-colors cursor-pointer"
+              title="เพิ่ม ลบ หรือแก้ไขวันหยุดราชการในปฏิทิน"
+            >
+              <CalendarOff className="w-3.5 h-3.5 text-rose-300" />
+              <span>ปฏิทินวันหยุดราชการ</span>
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-rose-500/80 text-white text-[10px] font-bold">
+                {Object.keys(holidays).length}
+              </span>
+            </button>
+
             <GoogleSheetsImport onImportQuestions={handleImportSheetQuestions} />
             
             <button
@@ -244,13 +321,37 @@ export default function App() {
               })}
             </div>
 
+            {/* Quick Manage Holidays Button under Week list */}
+            <button
+              type="button"
+              onClick={() => setIsHolidayModalOpen(true)}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-rose-50/80 hover:bg-rose-100/80 text-rose-800 border border-rose-200 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+            >
+              <div className="flex items-center gap-1.5">
+                <CalendarOff className="w-3.5 h-3.5 text-rose-600" />
+                <span>จัดการวันหยุดราชการ</span>
+              </div>
+              <span className="text-[10px] bg-rose-200/80 text-rose-900 px-2 py-0.5 rounded-full font-bold">
+                {Object.keys(holidays).length} วัน
+              </span>
+            </button>
+
             {/* Skipped Holidays Notice in Sidebar */}
             {skippedHolidays.length > 0 && (
-              <div className="mt-3 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-800 space-y-1">
-                <span className="font-bold flex items-center gap-1 text-rose-900">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                  วันหยุดนักขัตฤกษ์ (งดประชุม):
-                </span>
+              <div className="mt-3 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-800 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold flex items-center gap-1 text-rose-900">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                    วันหยุดนักขัตฤกษ์ (งดประชุม):
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsHolidayModalOpen(true)}
+                    className="text-[10px] text-rose-700 hover:text-rose-900 underline font-semibold cursor-pointer"
+                  >
+                    แก้ไข
+                  </button>
+                </div>
                 <ul className="list-disc list-inside space-y-0.5 text-rose-700">
                   {skippedHolidays.map((h) => (
                     <li key={h.date} className="truncate" title={`${h.name} (${h.date})`}>
@@ -287,9 +388,10 @@ export default function App() {
             </span>
             <ul className="text-xs text-amber-900/90 space-y-1.5 list-disc list-inside leading-relaxed">
               <li>จัดครั้งละ <strong>3 เรื่อง</strong> ทุกวันจันทร์ (ยกเว้นวันหยุดนักขัตฤกษ์)</li>
-              <li>กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็น <strong>ลำดับแรกในสัปดาห์ถัดไป</strong> (เรียงตามลำดับที่ยื่น)</li>
-              <li>สามารถจัด <strong>เกิน 3 กระทู้ได้</strong> หากมีการเลื่อนกระทู้ถามมาตอบในวันดังกล่าว</li>
-              <li>กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ <strong>ชื่อผู้ตั้งถามสามารถซ้ำกันได้</strong></li>
+              <li>กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็น <strong>ลำดับแรก</strong> ในวันที่ขอเลื่อนไปตอบ (เรียงตามลำดับที่ยื่น)</li>
+              <li><strong>กระทู้ถามในสัปดาห์แรกของวันเริ่มต้นวาระ:</strong> หากเลื่อนวันตอบ ไม่ต้องจัดลำดับกระทู้ถามตามลำดับที่ยื่นขึ้นมาแทนของกระทู้ถามสัปดาห์แรก แต่ให้คงชื่อเรื่องแสดงไว้ และแสดงสถานะเป็นเลื่อนวันตอบ</li>
+              <li>สำหรับสัปดาห์อื่นๆ สามารถจัด <strong>เกิน 3 กระทู้ได้</strong> หากมีการเลื่อนกระทู้ถามมาตอบในวันดังกล่าว</li>
+              <li>กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ <strong>ชื่อผู้ตั้งถามห้ามซ้ำกัน</strong> และให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ</li>
               <li>จัดตามลำดับปกติในวันเดียวกัน <strong>ห้ามผู้ตั้งถามซ้ำกัน</strong></li>
               <li>เรียงตาม <strong>ลำดับที่ยื่น</strong> อย่างเคร่งครัด</li>
             </ul>
@@ -382,6 +484,17 @@ export default function App() {
         }}
         onSavePostpone={handleSavePostponedDate}
         startDate={startDate}
+        holidays={holidays}
+      />
+
+      {/* Holiday Manager Modal (เพิ่ม ลบ แก้ไข วันหยุดราชการในปฏิทิน) */}
+      <HolidayManagerModal
+        isOpen={isHolidayModalOpen}
+        onClose={() => setIsHolidayModalOpen(false)}
+        holidays={holidays}
+        onSaveHoliday={handleSaveHoliday}
+        onDeleteHoliday={handleDeleteHoliday}
+        onResetHolidays={handleResetHolidays}
       />
     </div>
   );

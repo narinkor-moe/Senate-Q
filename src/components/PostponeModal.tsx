@@ -20,6 +20,7 @@ interface PostponeModalProps {
   onClose: () => void;
   onSavePostpone: (questionId: string, targetDateISO: string | undefined) => void;
   startDate: string;
+  holidays?: Record<string, string>;
 }
 
 export const PostponeModal: React.FC<PostponeModalProps> = ({
@@ -28,15 +29,16 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
   onClose,
   onSavePostpone,
   startDate,
+  holidays,
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Generate upcoming working Mondays for quick selection
+  // Generate upcoming working Mondays for quick selection (excluding holidays)
   const upcomingMondays = React.useMemo(() => {
-    const { workingMondays } = getWorkingMondays(startDate || '2026-09-07', 8);
+    const { workingMondays } = getWorkingMondays(startDate || '2026-09-07', 8, holidays);
     return workingMondays;
-  }, [startDate]);
+  }, [startDate, holidays]);
 
   useEffect(() => {
     if (question) {
@@ -204,7 +206,7 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
             <ul className="list-disc list-inside space-y-0.5 text-sky-800 leading-relaxed">
               <li>ได้สิทธิ์เป็น <strong>ลำดับแรก (Prioritized Slot)</strong> ในวันที่ขอเลื่อนไปตอบ</li>
               <li>สามารถจัด <strong>เกิน 3 กระทู้ได้</strong> ในวันดังกล่าว</li>
-              <li><strong>ยกเว้นเงื่อนไขเรื่องชื่อผู้ตั้งถามซ้ำ</strong> กับกระทู้ที่จัดตามลำดับปกติในวันนั้น</li>
+              <li><strong>ชื่อผู้ตั้งถามห้ามซ้ำกัน</strong> กับกระทู้ที่จัดในวันนั้น (หากซ้ำจะเลื่อนไปจัดในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ)</li>
               <li>หากมีกระทู้ขอเลื่อนในวันเดียวกันหลายเรื่อง จะเรียงตาม <strong>ลำดับที่ยื่น</strong></li>
             </ul>
           </div>
