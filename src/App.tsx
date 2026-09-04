@@ -7,6 +7,8 @@ import { AllQuestionsTable } from './components/AllQuestionsTable';
 import { GoogleSheetsImport } from './components/GoogleSheetsImport';
 import { PostponeModal } from './components/PostponeModal';
 import { HolidayManagerModal } from './components/HolidayManagerModal';
+import { PrintReportModal } from './components/PrintReportModal';
+import { executePrintReport, generateReportHtml } from './utils/printUtils';
 import {
   Calendar,
   Layers,
@@ -51,11 +53,15 @@ export default function App() {
 
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
 
-  // 4. Postpone Modal State
+  // 4. Print Report Modal State
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printTargetWeek, setPrintTargetWeek] = useState<string | undefined>(undefined);
+
+  // 5. Postpone Modal State
   const [postponeModalQuestion, setPostponeModalQuestion] = useState<QuestionItem | null>(null);
   const [isPostponeModalOpen, setIsPostponeModalOpen] = useState(false);
 
-  // 5. Configuration for starting Monday date
+  // 6. Configuration for starting Monday date
   const [startDate, setStartDate] = useState<string>('2026-09-07');
   const [maxWeeks, setMaxWeeks] = useState<number>(6);
   const [selectedWeekFilter, setSelectedWeekFilter] = useState<string | 'all'>('all');
@@ -184,8 +190,23 @@ export default function App() {
     setPostponedIds(new Set());
   };
 
-  const handlePrint = () => {
-    window.print();
+  // Open print report modal with optional preselected week
+  const handleOpenPrintModal = (targetWeekDate?: string) => {
+    setPrintTargetWeek(targetWeekDate);
+    setIsPrintModalOpen(true);
+  };
+
+  // Quick Direct Print: sends clean official HTML report to printer directly
+  const handleDirectQuickPrint = async () => {
+    const html = generateReportHtml(schedules, questions, skippedHolidays, {
+      reportType: selectedWeekFilter === 'all' ? 'all_weeks' : 'selected_week',
+      selectedWeekDate: selectedWeekFilter === 'all' ? undefined : selectedWeekFilter,
+      includeSignature: true,
+      includeHolidayNotice: true,
+      includeSummary: true,
+      tableFontSize: 16,
+    });
+    await executePrintReport(html);
   };
 
   return (
@@ -225,14 +246,26 @@ export default function App() {
 
             <GoogleSheetsImport onImportQuestions={handleImportSheetQuestions} />
             
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-colors cursor-pointer"
-            >
-              <Printer className="w-3.5 h-3.5 text-slate-300" />
-              <span>พิมพ์รายงาน</span>
-            </button>
+            {/* Print Report Button Group */}
+            <div className="inline-flex items-center rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-colors overflow-hidden">
+              <button
+                type="button"
+                onClick={() => handleOpenPrintModal(selectedWeekFilter !== 'all' ? selectedWeekFilter : undefined)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-semibold hover:bg-white/10 transition-colors cursor-pointer"
+                title="เปิดหน้าต่างพิมพ์รายงาน (เลือกสัปดาห์ / รูปแบบรายงาน / พรีวิว)"
+              >
+                <Printer className="w-3.5 h-3.5 text-sky-300" />
+                <span>พิมพ์รายงาน</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDirectQuickPrint}
+                className="px-2 py-1.5 text-[11px] font-bold text-sky-200 hover:text-white hover:bg-white/20 border-l border-white/20 transition-colors cursor-pointer"
+                title="สั่งพิมพ์ออกเครื่องพิมพ์ทันที (Quick Print)"
+              >
+                พิมพ์ด่วน
+              </button>
+            </div>
 
             <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-slate-700 text-xs text-slate-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -436,6 +469,7 @@ export default function App() {
                 schedule={schedule}
                 weekIndex={idx}
                 onOpenPostponeModal={handleOpenPostponeModal}
+                onPrintWeek={(date) => handleOpenPrintModal(date)}
               />
             ))}
           </div>
@@ -495,6 +529,16 @@ export default function App() {
         onSaveHoliday={handleSaveHoliday}
         onDeleteHoliday={handleDeleteHoliday}
         onResetHolidays={handleResetHolidays}
+      />
+
+      {/* Print Report Modal (พิมพ์รายงานราชการมาตรฐาน / พรีวิว & สั่งพิมพ์ออกเครื่องพิมพ์) */}
+      <PrintReportModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        schedules={schedules}
+        allQuestions={questions}
+        selectedWeekDate={printTargetWeek}
+        skippedHolidays={skippedHolidays}
       />
     </div>
   );

@@ -1,1 +1,54 @@
 @import "tailwindcss";
+
+@media print {
+  /* Hide non-printable navigation, headers, sidebars, and control elements */
+  header,
+  aside,
+  button,
+  input,
+  select,
+  .no-print {
+    display: none !important;
+  }
+
+  body, #root {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Sarabun', sans-serif !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Make sure scrolling wrappers expand to show all content on paper */
+  div, main, section {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Print clean table borders and 16pt font size */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    font-size: 16pt !important;
+  }
+
+  th, td {
+    border: 1px solid #cbd5e1 !important;
+    font-size: 16pt !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Avoid breaking cards across pages */
+  section, .weekly-card, tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 15mm;
+  }
+}

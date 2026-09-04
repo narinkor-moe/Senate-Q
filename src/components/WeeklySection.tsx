@@ -1,18 +1,20 @@
 import React from 'react';
 import { WeeklySchedule, QuestionItem } from '../types';
 import { QuestionCard } from './QuestionCard';
-import { Calendar, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Calendar, AlertTriangle, CheckCircle2, Printer } from 'lucide-react';
 
 interface WeeklySectionProps {
   schedule: WeeklySchedule;
   weekIndex: number;
   onOpenPostponeModal: (question: QuestionItem) => void;
+  onPrintWeek?: (date: string) => void;
 }
 
 export const WeeklySection: React.FC<WeeklySectionProps> = ({
   schedule,
   weekIndex,
   onOpenPostponeModal,
+  onPrintWeek,
 }) => {
   const isPostponedPresent = schedule.questions.some((q) => q.isPostponedNow || !!q.question.postponedDate);
 
@@ -62,6 +64,18 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
           <div className="bg-white px-3.5 py-1 rounded-full border border-slate-200 text-xs font-semibold text-slate-700 shadow-2xs">
             วันจันทร์ที่ {schedule.date}
           </div>
+
+          {onPrintWeek && (
+            <button
+              type="button"
+              onClick={() => onPrintWeek(schedule.date)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+              title="พิมพ์เฉพาะระเบียบวาระสัปดาห์นี้"
+            >
+              <Printer className="w-3.5 h-3.5 text-slate-600" />
+              <span>พิมพ์วาระนี้</span>
+            </button>
+          )}
         </div>
       </div>
 
