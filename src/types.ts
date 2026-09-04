@@ -6,6 +6,7 @@ export interface QuestionItem {
   minister: string; // ถามรัฐมนตรี
   submittingDate?: string; // วันที่ยื่น (optional)
   postponedDate?: string; // เลื่อนตอบวันที่ (เช่น 2026-09-14 หรือ 14 ก.ย. 2569)
+  rawPostponedDate?: string; // ข้อความเดิมจากคอลัมน์ "เลื่อนตอบวันที่" ใน Google Sheet เช่น "21 ก.ย. 26"
   notes?: string; // หมายเหตุ
   status?: 'pending' | 'scheduled' | 'postponed' | 'completed';
 }

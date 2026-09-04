@@ -8,7 +8,9 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "มาตรการในการกำกับดูแลการหาผลประโยชน์จากทรัพย์สินของกองทุนสนับสนุนการสร้างเสริมสุขภาพ ตามมาตรา 9 (3) แห่งพระราชบัญญัติกองทุนสนับสนุนการสร้างเสริมสุขภาพ พ.ศ.2544",
     "asker": "นายประพนธ์ ตั้งศรีเกียรติกุล",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "postponedDate": "2026-09-21",
+    "rawPostponedDate": "21 ก.ย. 26",
+    "status": "postponed"
   },
   {
     "id": "q-2",
@@ -16,7 +18,9 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "ความคืบหน้าเกี่ยวกับการลงนามร่างมาตรฐานทั่วไปเกี่ยวกับการให้ความดีความชอบประจำปีของข้าราชการหรือพนักงานส่วนท้องถิ่น",
     "asker": "นายมังกร ศรีเจริญกูล",
     "minister": "รัฐมนตรีว่าการกระทรวงมหาดไทย",
-    "status": "pending"
+    "postponedDate": "2026-09-07",
+    "rawPostponedDate": "7 ก.ย. 26",
+    "status": "postponed"
   },
   {
     "id": "q-3",
@@ -24,7 +28,9 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "การกำกับดูแลการขนส่ง การใช้ประโยชน์ และความรับผิดชอบต่อผลกระทบของกากอุตสาหกรรมจากโรงไฟฟ้าหงสา สปป.ลาว ที่ขนส่งเข้ามาในประเทศไทย",
     "asker": "นายมังกร ศรีเจริญกูล",
     "minister": "รัฐมนตรีว่าการกระทรวงอุตสาหกรรม",
-    "status": "pending"
+    "postponedDate": "2026-09-14",
+    "rawPostponedDate": "14/9/2026",
+    "status": "postponed"
   },
   {
     "id": "q-4",

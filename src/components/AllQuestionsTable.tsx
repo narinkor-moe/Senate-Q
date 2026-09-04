@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { QuestionItem, WeeklySchedule } from '../types';
+import { formatPostponeDateDisplay } from '../scheduler';
 import {
   Search,
   ArrowUpDown,
@@ -719,7 +720,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                         {q.postponedDate && (
                           <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
                             <Clock className="w-3 h-3 text-amber-600" />
-                            เลื่อนตอบวันที่: {q.postponedDate}
+                            เลื่อนตอบวันที่: {formatPostponeDateDisplay(q.postponedDate, q.rawPostponedDate)}
                           </span>
                         )}
                       </div>
@@ -749,7 +750,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                             ขอเลื่อน
                           </span>
                           <span className="text-[10px] text-amber-700 font-medium mt-0.5">
-                            {q.postponedDate ? `ระบุ ${q.postponedDate}` : 'ยกยอดสัปดาห์ถัดไป'}
+                            {q.postponedDate ? `ระบุ ${formatPostponeDateDisplay(q.postponedDate, q.rawPostponedDate)}` : 'ยกยอดสัปดาห์ถัดไป'}
                           </span>
                         </div>
                       )}
@@ -789,7 +790,11 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                             type="button"
                             id={`btn-table-postpone-${q.id}`}
                             onClick={() => onOpenPostponeModal(q)}
-                            title={q.postponedDate ? `แก้ไขวันขอเลื่อน (${q.postponedDate})` : 'ขอเลื่อนวันตอบกระทู้'}
+                            title={
+                              q.postponedDate
+                                ? `ข้อมูลคอลัมน์ "เลื่อนตอบวันที่": ${q.rawPostponedDate || q.postponedDate} (คลิกเพื่อแก้ไข/ล้าง)`
+                                : 'ขอเลื่อนวันตอบกระทู้'
+                            }
                             className={`p-1 rounded transition-colors cursor-pointer mr-0.5 ${
                               q.postponedDate
                                 ? 'text-amber-700 bg-amber-100 hover:bg-amber-200'

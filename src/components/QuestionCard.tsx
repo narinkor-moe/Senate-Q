@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScheduledQuestion, QuestionItem } from '../types';
 import { User, Briefcase, Clock, RotateCcw, CornerDownRight, Calendar, Sparkles } from 'lucide-react';
+import { formatPostponeDateDisplay } from '../scheduler';
 
 interface QuestionCardProps {
   scheduledItem: ScheduledQuestion;
@@ -60,7 +61,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               <span>สถานะ: เลื่อนวันตอบ</span>
               {question.postponedDate ? (
                 <span className="font-normal text-amber-800">
-                  (กำหนดตอบ: {question.postponedDate})
+                  (กำหนดตอบ: {formatPostponeDateDisplay(question.postponedDate, question.rawPostponedDate)})
                 </span>
               ) : (
                 <span className="font-normal text-amber-800">
@@ -80,7 +81,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             {question.postponedDate && (
               <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium flex items-center gap-1 border border-slate-200">
                 <Calendar className="w-3 h-3 text-slate-400" />
-                ระบุเลื่อนตอบ: {question.postponedDate}
+                ระบุเลื่อนตอบ: {formatPostponeDateDisplay(question.postponedDate, question.rawPostponedDate)}
               </span>
             )}
           </div>
@@ -112,6 +113,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           type="button"
           id={`btn-postpone-${question.id}`}
           onClick={() => onOpenPostponeModal(question)}
+          title={
+            question.postponedDate
+              ? `ข้อมูลจาก Google Sheet คอลัมน์ "เลื่อนตอบวันที่": ${question.rawPostponedDate || question.postponedDate} (คลิกเพื่อแก้ไข/ล้าง)`
+              : 'ขอเลื่อนวันตอบกระทู้'
+          }
           className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
             question.postponedDate || isPostponedNow
               ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
@@ -121,7 +127,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           <Clock className={`w-3.5 h-3.5 ${question.postponedDate || isPostponedNow ? 'text-amber-700' : 'text-slate-500'}`} />
           <span>
             {question.postponedDate
-              ? `เลื่อนตอบ: ${question.postponedDate}`
+              ? `เลื่อนตอบ: ${formatPostponeDateDisplay(question.postponedDate, question.rawPostponedDate)}`
               : isPostponedNow
               ? 'เลื่อนวันตอบ (แก้ไข/ล้าง)'
               : 'ขอเลื่อนวันตอบกระทู้'}

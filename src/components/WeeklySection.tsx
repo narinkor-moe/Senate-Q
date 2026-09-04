@@ -50,7 +50,9 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
           {schedule.postponedCount && schedule.postponedCount > 0 ? (
             <span className="bg-sky-100 text-[#0369a1] px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border border-sky-200">
               <CheckCircle2 className="w-3.5 h-3.5 text-[#0369a1]" />
-              มีกระทู้เลื่อนมาตอบ +{schedule.postponedCount} เรื่อง (รวม {schedule.questions.length} เรื่อง)
+              {weekIndex === 0
+                ? `สัปดาห์เริ่มต้นวาระ: มีกระทู้เลื่อนมาตอบ ${schedule.postponedCount} เรื่อง (จัดเฉพาะกระทู้ที่เลื่อนมา)`
+                : `มีกระทู้เลื่อนมาตอบ +${schedule.postponedCount} เรื่อง (รวม ${schedule.questions.length} เรื่อง)`}
             </span>
           ) : null}
 
