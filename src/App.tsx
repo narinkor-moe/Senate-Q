@@ -196,7 +196,7 @@ export default function App() {
     setIsPrintModalOpen(true);
   };
 
-  // Quick Direct Print: sends clean official HTML report to printer directly
+  // Quick Direct Print: sends clean official HTML report to printer directly (A4 Landscape, 16pt font)
   const handleDirectQuickPrint = async () => {
     const html = generateReportHtml(schedules, questions, skippedHolidays, {
       reportType: selectedWeekFilter === 'all' ? 'all_weeks' : 'selected_week',
@@ -204,6 +204,7 @@ export default function App() {
       includeSignature: true,
       includeHolidayNotice: true,
       includeSummary: true,
+      orientation: 'landscape',
       tableFontSize: 16,
     });
     await executePrintReport(html);

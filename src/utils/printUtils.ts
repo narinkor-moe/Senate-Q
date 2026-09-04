@@ -7,6 +7,7 @@ export interface PrintReportOptions {
   includeSignature: boolean;
   includeHolidayNotice: boolean;
   includeSummary: boolean;
+  orientation?: 'landscape' | 'portrait';
   tableFontSize?: number;
   customTitle?: string;
   customDepartment?: string;
@@ -45,6 +46,8 @@ export function generateReportHtml(
   const title = options.customTitle || 'รายงานการจัดระเบียบวาระกระทู้ถามในการประชุมวุฒิสภา';
   const department = options.customDepartment || 'กลุ่มการเมือง สำนักงานรัฐมนตรี กระทรวงศึกษาธิการ';
   const tableFontSize = options.tableFontSize || 16;
+  const orientation = options.orientation || 'landscape';
+  const isLandscape = orientation === 'landscape';
 
   // Filter schedules based on reportType
   let targetSchedules = schedules;
@@ -75,12 +78,12 @@ export function generateReportHtml(
         <table class="report-table">
           <thead>
             <tr>
-              <th style="width: 70px; text-align: center;">ลำดับที่</th>
+              <th style="width: 75px; text-align: center;">ลำดับที่</th>
               <th>ชื่อเรื่องกระทู้ถาม</th>
-              <th style="width: 180px;">ผู้ตั้งกระทู้ถาม</th>
-              <th style="width: 180px;">ถามรัฐมนตรี</th>
-              <th style="width: 130px; text-align: center;">สถานะ</th>
-              <th style="width: 140px;">หมายเหตุ</th>
+              <th style="${isLandscape ? 'width: 220px;' : 'width: 180px;'}">ผู้ตั้งกระทู้ถาม</th>
+              <th style="${isLandscape ? 'width: 220px;' : 'width: 180px;'}">ถามรัฐมนตรี</th>
+              <th style="${isLandscape ? 'width: 145px;' : 'width: 130px;'} text-align: center;">สถานะ</th>
+              <th style="${isLandscape ? 'width: 180px;' : 'width: 140px;'}">หมายเหตุ</th>
             </tr>
           </thead>
           <tbody>
@@ -127,12 +130,12 @@ export function generateReportHtml(
           <table class="report-table">
             <thead>
               <tr>
-                <th style="width: 70px; text-align: center;">วาระที่</th>
-                <th style="width: 80px; text-align: center;">ลำดับยื่น</th>
+                <th style="width: 75px; text-align: center;">วาระที่</th>
+                <th style="width: 85px; text-align: center;">ลำดับยื่น</th>
                 <th>ชื่อเรื่องกระทู้ถาม</th>
-                <th style="width: 180px;">ผู้ตั้งกระทู้ถาม</th>
-                <th style="width: 180px;">ถามรัฐมนตรี</th>
-                <th style="width: 170px;">สถานะ / หมายเหตุ</th>
+                <th style="${isLandscape ? 'width: 220px;' : 'width: 180px;'}">ผู้ตั้งกระทู้ถาม</th>
+                <th style="${isLandscape ? 'width: 220px;' : 'width: 180px;'}">ถามรัฐมนตรี</th>
+                <th style="${isLandscape ? 'width: 210px;' : 'width: 170px;'}">สถานะ / หมายเหตุ</th>
               </tr>
             </thead>
             <tbody>
@@ -253,8 +256,8 @@ export function generateReportHtml(
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     @page {
-      size: A4 portrait;
-      margin: 15mm 15mm 15mm 15mm;
+      size: A4 ${orientation};
+      margin: ${isLandscape ? '12mm 15mm 12mm 15mm' : '15mm 15mm 15mm 15mm'};
     }
 
     * {
@@ -275,7 +278,7 @@ export function generateReportHtml(
 
     .report-container {
       width: 100%;
-      max-width: 860px;
+      max-width: ${isLandscape ? '1060px' : '860px'};
       margin: 0 auto;
     }
 

@@ -48,6 +48,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
   const [includeSignature, setIncludeSignature] = useState<boolean>(true);
   const [includeHolidayNotice, setIncludeHolidayNotice] = useState<boolean>(true);
   const [includeSummary, setIncludeSummary] = useState<boolean>(true);
+  const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [tableFontSize, setTableFontSize] = useState<number>(16);
   const [customTitle, setCustomTitle] = useState<string>(
     'รายงานการจัดระเบียบวาระกระทู้ถามในการประชุมวุฒิสภา'
@@ -67,6 +68,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
       includeSignature,
       includeHolidayNotice,
       includeSummary,
+      orientation,
       tableFontSize,
       customTitle,
       customDepartment,
@@ -78,6 +80,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
     includeSignature,
     includeHolidayNotice,
     includeSummary,
+    orientation,
     tableFontSize,
     customTitle,
     customDepartment,
@@ -105,7 +108,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 md:p-6 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-5xl w-full flex flex-col max-h-[94vh] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-6xl xl:max-w-7xl w-full flex flex-col max-h-[94vh] overflow-hidden">
         
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/90 flex items-center justify-between shrink-0">
@@ -310,6 +313,47 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
               </div>
             </div>
 
+            {/* Page Orientation Selector */}
+            <div className="space-y-2 pt-2 border-t border-slate-200">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                  ทิศทางหน้ากระดาษ (Orientation)
+                </label>
+                <span className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+                  {orientation === 'landscape' ? 'A4 แนวนอน' : 'A4 แนวตั้ง'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOrientation('landscape')}
+                  className={`py-2 px-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    orientation === 'landscape'
+                      ? 'bg-[#0369a1] text-white border-[#0369a1] shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="inline-block w-4 h-3 border-2 border-current rounded-2xs"></span>
+                  <span>A4 แนวนอน ★</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrientation('portrait')}
+                  className={`py-2 px-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    orientation === 'portrait'
+                      ? 'bg-[#0369a1] text-white border-[#0369a1] shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="inline-block w-3 h-4 border-2 border-current rounded-2xs"></span>
+                  <span>A4 แนวตั้ง</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                รายงานตารางที่มีรายละเอียดหลายคอลัมน์ แนะนำให้พิมพ์ในรูปแบบ <strong>"A4 แนวนอน"</strong>
+              </p>
+            </div>
+
             {/* Table Font Size Selector */}
             <div className="space-y-2 pt-2 border-t border-slate-200">
               <div className="flex items-center justify-between">
@@ -379,17 +423,26 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
 
           {/* Live Preview Panel (A4 Style Paper View) */}
           <div className="flex-1 bg-slate-200/70 p-4 md:p-6 overflow-y-auto flex flex-col items-center">
-            <div className="mb-2 text-xs font-semibold text-slate-500 flex items-center gap-1.5 self-start">
-              <Eye className="w-3.5 h-3.5 text-slate-400" />
-              <span>ตัวอย่างหน้ากระดาษก่อนพิมพ์จริง (ขนาดมาตรฐาน A4):</span>
+            <div className="mb-2 text-xs font-semibold text-slate-600 flex items-center justify-between w-full max-w-[1040px]">
+              <div className="flex items-center gap-1.5">
+                <Eye className="w-3.5 h-3.5 text-slate-400" />
+                <span>ตัวอย่างหน้ากระดาษก่อนพิมพ์จริง ({orientation === 'landscape' ? 'A4 แนวนอน' : 'A4 แนวตั้ง'}):</span>
+              </div>
+              <span className="text-[11px] font-bold text-sky-700 bg-white border border-slate-300 px-2.5 py-0.5 rounded-full shadow-2xs">
+                {orientation === 'landscape' ? '297 × 210 มม. (Landscape)' : '210 × 297 มม. (Portrait)'}
+              </span>
             </div>
 
             {/* Simulated A4 Paper */}
-            <div className="bg-white rounded-lg shadow-xl border border-slate-300 w-full max-w-[800px] p-6 md:p-8 min-h-[850px] transition-all overflow-hidden text-slate-900 font-['Sarabun',sans-serif]">
+            <div className={`bg-white rounded-lg shadow-xl border border-slate-300 w-full p-4 md:p-6 transition-all overflow-hidden text-slate-900 font-['Sarabun',sans-serif] ${
+              orientation === 'landscape' ? 'max-w-[1040px] min-h-[640px]' : 'max-w-[800px] min-h-[850px]'
+            }`}>
               <iframe
                 title="Print Preview"
                 srcDoc={reportHtml}
-                className="w-full h-[750px] border-0"
+                className={`w-full border-0 ${
+                  orientation === 'landscape' ? 'h-[620px]' : 'h-[750px]'
+                }`}
               />
             </div>
           </div>
