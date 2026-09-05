@@ -152,7 +152,9 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
           asker: askerVal || 'ไม่ระบุผู้ตั้งถาม',
           minister: ministerVal || 'ไม่ระบุรัฐมนตรี',
           postponedDate: cleanPostponedDate,
-          rawPostponedDate: postponedVal.trim() || undefined,
+          postponedSheetRaw: postponedVal.trim() || undefined,
+          isPostponedInSheet: !!cleanPostponedDate,
+          sheetRowIndex: i + 1,
           status: cleanPostponedDate ? 'postponed' : 'pending'
         });
       }

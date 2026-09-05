@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QuestionItem } from '../types';
-import { getWorkingMondays, formatThaiDate, parseThaiOrISODate } from '../scheduler';
+import { getWorkingMondays, formatThaiDate, parseThaiOrISODate, formatThaiShortDate } from '../scheduler';
 import {
   Calendar,
   Clock,
@@ -9,16 +9,22 @@ import {
   AlertCircle,
   X,
   Sparkles,
-  ArrowRight,
   Info,
-  CalendarCheck
+  CalendarCheck,
+  FileSpreadsheet,
+  RefreshCw,
+  CheckCircle2
 } from 'lucide-react';
 
 interface PostponeModalProps {
   question: QuestionItem | null;
   isOpen: boolean;
   onClose: () => void;
-  onSavePostpone: (questionId: string, targetDateISO: string | undefined) => void;
+  onSavePostpone: (
+    question: QuestionItem,
+    targetDateISO: string | undefined,
+    syncToSheet: boolean
+  ) => Promise<boolean | void> | boolean | void;
   startDate: string;
   holidays?: Record<string, string>;
 }
@@ -32,11 +38,14 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
   holidays,
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [syncToGoogleSheet, setSyncToGoogleSheet] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Generate upcoming working Mondays for quick selection (excluding holidays)
   const upcomingMondays = React.useMemo(() => {
-    const { workingMondays } = getWorkingMondays(startDate || '2026-09-07', 8, holidays);
+    const { workingMondays } = getWorkingMondays(startDate || '2026-08-31', 8, holidays);
     return workingMondays;
   }, [startDate, holidays]);
 
@@ -46,17 +55,26 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
         const parsed = parseThaiOrISODate(question.postponedDate);
         setSelectedDate(parsed || question.postponedDate);
       } else {
-        // Default to next week's Monday if available
-        setSelectedDate(upcomingMondays[1] || upcomingMondays[0] || '2026-09-14');
+        // Default to next available Monday
+        setSelectedDate(upcomingMondays[1] || upcomingMondays[0] || '2026-09-07');
       }
+      setSyncToGoogleSheet(true);
       setErrorMsg(null);
+      setSuccessMsg(null);
+      setIsSubmitting(false);
     }
   }, [question, upcomingMondays]);
 
   if (!isOpen || !question) return null;
 
-  const handleSave = (e: React.FormEvent) => {
+  const targetSheetRow = question.sheetRowIndex || question.submittedOrder + 1;
+  const targetCellName = `Data!C${targetSheetRow}`;
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
     if (!selectedDate || selectedDate.trim() === '') {
       setErrorMsg('กรุณาระบุวันที่ต้องการขอเลื่อนไปตอบ');
       return;
@@ -68,18 +86,54 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
       return;
     }
 
-    onSavePostpone(question.id, parsedISO);
-    onClose();
+    try {
+      setIsSubmitting(true);
+      const res = await onSavePostpone(question, parsedISO, syncToGoogleSheet);
+      if (res !== false) {
+        setSuccessMsg(
+          syncToGoogleSheet
+            ? `บันทึกข้อมูลและอัปเดตลง Google Sheet (${targetCellName}) สำเร็จ!`
+            : 'บันทึกการขอเลื่อนวันตอบในระบบเรียบร้อยแล้ว'
+        );
+        setTimeout(() => {
+          onClose();
+        }, 1200);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleResetPostpone = () => {
-    onSavePostpone(question.id, undefined);
-    onClose();
+  const handleResetPostpone = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      setIsSubmitting(true);
+      const res = await onSavePostpone(question, undefined, syncToGoogleSheet);
+      if (res !== false) {
+        setSuccessMsg(
+          syncToGoogleSheet
+            ? `ยกเลิกการขอเลื่อนและลบข้อมูลใน Google Sheet (${targetCellName}) สำเร็จ`
+            : 'ยกเลิกการขอเลื่อนตอบในระบบเรียบร้อยแล้ว'
+        );
+        setTimeout(() => {
+          onClose();
+        }, 1200);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err?.message || 'เกิดข้อผิดพลาดในการยกเลิกวันขอเลื่อน');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-5 max-h-[92vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 max-h-[92vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
@@ -87,25 +141,69 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
               <Clock className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">
-                ขอเลื่อนวันตอบกระทู้ถาม
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>ขอเลื่อนวันตอบกระทู้ถาม</span>
+                <span className="text-[11px] font-semibold text-slate-500 font-mono">
+                  #{question.submittedOrder.toString().padStart(3, '0')}/2569
+                </span>
               </h3>
               <p className="text-xs text-slate-500">
-                กำหนดวันที่ใหม่ที่ขอเลื่อนวันไปตอบในระเบียบวาระ
+                กำหนดวันขอเลื่อนตอบ และซิงค์ข้อมูลตรงกับ Google Sheet (คอลัมน์ "เลื่อนตอบวันที่")
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            disabled={isSubmitting}
+            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-40"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
+        {/* Google Sheet Verification Banner */}
+        {question.isPostponedInSheet || question.postponedSheetRaw ? (
+          <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-950">
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="flex-1 space-y-0.5">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-emerald-900">
+                  ตรวจพบวันเลื่อนตอบใน Google Sheet แล้ว
+                </span>
+                <span className="text-[10px] bg-emerald-200/80 text-emerald-900 px-1.5 py-0.2 rounded font-bold border border-emerald-300">
+                  {targetCellName}
+                </span>
+              </div>
+              <p className="text-emerald-800 text-[11px]">
+                ค่าปัจจุบันในคอลัมน์ "เลื่อนตอบวันที่":{' '}
+                <strong className="text-emerald-950 underline font-mono text-xs">
+                  {question.postponedSheetRaw || question.postponedDate}
+                </strong>
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-amber-50/80 rounded-xl p-3 border border-amber-200 flex items-start gap-2.5 text-xs text-amber-950">
+            <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+            <div className="flex-1 space-y-0.5">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-amber-900">
+                  ยังไม่มีวันเลื่อนตอบใน Google Sheet
+                </span>
+                <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-medium border border-amber-300">
+                  {targetCellName} ว่างอยู่
+                </span>
+              </div>
+              <p className="text-amber-800 text-[11px]">
+                คุณสามารถเลือกวันที่ขอเลื่อนด้านล่าง ระบบจะบันทึกข้อมูลลง Google Sheet อัตโนมัติ
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Question Details summary */}
-        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-xs space-y-2">
+        <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-xs space-y-2">
           <div className="flex items-center justify-between gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-800 font-bold text-[11px]">
               ลำดับที่ยื่น: {question.submittedOrder}
@@ -113,16 +211,16 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
             {question.postponedDate && (
               <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-semibold text-[10px] border border-amber-200 flex items-center gap-1">
                 <Clock className="w-3 h-3 text-amber-600" />
-                เลื่อนตอบเดิม: {question.postponedDate}
+                เลื่อนตอบปัจจุบัน: {question.postponedSheetRaw || question.postponedDate}
               </span>
             )}
           </div>
           <div>
             <span className="font-bold text-slate-900 text-sm leading-snug">
-              เรื่อง: {question.topic}
+              {question.topic}
             </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600 pt-1 border-t border-slate-200/60">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600 pt-1.5 border-t border-slate-200/60">
             <div>
               <span className="text-slate-400">ผู้ตั้งถาม: </span>
               <strong className="text-slate-700">{question.asker}</strong>
@@ -143,7 +241,7 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
                 ใส่วันที่ใหม่ที่ขอเลื่อนวันไปตอบ *
               </span>
               {selectedDate && (
-                <span className="text-[11px] font-medium text-[#0369a1]">
+                <span className="text-[11px] font-semibold text-[#0369a1]">
                   {formatThaiDate(selectedDate)}
                 </span>
               )}
@@ -151,32 +249,34 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
             <input
               type="date"
               required
+              disabled={isSubmitting}
               value={selectedDate}
               onChange={(e) => {
                 setSelectedDate(e.target.value);
                 setErrorMsg(null);
               }}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:outline-none focus:border-[#0369a1] focus:ring-2 focus:ring-[#0369a1]/20 bg-white"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:outline-none focus:border-[#0369a1] focus:ring-2 focus:ring-[#0369a1]/20 bg-white disabled:opacity-50"
             />
           </div>
 
           {/* Quick Select Buttons from Working Mondays */}
           <div>
             <span className="block text-[11px] font-bold text-slate-600 mb-1.5">
-              หรือเลือกวันจันทร์ที่มีการประชุมระเบียบวาระ:
+              หรือเลือกวันจันทร์ที่มีวาระการประชุม:
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
               {upcomingMondays.map((monday, idx) => {
                 const isSelected = selectedDate === monday;
                 return (
                   <button
                     key={monday}
                     type="button"
+                    disabled={isSubmitting}
                     onClick={() => {
                       setSelectedDate(monday);
                       setErrorMsg(null);
                     }}
-                    className={`flex items-center justify-between p-2 rounded-lg text-left text-xs font-medium transition-all border cursor-pointer ${
+                    className={`flex items-center justify-between p-2 rounded-lg text-left text-xs font-medium transition-all border cursor-pointer disabled:opacity-50 ${
                       isSelected
                         ? 'bg-[#0369a1] text-white border-[#0369a1] shadow-xs'
                         : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
@@ -186,9 +286,11 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
                       <CalendarCheck className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-[#0369a1]'}`} />
                       <span>{formatThaiDate(monday).replace('วันจันทร์ที่ ', '')}</span>
                     </div>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-                    }`}>
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
                       W{idx + 1}
                     </span>
                   </button>
@@ -197,24 +299,53 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
             </div>
           </div>
 
-          {/* Regulatory Rules Info Box */}
-          <div className="bg-sky-50 rounded-xl p-3 border border-sky-200 text-[11px] text-sky-900 space-y-1">
+          {/* Google Sheets Sync Checkbox */}
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                disabled={isSubmitting}
+                checked={syncToGoogleSheet}
+                onChange={(e) => setSyncToGoogleSheet(e.target.checked)}
+                className="mt-0.5 rounded border-slate-300 text-[#0369a1] focus:ring-[#0369a1] cursor-pointer"
+              />
+              <div className="text-xs">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  บันทึกข้อมูลลง Google Sheet ด้วย
+                </span>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  ระบบจะบันทึกวันที่ลงในเซลล์ <strong className="text-slate-800 font-mono">{targetCellName}</strong>{' '}
+                  (คอลัมน์ "เลื่อนตอบวันที่") ของ Google Sheet
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Parliamentary Rules Guide */}
+          <div className="bg-sky-50/80 rounded-xl p-3 border border-sky-200 text-[11px] text-sky-900 space-y-1">
             <div className="font-bold flex items-center gap-1 text-sky-950">
               <Sparkles className="w-3.5 h-3.5 text-[#0369a1]" />
               สิทธิ์และเกณฑ์การจัดลำดับเมื่อขอเลื่อนวันตอบ:
             </div>
-            <ul className="list-disc list-inside space-y-0.5 text-sky-800 leading-relaxed">
+            <ul className="list-disc list-inside space-y-0.5 text-sky-800 leading-relaxed pl-0.5">
               <li>ได้สิทธิ์เป็น <strong>ลำดับแรก (Prioritized Slot)</strong> ในวันที่ขอเลื่อนไปตอบ</li>
               <li>สามารถจัด <strong>เกิน 3 กระทู้ได้</strong> ในวันดังกล่าว</li>
-              <li><strong>ชื่อผู้ตั้งถามห้ามซ้ำกัน</strong> กับกระทู้ที่จัดในวันนั้น (หากซ้ำจะเลื่อนไปจัดในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ)</li>
-              <li>หากมีกระทู้ขอเลื่อนในวันเดียวกันหลายเรื่อง จะเรียงตาม <strong>ลำดับที่ยื่น</strong></li>
+              <li><strong>ชื่อผู้ตั้งถามห้ามซ้ำกัน</strong> กับกระทู้อื่นในวันนั้น</li>
             </ul>
           </div>
 
           {errorMsg && (
-            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2 animate-in fade-in duration-150">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2 animate-in fade-in duration-150">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <span>{successMsg}</span>
             </div>
           )}
 
@@ -223,17 +354,23 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
             {question.postponedDate ? (
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={handleResetPostpone}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-rose-700 hover:bg-rose-50 text-xs font-bold transition-colors cursor-pointer border border-rose-200"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-rose-700 hover:bg-rose-50 text-xs font-bold transition-colors cursor-pointer border border-rose-200 disabled:opacity-50"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>ยกเลิกการขอเลื่อน (ตอบตามปกติ)</span>
+                {isSubmitting ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-3.5 h-3.5" />
+                )}
+                <span>ยกเลิกการขอเลื่อน (ลบใน Google Sheet)</span>
               </button>
             ) : (
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-semibold cursor-pointer"
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-semibold cursor-pointer disabled:opacity-50"
               >
                 ปิด
               </button>
@@ -241,10 +378,20 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
 
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-[#0369a1] hover:bg-[#075985] text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-colors"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-[#0369a1] hover:bg-[#075985] text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-colors disabled:opacity-50"
             >
-              <Check className="w-4 h-4" />
-              <span>บันทึกการขอเลื่อนวันตอบ</span>
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>กำลังบันทึกลง Sheet...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>บันทึก & บันทึกลง Google Sheet</span>
+                </>
+              )}
             </button>
           </div>
         </form>

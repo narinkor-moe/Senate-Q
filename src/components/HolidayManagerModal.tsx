@@ -49,29 +49,35 @@ export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filterType, setFilterType] = useState<'all' | 'monday_only' | '2026' | '2027'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'monday_only' | 'cancelled_only' | 'holiday_only' | '2026' | '2027'>('all');
   const [confirmDeleteDate, setConfirmDeleteDate] = useState<string | null>(null);
 
   // Quick preset titles
   const PRESET_NAMES = [
+    'วันงดประชุม (มติที่ประชุม)',
+    'วันงดประชุมวุฒิสภา',
     'วันหยุดราชการเป็นกรณีพิเศษ',
     'วันหยุดชดเชย',
     'วันหยุดพิเศษตามมติ ครม.',
-    'วันหยุดชดเชยวันแรงงานแห่งชาติ',
-    'วันหยุดชดเชยวันสิ้นปี'
+    'วันหยุดชดเชยวันแรงงานแห่งชาติ'
   ];
 
   // Convert dictionary to sorted array
   const sortedHolidays = useMemo(() => {
     return Object.entries(holidays)
-      .map(([date, name]) => ({
-        date,
-        name,
-        isMonday: isMondayDate(date),
-        thaiFull: formatThaiDateWithDayOfWeek(date),
-        dayOfWeek: getDayOfWeekThai(date),
-        year: date.split('-')[0]
-      }))
+      .map(([date, rawName]) => {
+        const name = String(rawName || '');
+        const isCancelledMeeting = name.includes('งดประชุม') || name.includes('งดการประชุม');
+        return {
+          date,
+          name,
+          isMonday: isMondayDate(date),
+          isCancelledMeeting,
+          thaiFull: formatThaiDateWithDayOfWeek(date),
+          dayOfWeek: getDayOfWeekThai(date),
+          year: date.split('-')[0]
+        };
+      })
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [holidays]);
 
@@ -79,6 +85,9 @@ export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
   const totalCount = sortedHolidays.length;
   const mondayCount = useMemo(() => {
     return sortedHolidays.filter((h) => h.isMonday).length;
+  }, [sortedHolidays]);
+  const cancelledCount = useMemo(() => {
+    return sortedHolidays.filter((h) => h.isCancelledMeeting).length;
   }, [sortedHolidays]);
 
   // Filtered holidays list
@@ -95,6 +104,8 @@ export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
 
       // Filter category
       if (filterType === 'monday_only') return h.isMonday;
+      if (filterType === 'cancelled_only') return h.isCancelledMeeting;
+      if (filterType === 'holiday_only') return !h.isCancelledMeeting;
       if (filterType === '2026') return h.year === '2026';
       if (filterType === '2027') return h.year === '2027';
       return true;
@@ -199,7 +210,7 @@ export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-slate-900">
-                  จัดการปฏิทินวันหยุดราชการ
+                  จัดการปฏิทินวันหยุดนักขัตฤกษ์ และ วันงดประชุม
                 </h3>
                 <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-xs font-semibold">
                   {totalCount} วัน
@@ -208,9 +219,15 @@ export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                   ตรงกับวันจันทร์ {mondayCount} วัน (งดประชุม)
                 </span>
+                {cancelledCount > 0 && (
+                  <span className="bg-amber-100 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    วันงดประชุม {cancelledCount} วัน
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                เพิ่ม ลบ หรือแก้ไขวันหยุดนักขัตฤกษ์เพื่อประกอบการคำนวณและจัดระเบียบวาระกระทู้ถามอัตโนมัติ
+                เพิ่ม ลบ หรือแก้ไขวันหยุดนักขัตฤกษ์และวันงดประชุมวุฒิสภา เพื่อประกอบการคำนวณและจัดระเบียบวาระกระทู้ถามอัตโนมัติ (ข้ามไปจัดวันจันทร์ถัดไป)
               </p>
             </div>
           </div>
@@ -395,6 +412,32 @@ export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
                 เฉพาะวันจันทร์ ({mondayCount})
               </button>
 
+              {cancelledCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFilterType('cancelled_only')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
+                    filterType === 'cancelled_only'
+                      ? 'bg-amber-600 text-white shadow-2xs'
+                      : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200'
+                  }`}
+                >
+                  วันงดประชุม ({cancelledCount})
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setFilterType('holiday_only')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  filterType === 'holiday_only'
+                    ? 'bg-[#0369a1] text-white shadow-2xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                }`}
+              >
+                วันหยุดนักขัตฤกษ์ ({totalCount - cancelledCount})
+              </button>
+
               <button
                 type="button"
                 onClick={() => setFilterType('2026')}
@@ -467,6 +510,8 @@ export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
                       className={`p-3 rounded-xl border transition-all flex flex-wrap items-center justify-between gap-3 ${
                         isBeingEdited
                           ? 'bg-amber-50 border-amber-300 shadow-2xs'
+                          : item.isCancelledMeeting
+                          ? 'bg-amber-50/60 border-amber-200 hover:border-amber-300'
                           : item.isMonday
                           ? 'bg-rose-50/50 border-rose-200 hover:border-rose-300'
                           : 'bg-white border-slate-200 hover:border-slate-300'
@@ -476,7 +521,9 @@ export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
                       <div className="flex items-center gap-3 min-w-[240px] flex-1">
                         {/* Date badge */}
                         <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center border shrink-0 text-center font-bold ${
-                          item.isMonday
+                          item.isCancelledMeeting
+                            ? 'bg-amber-100 border-amber-200 text-amber-900'
+                            : item.isMonday
                             ? 'bg-rose-100 border-rose-200 text-rose-800'
                             : 'bg-slate-100 border-slate-200 text-slate-700'
                         }`}>
@@ -492,10 +539,15 @@ export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
                             <span className="font-bold text-xs text-slate-900 leading-snug">
                               {item.name}
                             </span>
-                            {item.isMonday ? (
+                            {item.isCancelledMeeting ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                                <AlertTriangle className="w-2.5 h-2.5 text-amber-600" />
+                                วันงดประชุมสภา (ข้ามไปจัดวันจันทร์ถัดไป)
+                              </span>
+                            ) : item.isMonday ? (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
                                 <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
-                                ตรงกับวันจันทร์ (งดประชุมสภา)
+                                ตรงกับวันจันทร์ (วันหยุดนักขัตฤกษ์ - งดประชุม)
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600">

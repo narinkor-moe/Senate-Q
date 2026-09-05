@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { QuestionItem, WeeklySchedule } from '../types';
-import { formatPostponeDateDisplay } from '../scheduler';
 import {
   Search,
   ArrowUpDown,
   Plus,
   Trash2,
   RotateCcw,
+  RefreshCw,
   Filter,
   CheckCircle2,
   Clock,
@@ -19,6 +19,7 @@ import {
   Sparkles,
   User,
   FileText,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 export type QuestionStatusCategory = 'all' | 'scheduled' | 'pending' | 'postponed';
@@ -33,6 +34,8 @@ interface AllQuestionsTableProps {
   onReorderQuestions?: (questions: QuestionItem[]) => void;
   onResetToDefault: () => void;
   onOpenPostponeModal?: (question: QuestionItem) => void;
+  onRefreshSheet?: () => void;
+  isRefreshingSheet?: boolean;
 }
 
 const highlightMatch = (text: string, query: string) => {
@@ -65,6 +68,8 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   onReorderQuestions,
   onResetToDefault,
   onOpenPostponeModal,
+  onRefreshSheet,
+  isRefreshingSheet,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchScope, setSearchScope] = useState<SearchScope>('all');
@@ -317,6 +322,20 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {onRefreshSheet && (
+            <button
+              type="button"
+              id="btn-table-refresh-sheet"
+              onClick={onRefreshSheet}
+              disabled={isRefreshingSheet}
+              title="ดึงข้อมูลที่เป็นปัจจุบันทั้งหมดจาก Google Sheet และประมวลผลจัดวาระใหม่ทันที"
+              className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingSheet ? 'animate-spin' : ''}`} />
+              <span>{isRefreshingSheet ? 'กำลังรีเฟรช...' : 'รีเฟรชจาก Sheet'}</span>
+            </button>
+          )}
+
           <button
             type="button"
             id="btn-open-add-question"
@@ -718,9 +737,24 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                           {highlightMatch(q.topic, searchScope === 'asker' ? '' : searchTerm)}
                         </span>
                         {q.postponedDate && (
-                          <span className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
-                            <Clock className="w-3 h-3 text-amber-600" />
-                            เลื่อนตอบวันที่: {formatPostponeDateDisplay(q.postponedDate, q.rawPostponedDate)}
+                          <span
+                            className={`inline-flex items-center gap-1 self-start px-2 py-0.5 rounded text-[10px] font-bold ${
+                              q.isPostponedInSheet
+                                ? 'bg-emerald-50 text-emerald-900 border border-emerald-300'
+                                : 'bg-amber-50 text-amber-900 border border-amber-200'
+                            }`}
+                          >
+                            {q.isPostponedInSheet ? (
+                              <FileSpreadsheet className="w-3 h-3 text-emerald-600 shrink-0" />
+                            ) : (
+                              <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                            )}
+                            <span>เลื่อนตอบวันที่: {q.postponedSheetRaw || q.postponedDate}</span>
+                            {q.isPostponedInSheet && (
+                              <span className="bg-emerald-200/80 text-emerald-900 px-1 rounded text-[9px] font-bold ml-0.5">
+                                Sheet
+                              </span>
+                            )}
                           </span>
                         )}
                       </div>
@@ -750,7 +784,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                             ขอเลื่อน
                           </span>
                           <span className="text-[10px] text-amber-700 font-medium mt-0.5">
-                            {q.postponedDate ? `ระบุ ${formatPostponeDateDisplay(q.postponedDate, q.rawPostponedDate)}` : 'ยกยอดสัปดาห์ถัดไป'}
+                            {q.postponedDate ? `ระบุ ${q.postponedDate}` : 'ยกยอดสัปดาห์ถัดไป'}
                           </span>
                         </div>
                       )}
@@ -792,16 +826,24 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                             onClick={() => onOpenPostponeModal(q)}
                             title={
                               q.postponedDate
-                                ? `ข้อมูลคอลัมน์ "เลื่อนตอบวันที่": ${q.rawPostponedDate || q.postponedDate} (คลิกเพื่อแก้ไข/ล้าง)`
-                                : 'ขอเลื่อนวันตอบกระทู้'
+                                ? q.isPostponedInSheet
+                                  ? `ข้อมูลจาก Google Sheet: ${q.postponedSheetRaw || q.postponedDate} (คลิกเพื่อแก้ไข/ล้าง)`
+                                  : `แก้ไขวันขอเลื่อน (${q.postponedDate})`
+                                : 'ใน Sheet ยังไม่มีวันเลื่อนตอบ (คลิกเพื่อขอเลื่อนและบันทึกลง Sheet)'
                             }
                             className={`p-1 rounded transition-colors cursor-pointer mr-0.5 ${
                               q.postponedDate
-                                ? 'text-amber-700 bg-amber-100 hover:bg-amber-200'
+                                ? q.isPostponedInSheet
+                                  ? 'text-emerald-800 bg-emerald-100 hover:bg-emerald-200'
+                                  : 'text-amber-700 bg-amber-100 hover:bg-amber-200'
                                 : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
                             }`}
                           >
-                            <Clock className="w-3.5 h-3.5" />
+                            {q.isPostponedInSheet ? (
+                              <FileSpreadsheet className="w-3.5 h-3.5" />
+                            ) : (
+                              <Clock className="w-3.5 h-3.5" />
+                            )}
                           </button>
                         )}
                         <button

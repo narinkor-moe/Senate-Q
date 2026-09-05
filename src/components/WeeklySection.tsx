@@ -1,13 +1,14 @@
 import React from 'react';
 import { WeeklySchedule, QuestionItem } from '../types';
 import { QuestionCard } from './QuestionCard';
-import { Calendar, AlertTriangle, CheckCircle2, Printer } from 'lucide-react';
+import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff } from 'lucide-react';
 
 interface WeeklySectionProps {
   schedule: WeeklySchedule;
   weekIndex: number;
   onOpenPostponeModal: (question: QuestionItem) => void;
   onPrintWeek?: (date: string) => void;
+  onCancelWeek?: (date: string) => void;
 }
 
 export const WeeklySection: React.FC<WeeklySectionProps> = ({
@@ -15,6 +16,7 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
   weekIndex,
   onOpenPostponeModal,
   onPrintWeek,
+  onCancelWeek,
 }) => {
   const isPostponedPresent = schedule.questions.some((q) => q.isPostponedNow || !!q.question.postponedDate);
 
@@ -50,9 +52,7 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
           {schedule.postponedCount && schedule.postponedCount > 0 ? (
             <span className="bg-sky-100 text-[#0369a1] px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border border-sky-200">
               <CheckCircle2 className="w-3.5 h-3.5 text-[#0369a1]" />
-              {weekIndex === 0
-                ? `สัปดาห์เริ่มต้นวาระ: มีกระทู้เลื่อนมาตอบ ${schedule.postponedCount} เรื่อง (จัดเฉพาะกระทู้ที่เลื่อนมา)`
-                : `มีกระทู้เลื่อนมาตอบ +${schedule.postponedCount} เรื่อง (รวม ${schedule.questions.length} เรื่อง)`}
+              มีกระทู้เลื่อนมาตอบ +{schedule.postponedCount} เรื่อง (รวม {schedule.questions.length} เรื่อง)
             </span>
           ) : null}
 
@@ -66,6 +66,18 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
           <div className="bg-white px-3.5 py-1 rounded-full border border-slate-200 text-xs font-semibold text-slate-700 shadow-2xs">
             วันจันทร์ที่ {schedule.date}
           </div>
+
+          {onCancelWeek && (
+            <button
+              type="button"
+              onClick={() => onCancelWeek(schedule.date)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold transition-colors cursor-pointer"
+              title="งดการประชุมสัปดาห์นี้ (ข้ามไปจัดวันจันทร์ถัดไป)"
+            >
+              <CalendarOff className="w-3.5 h-3.5 text-rose-600" />
+              <span>งดประชุมสัปดาห์นี้</span>
+            </button>
+          )}
 
           {onPrintWeek && (
             <button

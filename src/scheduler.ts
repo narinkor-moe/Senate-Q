@@ -51,30 +51,10 @@ const THAI_MONTH_NAMES: Record<string, number> = {
 };
 
 /**
- * Helper to normalize Thai two-digit and four-digit years into CE year (e.g. 2026)
- * - 2569 -> 2026
- * - 69 -> 2026 (BE 2569)
- * - 26 -> 2026 (CE 2026)
- * - 2026 -> 2026
- */
-function normalizeYear(year: number): number {
-  if (year > 2400) {
-    return year - 543;
-  }
-  if (year >= 50 && year < 100) {
-    return (2500 + year) - 543;
-  }
-  if (year < 50) {
-    return 2000 + year;
-  }
-  return year;
-}
-
-/**
  * Robust date parser that handles:
  * - ISO: 2026-09-14
- * - Thai short/long: 14 ก.ย. 2569, 14 กันยายน 2569, 14 ก.ย. 69, 21 ก.ย. 26
- * - Slash/Dash: 14/09/2569, 14-09-2569, 14/09/2026, 14/9/2026
+ * - Thai short/long: 14 ก.ย. 2569, 14 กันยายน 2569, 14 ก.ย. 69
+ * - Slash/Dash: 14/09/2569, 14-09-2569, 14/09/2026
  * Returns standardized ISO "YYYY-MM-DD" or null if unparseable
  */
 export function parseThaiOrISODate(inputStr?: string): string | null {
@@ -87,21 +67,26 @@ export function parseThaiOrISODate(inputStr?: string): string | null {
     return raw;
   }
 
-  // 2. Format: DD/MM/YYYY or DD-MM-YYYY (e.g. 14/09/2569 or 14/9/2026)
+  // 2. Format: DD/MM/YYYY or DD-MM-YYYY (e.g. 14/09/2569 or 14/09/2026)
   const slashMatch = raw.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
   if (slashMatch) {
     const day = parseInt(slashMatch[1], 10);
     const month = parseInt(slashMatch[2], 10);
     let year = parseInt(slashMatch[3], 10);
 
-    year = normalizeYear(year);
+    if (year > 2400) {
+      year -= 543; // Buddhist Era to CE
+    } else if (year < 100) {
+      year = year >= 50 ? 1900 + year : 2000 + year;
+      if (year > 2500) year -= 543;
+    }
 
     if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
       return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
   }
 
-  // 3. Thai textual format: e.g. "14 ก.ย. 2569", "21 ก.ย. 26", "วันจันทร์ที่ 14 กันยายน 2569"
+  // 3. Thai textual format: e.g. "14 ก.ย. 2569", "วันจันทร์ที่ 14 กันยายน 2569"
   for (const [mName, mNum] of Object.entries(THAI_MONTH_NAMES)) {
     if (raw.includes(mName)) {
       // Extract day and year around the month name
@@ -109,8 +94,17 @@ export function parseThaiOrISODate(inputStr?: string): string | null {
       const yearMatch = raw.match(new RegExp(`${mName.replace('.', '\\.')}\\s*(?:พ\\.ศ\\.\\s*)?(\\d{2,4})`));
       
       const day = dayMatch ? parseInt(dayMatch[1], 10) : 1;
-      let rawYear = yearMatch ? parseInt(yearMatch[1], 10) : 2569;
-      const year = normalizeYear(rawYear);
+      let year = yearMatch ? parseInt(yearMatch[1], 10) : 2569;
+
+      if (year > 2400) {
+        year -= 543;
+      } else if (year >= 50 && year < 100) {
+        // Thai Buddhist era 2-digit shorthand (e.g. 69 -> 2569 - 543 = 2026)
+        year = 2500 + year - 543;
+      } else if (year < 50) {
+        // CE 2-digit shorthand (e.g. 26 -> 2026)
+        year += 2000;
+      }
 
       return `${year}-${String(mNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
@@ -124,29 +118,6 @@ export function parseThaiOrISODate(inputStr?: string): string | null {
   }
 
   return null;
-}
-
-/**
- * Format date for display on buttons and badges:
- * e.g. "21 ก.ย. 2569"
- */
-export function formatPostponeDateDisplay(dateStr?: string, rawDateStr?: string): string {
-  if (!dateStr && !rawDateStr) return '';
-  const parsedISO = parseThaiOrISODate(dateStr || rawDateStr);
-  if (parsedISO) {
-    const d = new Date(parsedISO + 'T00:00:00');
-    if (!isNaN(d.getTime())) {
-      const thaiMonths = [
-        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
-      ];
-      const day = d.getDate();
-      const month = thaiMonths[d.getMonth()];
-      const year = d.getFullYear() + 543;
-      return `${day} ${month} ${year}`;
-    }
-  }
-  return rawDateStr || dateStr || '';
 }
 
 export const THAI_DAY_NAMES = [
@@ -204,6 +175,27 @@ export function formatThaiDate(dateStr: string): string {
   return `${dayName}ที่ ${day} ${month} ${year}`;
 }
 
+/**
+ * Format date string to Thai short format: เช่น 21 ก.ย. 2569 or 21 ก.ย. 69
+ */
+export function formatThaiShortDate(dateStr: string, useTwoDigitYear: boolean = false): string {
+  const parsedISO = parseThaiOrISODate(dateStr);
+  const target = parsedISO || dateStr;
+  const d = new Date(target + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+
+  const thaiShortMonths = [
+    'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+  ];
+  const day = d.getDate();
+  const month = thaiShortMonths[d.getMonth()];
+  const fullYear = d.getFullYear() + 543;
+  const yearStr = useTwoDigitYear ? String(fullYear).slice(-2) : String(fullYear);
+
+  return `${day} ${month} ${yearStr}`;
+}
+
 export interface WorkingMondayResult {
   workingMondays: string[];
   skippedHolidays: HolidayItem[];
@@ -237,9 +229,14 @@ export function getWorkingMondays(
     const dateStr = `${yyyy}-${mm}-${dd}`;
 
     if (customHolidays[dateStr]) {
+      const holidayName = customHolidays[dateStr];
+      const isCancelledMeeting =
+        holidayName.includes('งดประชุม') ||
+        holidayName.includes('งดการประชุม');
       skippedHolidays.push({
         date: dateStr,
-        name: customHolidays[dateStr]
+        name: holidayName,
+        type: isCancelledMeeting ? 'cancelled_meeting' : 'holiday',
       });
     } else {
       workingMondays.push(dateStr);
@@ -306,7 +303,7 @@ export function findMatchingWorkingMonday(
 export function computeWeeklySchedules(
   allQuestions: QuestionItem[],
   postponedQuestionIds: Set<string>,
-  startDate: string = '2026-09-07',
+  startDate: string = '2026-08-31',
   maxWeeks: number = 8,
   customHolidays: Record<string, string> = THAI_PUBLIC_HOLIDAYS
 ): {
@@ -320,12 +317,28 @@ export function computeWeeklySchedules(
   const { workingMondays, skippedHolidays } = getWorkingMondays(startDate, maxWeeks, customHolidays);
   const schedules: WeeklySchedule[] = [];
 
-  // Group questions that have explicit "postponedDate" (จากคอลัมน์ "เลื่อนตอบวันที่" ใน Google Sheets หรือที่ระบุไว้)
-  // โดยจัดสรรไปยังวันจันทร์ทำการที่ตรงกับวันที่ระบุ
+  // Determine the baseline candidates designated for the first week (w = 0)
+  // based strictly on order of submission and unique askers (up to 3 questions)
+  const firstWeekCandidates: QuestionItem[] = [];
+  const firstWeekAskers = new Set<string>();
+  for (const q of sortedQuestions) {
+    if (!firstWeekAskers.has(q.asker)) {
+      firstWeekCandidates.push(q);
+      firstWeekAskers.add(q.asker);
+      if (firstWeekCandidates.length === 3) break;
+    }
+  }
+  const firstWeekCandidateIds = new Set(firstWeekCandidates.map((q) => q.id));
+
+  // Group questions that have explicit "postponedDate" (เลื่อนตอบวันที่) by their target working Monday
   const explicitPostponedByMonday = new Map<string, QuestionItem[]>();
   const regularPool: QuestionItem[] = [];
 
   for (const q of sortedQuestions) {
+    // First week candidates are handled specifically in week 0
+    if (firstWeekCandidateIds.has(q.id)) {
+      continue;
+    }
     if (q.postponedDate && q.postponedDate.trim() !== '') {
       const parsedISO = parseThaiOrISODate(q.postponedDate);
       if (parsedISO) {
@@ -356,7 +369,7 @@ export function computeWeeklySchedules(
     // A) Explicit postponed questions mapped to this Monday (from Google Sheets / data field)
     const explicitForToday = explicitPostponedByMonday.get(mondayDate) || [];
     
-    // Combine dynamic carryovers and explicit postponed items, sorted strictly by submittedOrder (หลักเกณฑ์ข้อ 3)
+    // Combine dynamic carryovers and explicit postponed items, sorted strictly by submittedOrder
     const allPostponedForToday: { question: QuestionItem; originalDate?: string }[] = [
       ...dynamicPostponedCarryOver.map((c) => ({ question: c.question, originalDate: c.originalDate })),
       ...explicitForToday.map((q) => ({ question: q, originalDate: q.postponedDate }))
@@ -369,7 +382,7 @@ export function computeWeeklySchedules(
     let placedPostponedCount = 0;
 
     for (const item of allPostponedForToday) {
-      // ตรวจสอบว่าผู้ตั้งถามซ้ำกับกระทู้ที่ได้จัดในวันนี้แล้วหรือไม่ (หลักเกณฑ์ข้อ 7)
+      // ตรวจสอบว่าผู้ตั้งถามซ้ำกับกระทู้ที่ได้จัดในวันนี้แล้วหรือไม่
       if (askersScheduledToday.has(item.question.asker)) {
         // หากผู้ตั้งถามซ้ำกับกระทู้ที่จัดในวันนี้ -> ให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
         nextDynamicPostponedCarryOver.push({
@@ -404,39 +417,58 @@ export function computeWeeklySchedules(
     // 2. Schedule regular slots:
     if (w === 0) {
       // สัปดาห์แรกของวันเริ่มต้นวาระ:
-      // หลักเกณฑ์ข้อ 4: "หากวันจันทร์เริ่มต้นวาระ มีกระทู้เลื่อนมาตอบ จะจัดเฉพาะกระทู้ที่เลื่อนมา โดยไม่ต้องนำลำดับที่ยื่นมาจัดในวันเริ่มต้นวาระ"
-      if (placedPostponedCount > 0) {
-        // จัดเฉพาะกระทู้ที่เลื่อนมา ไม่ดึงกระทู้จาก regular pool มาจัดในสัปดาห์เริ่มต้นวาระ
-      } else {
-        // หากไม่มีกระทู้เลื่อนมาตอบในสัปดาห์เริ่มต้นวาระ -> จัดตามลำดับที่ยื่นสูงสุด 3 เรื่อง
-        // หลักเกณฑ์ข้อ 5: "สำหรับกระทู้ถามที่ถูกจัดลำดับในสัปดาห์แรกของวันจันทร์เริ่มต้นวาระ หากเลื่อนวันตอบ ไม่ต้องจัดลำดับกระทู้ถามตามลำดับที่ยื่นขึ้นมาแทนของกระทู้ถามสัปดาห์แรก"
-        let firstWeekCount = 0;
-        const remainingPool: QuestionItem[] = [];
-        for (const q of pool) {
-          if (firstWeekCount < 3 && !askersScheduledToday.has(q.asker)) {
-            const isPostponed = postponedQuestionIds.has(q.id);
-            scheduledQuestions.push({
-              question: q,
-              slotNumber: scheduledQuestions.length + 1,
-              isPostponedFromPrevious: false,
-              isPostponedNow: isPostponed
-            });
-            askersScheduledToday.add(q.asker);
-            firstWeekCount++;
-            if (isPostponed) {
-              dynamicPostponedCarryOver.push({
-                question: q,
-                originalDate: mondayDate
-              });
+      // จัดเฉพาะกระทู้ถามชุดแรก (firstWeekCandidates ไม่เกิน 3 เรื่อง ตามลำดับที่ยื่น)
+      // กฎเกณฑ์สำคัญ: หากเลื่อนวันตอบ ไม่ต้องจัดลำดับกระทู้ถามตามลำดับที่ยื่นขึ้นมาแทนของกระทู้ถามสัปดาห์แรก
+      // แต่ให้คงชื่อเรื่องแสดงไว้ และแสดงสถานะเป็นเลื่อนวันตอบ
+      for (const candidate of firstWeekCandidates) {
+        // ตรวจสอบว่าผู้ตั้งถามซ้ำกับกระทู้ที่เลื่อนมาตอบในสัปดาห์แรกหรือไม่
+        if (askersScheduledToday.has(candidate.asker)) {
+          // หากผู้ตั้งถามซ้ำ ให้เลื่อนไปจัดในสัปดาห์ถัดๆ ไป
+          pool.push(candidate);
+          continue;
+        }
+
+        const isPostponed =
+          postponedQuestionIds.has(candidate.id) ||
+          !!(candidate.postponedDate && candidate.postponedDate.trim() !== '');
+
+        scheduledQuestions.push({
+          question: candidate,
+          slotNumber: scheduledQuestions.length + 1,
+          isPostponedFromPrevious: false,
+          isPostponedNow: isPostponed
+        });
+        askersScheduledToday.add(candidate.asker);
+
+        // หากกระทู้ในสัปดาห์แรกนี้มีการเลื่อนวันตอบ:
+        // ให้ส่งต่อไปยังวันตอบที่กำหนด (หรือวันจันทร์ถัดไป) โดยได้สิทธิ์เป็นลำดับแรก
+        if (isPostponed) {
+          let assignedTarget = false;
+          if (candidate.postponedDate && candidate.postponedDate.trim() !== '') {
+            const parsedISO = parseThaiOrISODate(candidate.postponedDate);
+            if (parsedISO) {
+              const targetMonday = findMatchingWorkingMonday(parsedISO, workingMondays);
+              if (targetMonday && targetMonday !== mondayDate) {
+                const list = explicitPostponedByMonday.get(targetMonday) || [];
+                list.push(candidate);
+                explicitPostponedByMonday.set(targetMonday, list);
+                assignedTarget = true;
+              }
             }
-          } else {
-            remainingPool.push(q);
+          }
+          if (!assignedTarget) {
+            // ยกยอดไปยังสัปดาห์ทำการถัดไป
+            dynamicPostponedCarryOver.push({
+              question: candidate,
+              originalDate: mondayDate
+            });
           }
         }
-        pool = remainingPool;
       }
+      pool.sort((a, b) => a.submittedOrder - b.submittedOrder);
+      // ในสัปดาห์แรก: ไม่ดึงกระทู้จาก pool ขึ้นมาแทนอย่างเด็ดขาด คง pool ไว้สำหรับสัปดาห์ถัดไป
     } else {
-      // สัปดาห์ถัดไป (w > 0): จัดตามลำดับปกติ (สูงสุด 3 เรื่อง, ห้ามผู้ตั้งถามซ้ำกันกับทุกกระทู้ในวันนี้ - หลักเกณฑ์ข้อ 6, 7, 8)
+      // สัปดาห์ถัดไป (w > 0): จัดตามลำดับปกติ (สูงสุด 3 เรื่อง, ห้ามผู้ตั้งถามซ้ำกันกับทุกกระทู้ในวันนี้)
       let regularScheduledCount = 0;
       const newPool: QuestionItem[] = [];
 
@@ -444,8 +476,8 @@ export function computeWeeklySchedules(
         const isPostponedViaUI = postponedQuestionIds.has(q.id);
 
         if (regularScheduledCount < 3) {
-          // หลักเกณฑ์ข้อ 7 & 8: กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ ชื่อผู้ตั้งถามห้ามซ้ำกัน
-          // และกระทู้ปกติในวันเดียวกันห้ามผู้ตั้งถามซ้ำกัน
+          // กฎเกณฑ์: กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ ชื่อผู้ตั้งถามห้ามซ้ำกันได้
+          // และให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
           if (!askersScheduledToday.has(q.asker)) {
             scheduledQuestions.push({
               question: q,
@@ -463,7 +495,8 @@ export function computeWeeklySchedules(
               });
             }
           } else {
-            // ผู้ตั้งถามซ้ำกับกระทู้ที่จัดในวันนี้ -> เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
+            // ผู้ตั้งถามซ้ำกับกระทู้ที่จัดในวันนี้ (ทั้งกระทู้เลื่อนมาตอบ และกระทู้ปกติก่อนหน้า)
+            // -> เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
             newPool.push(q);
           }
         } else {
@@ -478,8 +511,8 @@ export function computeWeeklySchedules(
       sq.slotNumber = idx + 1;
     });
 
-    const dynamicCapacity = (w === 0 && placedPostponedCount > 0) ? placedPostponedCount : 3 + placedPostponedCount;
-    const baseCapacity = (w === 0 && placedPostponedCount > 0) ? placedPostponedCount : 3;
+    const dynamicCapacity = 3 + placedPostponedCount;
+    const baseCapacity = 3;
 
     schedules.push({
       date: mondayDate,

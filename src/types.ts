@@ -6,7 +6,9 @@ export interface QuestionItem {
   minister: string; // ถามรัฐมนตรี
   submittingDate?: string; // วันที่ยื่น (optional)
   postponedDate?: string; // เลื่อนตอบวันที่ (เช่น 2026-09-14 หรือ 14 ก.ย. 2569)
-  rawPostponedDate?: string; // ข้อความเดิมจากคอลัมน์ "เลื่อนตอบวันที่" ใน Google Sheet เช่น "21 ก.ย. 26"
+  postponedSheetRaw?: string; // ข้อความเดิมจากคอลัมน์ "เลื่อนตอบวันที่" ใน Sheet เช่น "21 ก.ย. 26"
+  isPostponedInSheet?: boolean; // ตรวจพบวันเลื่อนตอบใน Google Sheet หรือไม่
+  sheetRowIndex?: number; // ลำดับแถวใน Google Sheet เช่น แถวที่ 2 (Data!C2)
   notes?: string; // หมายเหตุ
   status?: 'pending' | 'scheduled' | 'postponed' | 'completed';
 }
@@ -21,22 +23,25 @@ export interface ScheduledQuestion {
 
 export interface WeeklySchedule {
   date: string; // ISO format YYYY-MM-DD
-  thaiDateFormatted: string; // e.g. วันจันทร์ที่ 7 กันยายน 2569
+  thaiDateFormatted: string; // e.g. วันจันทร์ที่ 31 สิงหาคม 2569
   questions: ScheduledQuestion[];
   capacity: number; // default 3 or 3 + postponedCount
   baseCapacity?: number; // 3
   postponedCount?: number; // จำนวนกระทู้ที่เลื่อนมาจัดในสัปดาห์นี้
   isHoliday?: boolean;
   holidayName?: string;
+  isCancelledMeeting?: boolean;
+  cancelledReason?: string;
 }
 
 export interface HolidayItem {
   date: string;
   name: string;
+  type?: 'holiday' | 'cancelled_meeting';
 }
 
 export interface SimulationConfig {
-  startDate: string; // วันจันทร์แรกที่เริ่มบรรจุ
+  startDate: string; // วันจันทร์แรกที่เริ่มบรรจุ (31 สิงหาคม 2569 / 2026-08-31)
   maxWeeks: number; // จำนวนสัปดาห์ที่ต้องการจัดล่วงหน้า
   questionsPerWeek: number; // 3
 }

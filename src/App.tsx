@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { QuestionItem } from './types';
 import { INITIAL_QUESTIONS } from './mockData';
-import { computeWeeklySchedules, THAI_PUBLIC_HOLIDAYS } from './scheduler';
+import { computeWeeklySchedules, THAI_PUBLIC_HOLIDAYS, formatThaiDateWithDayOfWeek, parseThaiOrISODate } from './scheduler';
 import { WeeklySection } from './components/WeeklySection';
 import { AllQuestionsTable } from './components/AllQuestionsTable';
 import { GoogleSheetsImport } from './components/GoogleSheetsImport';
@@ -9,6 +9,15 @@ import { PostponeModal } from './components/PostponeModal';
 import { HolidayManagerModal } from './components/HolidayManagerModal';
 import { PrintReportModal } from './components/PrintReportModal';
 import { executePrintReport, generateReportHtml } from './utils/printUtils';
+import {
+  fetchPostponeMapFromSheet,
+  fetchFullQuestionsFromSheet,
+  savePostponeDateToSheet,
+  formatDateForSheet,
+  DEFAULT_SHEET_ID,
+  DEFAULT_SHEET_NAME,
+  DEFAULT_RANGE,
+} from './googleSheetsService';
 import {
   Calendar,
   Layers,
@@ -23,7 +32,13 @@ import {
   ChevronRight,
   ShieldCheck,
   AlertTriangle,
-  Plus
+  Plus,
+  RotateCcw,
+  Undo2,
+  FileSpreadsheet,
+  RefreshCw,
+  ExternalLink,
+  X
 } from 'lucide-react';
 
 const STORAGE_KEY_HOLIDAYS = 'senate_official_holidays';
@@ -61,10 +76,120 @@ export default function App() {
   const [postponeModalQuestion, setPostponeModalQuestion] = useState<QuestionItem | null>(null);
   const [isPostponeModalOpen, setIsPostponeModalOpen] = useState(false);
 
-  // 6. Configuration for starting Monday date
-  const [startDate, setStartDate] = useState<string>('2026-09-07');
-  const [maxWeeks, setMaxWeeks] = useState<number>(6);
+  // 6. Configuration for starting Monday date (Default: 31 สิงหาคม 2569 / 2026-08-31)
+  const [startDate, setStartDate] = useState<string>('2026-08-31');
+  const [maxWeeks, setMaxWeeks] = useState<number>(8);
   const [selectedWeekFilter, setSelectedWeekFilter] = useState<string | 'all'>('all');
+
+  // 7. Google Sheets Postpone Live Check & Status State
+  const [isCheckingSheet, setIsCheckingSheet] = useState<boolean>(false);
+  const [sheetCheckStatus, setSheetCheckStatus] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  // Function to refresh and reprocess all questions and postponements directly from live Google Sheet
+  const handleRefreshFromGoogleSheet = useCallback(async (showNotification: boolean = true) => {
+    try {
+      setIsCheckingSheet(true);
+      setSheetCheckStatus('กำลังดึงข้อมูลล่าสุดจาก Google Sheet และประมวลผลจัดวาระใหม่...');
+
+      const freshQuestions = await fetchFullQuestionsFromSheet(DEFAULT_SHEET_ID, DEFAULT_RANGE);
+      if (!freshQuestions || freshQuestions.length === 0) {
+        throw new Error('ไม่พบข้อมูลกระทู้ใน Google Sheet (ชีต Data)');
+      }
+
+      setQuestions(freshQuestions);
+
+      // Re-calculate postponed IDs from fresh questions
+      const newPostponedIds = new Set<string>();
+      let postponeCount = 0;
+      freshQuestions.forEach((q) => {
+        if (q.postponedDate) {
+          newPostponedIds.add(q.id);
+          postponeCount++;
+        }
+      });
+      setPostponedIds(newPostponedIds);
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const statusMsg = `รีเฟรชล่าสุด ${timeStr} น. (โหลดข้อมูล ${freshQuestions.length} กระทู้, เลื่อนตอบ ${postponeCount} เรื่อง)`;
+      setSheetCheckStatus(statusMsg);
+
+      if (showNotification) {
+        setToastMessage({
+          type: 'success',
+          text: `รีเฟรชข้อมูลจาก Google Sheet สำเร็จ! โหลดข้อมูลล่าสุด ${freshQuestions.length} กระทู้ (เลื่อนตอบ ${postponeCount} เรื่อง) และประมวลผลจัดวาระใหม่เรียบร้อยแล้ว`,
+        });
+        setTimeout(() => setToastMessage(null), 4500);
+      }
+    } catch (err: any) {
+      console.warn('Refresh from Google Sheet error, attempting postpone map check fallback:', err);
+      // Fallback: try checking postpone map
+      try {
+        const sheetMap = await fetchPostponeMapFromSheet(DEFAULT_SHEET_ID, DEFAULT_SHEET_NAME);
+        let foundCount = 0;
+        setQuestions((prev) =>
+          prev.map((q) => {
+            const sheetInfo = sheetMap.get(q.submittedOrder);
+            if (sheetInfo && sheetInfo.hasDate) {
+              foundCount++;
+              return {
+                ...q,
+                postponedDate: sheetInfo.parsedISO || sheetInfo.rawDate,
+                postponedSheetRaw: sheetInfo.rawDate,
+                isPostponedInSheet: true,
+                sheetRowIndex: sheetInfo.sheetRowNumber,
+                status: 'postponed' as const,
+              };
+            }
+            return q;
+          })
+        );
+        const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        setSheetCheckStatus(`อัปเดตวันเลื่อนตอบ ${timeStr} น. (${foundCount} เรื่อง)`);
+      } catch (innerErr) {
+        setSheetCheckStatus('ไม่สามารถรีเฟรช Google Sheet ได้ในขณะนี้');
+      }
+
+      if (showNotification) {
+        setToastMessage({
+          type: 'error',
+          text: `เกิดข้อผิดพลาดในการรีเฟรชจาก Google Sheet: ${err?.message || 'โปรดตรวจสอบการเชื่อมต่อ'}`,
+        });
+        setTimeout(() => setToastMessage(null), 5000);
+      }
+    } finally {
+      setIsCheckingSheet(false);
+    }
+  }, []);
+
+  // Function to inspect Google Sheet column "เลื่อนตอบวันที่" and sync into questions
+  const checkAndSyncGoogleSheet = useCallback(async (showNotification: boolean = false) => {
+    return handleRefreshFromGoogleSheet(showNotification);
+  }, [handleRefreshFromGoogleSheet]);
+
+  // Initial check on mount: pull latest data from Google Sheet
+  useEffect(() => {
+    handleRefreshFromGoogleSheet(false);
+  }, [handleRefreshFromGoogleSheet]);
+
+  // Toggle Cancel Meeting (วันงดประชุม) for a specific Monday
+  const handleToggleCancelMeeting = (dateStr: string, reason: string = 'วันงดประชุม (มติที่ประชุม)') => {
+    setHolidays((prev) => {
+      const next = { ...prev };
+      if (next[dateStr]) {
+        delete next[dateStr];
+      } else {
+        next[dateStr] = reason;
+      }
+      try {
+        localStorage.setItem(STORAGE_KEY_HOLIDAYS, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
 
   // Save / Add / Edit a Holiday
   const handleSaveHoliday = (date: string, name: string, oldDate?: string) => {
@@ -113,14 +238,46 @@ export default function App() {
     setIsPostponeModalOpen(true);
   };
 
-  // Save new postponed date for a question
-  const handleSavePostponedDate = (questionId: string, targetDateISO: string | undefined) => {
+  // Save new postponed date for a question & optionally write back to Google Sheet
+  const handleSavePostponedDate = async (
+    question: QuestionItem,
+    targetDateISO: string | undefined,
+    syncToSheet: boolean = true
+  ) => {
+    let finalRowIndex = question.sheetRowIndex || (question.submittedOrder + 1);
+    let finalRawDate = targetDateISO ? formatDateForSheet(targetDateISO) : undefined;
+
+    if (syncToSheet) {
+      try {
+        const res = await savePostponeDateToSheet(
+          question.submittedOrder,
+          targetDateISO,
+          DEFAULT_SHEET_ID,
+          DEFAULT_SHEET_NAME
+        );
+        finalRowIndex = res.sheetRowNumber;
+        finalRawDate = res.writtenValue || undefined;
+      } catch (err: any) {
+        console.error('Failed to write to Google Sheet:', err);
+        setToastMessage({
+          type: 'error',
+          text: `บันทึกในระบบแล้ว แต่บันทึกลง Google Sheet ไม่สำเร็จ: ${err?.message || 'ข้อผิดพลาดเครือข่าย'}`,
+        });
+        setTimeout(() => setToastMessage(null), 6000);
+        throw err;
+      }
+    }
+
+    // Update state locally
     setQuestions((prev) =>
       prev.map((q) => {
-        if (q.id === questionId) {
+        if (q.id === question.id) {
           return {
             ...q,
             postponedDate: targetDateISO,
+            postponedSheetRaw: syncToSheet ? finalRawDate : q.postponedSheetRaw,
+            isPostponedInSheet: syncToSheet ? !!targetDateISO : q.isPostponedInSheet,
+            sheetRowIndex: finalRowIndex,
             status: targetDateISO ? 'postponed' : 'pending',
           };
         }
@@ -128,14 +285,34 @@ export default function App() {
       })
     );
 
-    // If target date is cleared or set, also keep postponedIds in sync
+    // Update postponedIds
     setPostponedIds((prev) => {
       const next = new Set(prev);
-      if (!targetDateISO) {
-        next.delete(questionId);
+      if (targetDateISO) {
+        next.add(question.id);
+      } else {
+        next.delete(question.id);
       }
       return next;
     });
+
+    if (syncToSheet) {
+      setToastMessage({
+        type: 'success',
+        text: targetDateISO
+          ? `บันทึกลง Google Sheet สำเร็จ! (ลำดับที่ ${question.submittedOrder} แถวที่ ${finalRowIndex}: Data!C${finalRowIndex} = "${finalRawDate}")`
+          : `ลบวันเลื่อนตอบใน Google Sheet เรียบร้อยแล้ว (Data!C${finalRowIndex})`,
+      });
+      setTimeout(() => setToastMessage(null), 4500);
+    } else {
+      setToastMessage({
+        type: 'info',
+        text: targetDateISO
+          ? `บันทึกการขอเลื่อนวันตอบในระบบแล้ว (ไม่ได้บันทึกลง Google Sheet)`
+          : `ยกเลิกการขอเลื่อนวันตอบในระบบแล้ว`,
+      });
+      setTimeout(() => setToastMessage(null), 3500);
+    }
   };
 
   // Compute Weekly Schedules using Core Algorithm with custom/configured holidays
@@ -187,7 +364,13 @@ export default function App() {
   // Import from Google Sheets
   const handleImportSheetQuestions = (imported: QuestionItem[]) => {
     setQuestions(imported);
-    setPostponedIds(new Set());
+    const newPostponedIds = new Set<string>();
+    imported.forEach((q) => {
+      if (q.postponedDate) {
+        newPostponedIds.add(q.id);
+      }
+    });
+    setPostponedIds(newPostponedIds);
   };
 
   // Open print report modal with optional preselected week
@@ -245,6 +428,19 @@ export default function App() {
               </span>
             </button>
 
+            {/* Refresh Google Sheet Live Button (ปุ่ม Refresh ดึงข้อมูลปัจจุบันจาก Google Sheet และประมวลผล) */}
+            <button
+              type="button"
+              id="btn-refresh-google-sheet"
+              onClick={() => handleRefreshFromGoogleSheet(true)}
+              disabled={isCheckingSheet}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold border border-emerald-400/40 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              title="ดึงข้อมูลที่เป็นปัจจุบันทั้งหมดจาก Google Sheet และประมวลผลจัดวาระใหม่ทันที (Refresh from Google Sheet)"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-emerald-100 ${isCheckingSheet ? 'animate-spin' : ''}`} />
+              <span>{isCheckingSheet ? 'กำลังประมวลผล...' : 'รีเฟรชข้อมูล (Google Sheet)'}</span>
+            </button>
+
             <GoogleSheetsImport onImportQuestions={handleImportSheetQuestions} />
             
             {/* Print Report Button Group */}
@@ -284,16 +480,58 @@ export default function App() {
           
           {/* Quick Date Control */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Sliders className="w-3.5 h-3.5 text-[#0369a1]" />
-              วันจันทร์เริ่มต้นวาระ
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <Sliders className="w-3.5 h-3.5 text-[#0369a1]" />
+                วันจันทร์เริ่มต้นวาระ
+              </label>
+              {startDate !== '2026-08-31' && (
+                <button
+                  type="button"
+                  onClick={() => setStartDate('2026-08-31')}
+                  className="text-[11px] text-[#0369a1] hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                  title="รีเซ็ตกลับไปเป็นวันเริ่มต้นตามระเบียบวาระ (31 ส.ค. 2569)"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  31 ส.ค. 69
+                </button>
+              )}
+            </div>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-medium focus:outline-none focus:border-[#0369a1] focus:ring-1 focus:ring-[#0369a1]"
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-medium focus:outline-none focus:border-[#0369a1] focus:ring-1 focus:ring-[#0369a1] bg-white"
             />
+            <div className="p-2 rounded-lg bg-sky-50/80 border border-sky-200/80 text-[11px] text-sky-900 flex items-center justify-between">
+              <span className="font-semibold">{formatThaiDateWithDayOfWeek(startDate)}</span>
+              {startDate === '2026-08-31' && (
+                <span className="px-1.5 py-0.5 rounded bg-sky-200/80 text-sky-900 text-[10px] font-bold">
+                  วันเริ่มวาระ
+                </span>
+              )}
+            </div>
+
+            {/* Weeks Count Selector */}
+            <div className="pt-1 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 font-medium">คำนวณล่วงหน้า:</span>
+              <div className="flex items-center gap-1">
+                {[6, 8, 10, 12].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setMaxWeeks(num)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
+                      maxWeeks === num
+                        ? 'bg-[#0369a1] text-white'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {num} สัปดาห์
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Calendar Week Nav */}
@@ -363,35 +601,61 @@ export default function App() {
             >
               <div className="flex items-center gap-1.5">
                 <CalendarOff className="w-3.5 h-3.5 text-rose-600" />
-                <span>จัดการวันหยุดราชการ</span>
+                <span>จัดการวันหยุด / วันงดประชุม</span>
               </div>
               <span className="text-[10px] bg-rose-200/80 text-rose-900 px-2 py-0.5 rounded-full font-bold">
                 {Object.keys(holidays).length} วัน
               </span>
             </button>
 
-            {/* Skipped Holidays Notice in Sidebar */}
+            {/* Skipped Holidays & Cancelled Meetings Notice in Sidebar */}
             {skippedHolidays.length > 0 && (
-              <div className="mt-3 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-800 space-y-1.5">
+              <div className="mt-3 p-2.5 bg-rose-50/90 border border-rose-200 rounded-lg text-[11px] text-rose-800 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="font-bold flex items-center gap-1 text-rose-900">
                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                    วันหยุดนักขัตฤกษ์ (งดประชุม):
+                    วันหยุดนักขัตฤกษ์ / งดประชุม:
                   </span>
                   <button
                     type="button"
                     onClick={() => setIsHolidayModalOpen(true)}
                     className="text-[10px] text-rose-700 hover:text-rose-900 underline font-semibold cursor-pointer"
                   >
-                    แก้ไข
+                    จัดการ
                   </button>
                 </div>
-                <ul className="list-disc list-inside space-y-0.5 text-rose-700">
-                  {skippedHolidays.map((h) => (
-                    <li key={h.date} className="truncate" title={`${h.name} (${h.date})`}>
-                      {h.date}: {h.name}
-                    </li>
-                  ))}
+                <ul className="space-y-1.5 text-rose-800">
+                  {skippedHolidays.map((h) => {
+                    const isCancelled = h.type === 'cancelled_meeting' || h.name.includes('งดประชุม');
+                    return (
+                      <li
+                        key={h.date}
+                        className="flex items-center justify-between gap-1.5 bg-white/70 p-1.5 rounded border border-rose-100"
+                        title={`${h.name} (${h.date})`}
+                      >
+                        <div className="truncate flex-1">
+                          <span className={`inline-block px-1.5 py-0.2 text-[9px] rounded font-bold mr-1 ${
+                            isCancelled
+                              ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                              : 'bg-rose-100 text-rose-800 border border-rose-200'
+                          }`}>
+                            {isCancelled ? 'งดประชุม' : 'วันหยุด'}
+                          </span>
+                          <span className="font-medium text-[10px]">{h.date}: {h.name}</span>
+                        </div>
+                        {isCancelled && (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCancelMeeting(h.date)}
+                            className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 shrink-0 font-medium cursor-pointer"
+                            title="ยกเลิกการงดประชุม และจัดวาระตามปกติ"
+                          >
+                            ยกเลิกงด
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
@@ -421,7 +685,8 @@ export default function App() {
               กฎเกณฑ์การจัดระเบียบวาระ
             </span>
             <ul className="text-xs text-amber-900/90 space-y-1.5 list-disc list-inside leading-relaxed">
-              <li>จัดครั้งละ <strong>3 เรื่อง</strong> ทุกวันจันทร์ (ยกเว้นวันหยุดนักขัตฤกษ์)</li>
+              <li>วันเริ่มต้นวาระการประชุม: <strong>วันจันทร์ที่ 31 สิงหาคม 2569</strong></li>
+              <li>จัดครั้งละ <strong>3 เรื่อง</strong> ทุกวันจันทร์ (ยกเว้นวันหยุดนักขัตฤกษ์ และวันงดประชุม)</li>
               <li>กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็น <strong>ลำดับแรก</strong> ในวันที่ขอเลื่อนไปตอบ (เรียงตามลำดับที่ยื่น)</li>
               <li><strong>กระทู้ถามในสัปดาห์แรกของวันเริ่มต้นวาระ:</strong> หากเลื่อนวันตอบ ไม่ต้องจัดลำดับกระทู้ถามตามลำดับที่ยื่นขึ้นมาแทนของกระทู้ถามสัปดาห์แรก แต่ให้คงชื่อเรื่องแสดงไว้ และแสดงสถานะเป็นเลื่อนวันตอบ</li>
               <li>สำหรับสัปดาห์อื่นๆ สามารถจัด <strong>เกิน 3 กระทู้ได้</strong> หากมีการเลื่อนกระทู้ถามมาตอบในวันดังกล่าว</li>
@@ -446,20 +711,41 @@ export default function App() {
                     : `แสดงเฉพาะระเบียบวาระ: วันที่ ${selectedWeekFilter}`}
                 </span>
                 <span className="text-xs text-slate-500 block">
-                  ระบบคำนวณและจัดสรรคิวอัตโนมัติตามข้อบังคับการประชุม
+                  ระบบคำนวณและจัดสรรคิวอัตโนมัติตามข้อบังคับการประชุม (เริ่ม 31 ส.ค. 2569 ครั้งละ 3 เรื่อง)
                 </span>
               </div>
             </div>
 
-            {selectedWeekFilter !== 'all' && (
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {sheetCheckStatus && (
+                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium">
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{sheetCheckStatus}</span>
+                </div>
+              )}
+
               <button
                 type="button"
-                onClick={() => setSelectedWeekFilter('all')}
-                className="text-xs font-semibold text-[#0369a1] hover:underline cursor-pointer"
+                id="btn-quick-refresh-sheet"
+                onClick={() => handleRefreshFromGoogleSheet(true)}
+                disabled={isCheckingSheet}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-semibold transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+                title="รีเฟรชข้อมูลล่าสุดจาก Google Sheet เพื่อประมวลผลจัดวาระใหม่ทันที"
               >
-                ดูทุกสัปดาห์
+                <RefreshCw className={`w-3.5 h-3.5 ${isCheckingSheet ? 'animate-spin' : ''}`} />
+                <span>{isCheckingSheet ? 'กำลังรีเฟรช...' : 'รีเฟรช Sheet'}</span>
               </button>
-            )}
+
+              {selectedWeekFilter !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedWeekFilter('all')}
+                  className="text-xs font-semibold text-[#0369a1] hover:underline cursor-pointer ml-1"
+                >
+                  ดูทุกสัปดาห์
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Section 1-4: Weekly Schedules & Cards (วันบรรจุกระทู้ทุกวันจันทร์ + การ์ดกระทู้ 3 เรื่อง) */}
@@ -471,6 +757,7 @@ export default function App() {
                 weekIndex={idx}
                 onOpenPostponeModal={handleOpenPostponeModal}
                 onPrintWeek={(date) => handleOpenPrintModal(date)}
+                onCancelWeek={(date) => handleToggleCancelMeeting(date)}
               />
             ))}
           </div>
@@ -503,6 +790,8 @@ export default function App() {
               onReorderQuestions={handleReorderQuestions}
               onResetToDefault={handleResetToDefault}
               onOpenPostponeModal={handleOpenPostponeModal}
+              onRefreshSheet={() => handleRefreshFromGoogleSheet(true)}
+              isRefreshingSheet={isCheckingSheet}
             />
           </div>
 
@@ -541,6 +830,39 @@ export default function App() {
         selectedWeekDate={printTargetWeek}
         skippedHolidays={skippedHolidays}
       />
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-5 right-5 z-50 max-w-md animate-in slide-in-from-bottom-5 duration-300">
+          <div
+            className={`p-4 rounded-xl shadow-xl border flex items-start gap-3 text-xs ${
+              toastMessage.type === 'success'
+                ? 'bg-emerald-900 text-emerald-50 border-emerald-700 shadow-emerald-950/20'
+                : toastMessage.type === 'error'
+                ? 'bg-rose-900 text-rose-50 border-rose-700 shadow-rose-950/20'
+                : 'bg-slate-900 text-slate-50 border-slate-700 shadow-slate-950/20'
+            }`}
+          >
+            {toastMessage.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            ) : toastMessage.type === 'error' ? (
+              <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            ) : (
+              <Info className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
+            )}
+            <div className="flex-1 font-medium leading-relaxed">
+              {toastMessage.text}
+            </div>
+            <button
+              type="button"
+              onClick={() => setToastMessage(null)}
+              className="text-white/60 hover:text-white p-1 rounded hover:bg-white/10 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import React from 'react';
 import { ScheduledQuestion, QuestionItem } from '../types';
-import { User, Briefcase, Clock, RotateCcw, CornerDownRight, Calendar, Sparkles } from 'lucide-react';
-import { formatPostponeDateDisplay } from '../scheduler';
+import { User, Briefcase, Clock, RotateCcw, CornerDownRight, Calendar, Sparkles, FileSpreadsheet } from 'lucide-react';
 
 interface QuestionCardProps {
   scheduledItem: ScheduledQuestion;
@@ -61,7 +60,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               <span>สถานะ: เลื่อนวันตอบ</span>
               {question.postponedDate ? (
                 <span className="font-normal text-amber-800">
-                  (กำหนดตอบ: {formatPostponeDateDisplay(question.postponedDate, question.rawPostponedDate)})
+                  (กำหนดตอบ: {question.postponedDate})
                 </span>
               ) : (
                 <span className="font-normal text-amber-800">
@@ -81,7 +80,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             {question.postponedDate && (
               <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium flex items-center gap-1 border border-slate-200">
                 <Calendar className="w-3 h-3 text-slate-400" />
-                ระบุเลื่อนตอบ: {formatPostponeDateDisplay(question.postponedDate, question.rawPostponedDate)}
+                ระบุเลื่อนตอบ: {question.postponedDate}
               </span>
             )}
           </div>
@@ -113,25 +112,48 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           type="button"
           id={`btn-postpone-${question.id}`}
           onClick={() => onOpenPostponeModal(question)}
+          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer shadow-2xs ${
+            question.postponedDate || isPostponedNow
+              ? question.isPostponedInSheet
+                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300'
+                : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
+              : 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300'
+          }`}
           title={
             question.postponedDate
-              ? `ข้อมูลจาก Google Sheet คอลัมน์ "เลื่อนตอบวันที่": ${question.rawPostponedDate || question.postponedDate} (คลิกเพื่อแก้ไข/ล้าง)`
-              : 'ขอเลื่อนวันตอบกระทู้'
+              ? question.isPostponedInSheet
+                ? `ข้อมูลวันเลื่อนตอบจาก Google Sheet: ${question.postponedSheetRaw || question.postponedDate} (คลิกเพื่อแก้ไขหรือล้าง)`
+                : `เลื่อนตอบวันที่: ${question.postponedDate} (คลิกเพื่อแก้ไข/บันทึกลง Sheet)`
+              : 'ใน Google Sheet ยังไม่มีวันเลื่อนตอบ — คลิกเพื่อขอเลื่อนและบันทึกลง Google Sheet'
           }
-          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-            question.postponedDate || isPostponedNow
-              ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
-              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-          }`}
         >
-          <Clock className={`w-3.5 h-3.5 ${question.postponedDate || isPostponedNow ? 'text-amber-700' : 'text-slate-500'}`} />
+          {question.postponedDate || isPostponedNow ? (
+            question.isPostponedInSheet ? (
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+            ) : (
+              <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+            )
+          ) : (
+            <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          )}
+
           <span>
             {question.postponedDate
-              ? `เลื่อนตอบ: ${formatPostponeDateDisplay(question.postponedDate, question.rawPostponedDate)}`
+              ? `เลื่อนตอบ: ${question.postponedSheetRaw || question.postponedDate}`
               : isPostponedNow
               ? 'เลื่อนวันตอบ (แก้ไข/ล้าง)'
-              : 'ขอเลื่อนวันตอบกระทู้'}
+              : 'ขอเลื่อนวันตอบ'}
           </span>
+
+          {question.isPostponedInSheet ? (
+            <span className="text-[10px] bg-emerald-200/80 text-emerald-900 px-1 py-0.2 rounded font-bold border border-emerald-300/80">
+              Sheet
+            </span>
+          ) : !question.postponedDate ? (
+            <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.2 rounded font-normal">
+              ว่างใน Sheet
+            </span>
+          ) : null}
         </button>
 
         <span className="text-[11px] font-mono text-slate-400">
