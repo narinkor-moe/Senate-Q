@@ -1,7 +1,7 @@
 import React from 'react';
 import { WeeklySchedule, QuestionItem } from '../types';
 import { QuestionCard } from './QuestionCard';
-import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff } from 'lucide-react';
+import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff, Landmark, Sparkles, FileCheck } from 'lucide-react';
 
 interface WeeklySectionProps {
   schedule: WeeklySchedule;
@@ -18,34 +18,67 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
   onPrintWeek,
   onCancelWeek,
 }) => {
+  const isOfficial = schedule.scheduleType === 'official';
   const isPostponedPresent = schedule.questions.some((q) => q.isPostponedNow || !!q.question.postponedDate);
 
   return (
     <section
       id={`weekly-section-${schedule.date}`}
-      className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden transition-all"
+      className={`rounded-xl shadow-sm border overflow-hidden transition-all ${
+        isOfficial ? 'bg-white border-blue-200 ring-1 ring-blue-500/10' : 'bg-white border-slate-200'
+      }`}
     >
-      {/* Week Header matching Professional Polish theme */}
-      <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-wrap justify-between items-center gap-3">
+      {/* Week Header */}
+      <div
+        className={`px-6 py-4 border-b flex flex-wrap justify-between items-center gap-3 ${
+          isOfficial ? 'bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50 border-blue-100' : 'bg-slate-50 border-slate-200'
+        }`}
+      >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#0369a1] text-white flex items-center justify-center font-bold text-xs">
+          <div
+            className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs ${
+              isOfficial ? 'bg-[#0369a1] text-white' : 'bg-indigo-600 text-white'
+            }`}
+          >
             W{weekIndex + 1}
           </div>
           <div>
-            <h3 className="font-bold text-lg text-slate-800 tracking-tight">
-              ระเบียบวาระ: {schedule.thaiDateFormatted}
-            </h3>
-            <p className="text-slate-500 text-xs">
-              สถานะ: บรรจุกระทู้แล้ว ({schedule.questions.length} / {schedule.capacity} เรื่อง)
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-lg text-slate-800 tracking-tight">
+                {isOfficial ? 'ระเบียบวาระ: ' : 'คาดการณ์ระเบียบวาระ: '}
+                {schedule.thaiDateFormatted}
+              </h3>
+              {isOfficial ? (
+                <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-900 border border-blue-200 px-2 py-0.5 rounded text-[11px] font-bold">
+                  <Landmark className="w-3 h-3 text-blue-700" />
+                  บรรจุในวาระแล้ว (ทางการ)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-900 border border-purple-200 px-2 py-0.5 rounded text-[11px] font-bold">
+                  <Sparkles className="w-3 h-3 text-purple-700" />
+                  คาดการณ์การบรรจุล่วงหน้า
+                </span>
+              )}
+            </div>
+            <p className="text-slate-500 text-xs mt-0.5">
+              สถานะ: {isOfficial ? 'บรรจุตามระเบียบวาระ' : 'คาดการณ์ตามลำดับคิวและข้อบังคับ'}{' '}
+              ({schedule.questions.length} / {schedule.capacity} เรื่อง)
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {schedule.questions.some((q) => q.question.isAnswered || (q.question.rawStatus && q.question.rawStatus.includes('ตอบแล้ว'))) && (
+            <span className="bg-emerald-50 text-emerald-900 border border-emerald-300 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+              <span>มีกระทู้ตอบแล้วในวาระ</span>
+            </span>
+          )}
+
           {weekIndex === 0 && schedule.questions.some((q) => q.isPostponedNow) && (
             <span className="bg-amber-50 text-amber-900 border border-amber-300 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
-              <span>สัปดาห์เริ่มต้นวาระ: คงชื่อเรื่องกระทู้ที่เลื่อนไว้ (ไม่จัดกระทู้ขึ้นมาแทน)</span>
+              <span>สัปดาห์ที่ 1: คงชื่อเรื่องกระทู้ที่เลื่อนตอบไว้ในวาระ และระบบนำไปจัดในระเบียบวาระในสัปดาห์ที่ขอเลื่อนไปตอบ</span>
             </span>
           )}
 
@@ -56,7 +89,7 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
             </span>
           ) : null}
 
-          {weekIndex > 0 && isPostponedPresent && (
+          {weekIndex > 0 && isPostponedPresent && isOfficial && (
             <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border border-amber-200">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
               มีกระทู้ขอเลื่อนตอบในรอบนี้

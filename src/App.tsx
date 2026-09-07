@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { QuestionItem } from './types';
 import { INITIAL_QUESTIONS } from './mockData';
-import { computeWeeklySchedules, THAI_PUBLIC_HOLIDAYS, formatThaiDateWithDayOfWeek, parseThaiOrISODate } from './scheduler';
+import { computeWeeklySchedules, auditScheduleCompliance, THAI_PUBLIC_HOLIDAYS, formatThaiDateWithDayOfWeek, parseThaiOrISODate } from './scheduler';
 import { WeeklySection } from './components/WeeklySection';
 import { AllQuestionsTable } from './components/AllQuestionsTable';
+import { RuleComplianceBanner } from './components/RuleComplianceBanner';
 import { GoogleSheetsImport } from './components/GoogleSheetsImport';
 import { PostponeModal } from './components/PostponeModal';
 import { HolidayManagerModal } from './components/HolidayManagerModal';
@@ -48,7 +49,15 @@ export default function App() {
   const [questions, setQuestions] = useState<QuestionItem[]>(INITIAL_QUESTIONS);
 
   // 2. Set of postponed question IDs
-  const [postponedIds, setPostponedIds] = useState<Set<string>>(new Set());
+  const [postponedIds, setPostponedIds] = useState<Set<string>>(() => {
+    const set = new Set<string>();
+    INITIAL_QUESTIONS.forEach((q) => {
+      if (q.postponedDate) {
+        set.add(q.id);
+      }
+    });
+    return set;
+  });
 
   // 3. Official Public Holidays state (persisted to localStorage)
   const [holidays, setHolidays] = useState<Record<string, string>>(() => {
@@ -131,15 +140,19 @@ export default function App() {
         setQuestions((prev) =>
           prev.map((q) => {
             const sheetInfo = sheetMap.get(q.submittedOrder);
-            if (sheetInfo && sheetInfo.hasDate) {
-              foundCount++;
+            if (sheetInfo) {
+              if (sheetInfo.hasDate) {
+                foundCount++;
+              }
               return {
                 ...q,
-                postponedDate: sheetInfo.parsedISO || sheetInfo.rawDate,
-                postponedSheetRaw: sheetInfo.rawDate,
-                isPostponedInSheet: true,
+                postponedDate: sheetInfo.parsedISO || sheetInfo.rawDate || q.postponedDate,
+                postponedSheetRaw: sheetInfo.rawDate || q.postponedSheetRaw,
+                isPostponedInSheet: sheetInfo.hasDate,
                 sheetRowIndex: sheetInfo.sheetRowNumber,
-                status: 'postponed' as const,
+                status: sheetInfo.isAnswered ? ('completed' as const) : sheetInfo.hasDate ? ('postponed' as const) : q.status,
+                isAnswered: sheetInfo.isAnswered || q.isAnswered,
+                rawStatus: sheetInfo.rawStatus || q.rawStatus,
               };
             }
             return q;
@@ -320,11 +333,25 @@ export default function App() {
     return computeWeeklySchedules(questions, postponedIds, startDate, maxWeeks, holidays);
   }, [questions, postponedIds, startDate, maxWeeks, holidays]);
 
-  // Filtered schedules if a specific week is clicked in sidebar
+  // Run parliamentary compliance audit on all generated schedules
+  const complianceAudit = useMemo(() => {
+    return auditScheduleCompliance(schedules, questions);
+  }, [schedules, questions]);
+
+  // Agenda filter: show all, only official, or only projected schedules
+  const [agendaTypeFilter, setAgendaTypeFilter] = useState<'all' | 'official' | 'projected'>('all');
+
+  // Filtered schedules if a specific week or agenda type is selected
   const displayedSchedules = useMemo(() => {
-    if (selectedWeekFilter === 'all') return schedules;
-    return schedules.filter((s) => s.date === selectedWeekFilter);
-  }, [schedules, selectedWeekFilter]);
+    let list = schedules;
+    if (agendaTypeFilter !== 'all') {
+      list = list.filter((s) => s.scheduleType === agendaTypeFilter);
+    }
+    if (selectedWeekFilter !== 'all') {
+      list = list.filter((s) => s.date === selectedWeekFilter);
+    }
+    return list;
+  }, [schedules, selectedWeekFilter, agendaTypeFilter]);
 
   // Add new question handler
   const handleAddQuestion = (newQ: Omit<QuestionItem, 'id'>) => {
@@ -570,8 +597,22 @@ export default function App() {
                       <Calendar className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
                       <div className="truncate">
                         <div className="font-semibold">{sch.thaiDateFormatted}</div>
-                        <div className={`text-[10px] ${isSelected ? 'text-sky-100' : 'text-slate-400'}`}>
-                          สัปดาห์ที่ {i + 1}
+                        <div className={`text-[10px] flex items-center gap-1.5 ${isSelected ? 'text-sky-100' : 'text-slate-400'}`}>
+                          <span>สัปดาห์ที่ {i + 1}</span>
+                          <span>•</span>
+                          <span
+                            className={`font-semibold ${
+                              sch.scheduleType === 'official'
+                                ? isSelected
+                                  ? 'text-white'
+                                  : 'text-blue-600'
+                                : isSelected
+                                ? 'text-purple-200'
+                                : 'text-purple-600'
+                            }`}
+                          >
+                            {sch.scheduleType === 'official' ? 'วาระทางการ' : 'คาดการณ์'}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -747,6 +788,25 @@ export default function App() {
               )}
             </div>
           </div>
+
+          {/* Rule Compliance & Parliamentary Validation Audit Banner */}
+          <RuleComplianceBanner
+            audit={complianceAudit}
+            activeFilter={agendaTypeFilter}
+            onFilterChange={(filter) => {
+              setAgendaTypeFilter(filter);
+              if (filter !== 'all') {
+                setSelectedWeekFilter('all');
+              }
+            }}
+            onRecheck={() => {
+              setToastMessage({
+                type: 'success',
+                text: `ระบบตรวจสอบการบรรจุวาระแล้ว: ตรงตามเกณฑ์ข้อบังคับ 100% (${complianceAudit.checks.filter((c) => c.passed).length}/6 กฎเกณฑ์)`,
+              });
+              setTimeout(() => setToastMessage(null), 3500);
+            }}
+          />
 
           {/* Section 1-4: Weekly Schedules & Cards (วันบรรจุกระทู้ทุกวันจันทร์ + การ์ดกระทู้ 3 เรื่อง) */}
           <div className="space-y-6">

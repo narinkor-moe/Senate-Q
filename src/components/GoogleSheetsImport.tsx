@@ -58,6 +58,7 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
     let colMinister = -1;
     let colPostponed = -1;
     let colScheduled = -1;
+    let colStatus = -1;
 
     // 1. Try to detect header row
     for (let r = 0; r < Math.min(rows.length, 5); r++) {
@@ -71,15 +72,17 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
       const mIdx = strRow.findIndex((c) => c.includes('รัฐมนตรี') || c.includes('รมต.'));
       const pIdx = strRow.findIndex((c) => c.includes('เลื่อนตอบ') || c.includes('เลื่อน') || c.includes('ขอเลื่อน'));
       const sIdx = strRow.findIndex((c) => c.includes('วันที่บรรจุ') || c.includes('บรรจุ'));
+      const stIdx = strRow.findIndex((c) => c.includes('สถานะ') || c.includes('status'));
 
       if (tIdx !== -1 || aIdx !== -1) {
         headerIndex = r;
         colOrder = oIdx !== -1 ? oIdx : 0;
+        colScheduled = sIdx !== -1 ? sIdx : 1;
+        colPostponed = pIdx !== -1 ? pIdx : 2;
         colTopic = tIdx !== -1 ? tIdx : 3;
         colAsker = aIdx !== -1 ? aIdx : 4;
         colMinister = mIdx !== -1 ? mIdx : 5;
-        colPostponed = pIdx !== -1 ? pIdx : 2;
-        colScheduled = sIdx;
+        colStatus = stIdx !== -1 ? stIdx : 6;
         break;
       }
     }
@@ -94,45 +97,60 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
         continue;
       }
 
-      let orderVal = 0;
+      let rawOrder = '';
+      let scheduledVal = '';
+      let postponedVal = '';
       let topicVal = '';
       let askerVal = '';
       let ministerVal = '';
-      let postponedVal = '';
+      let statusVal = '';
 
       if (headerIndex !== -1) {
         // Use detected column indices
-        const rawOrder = colOrder !== -1 && row[colOrder] !== undefined ? String(row[colOrder]).trim() : '';
-        orderVal = parseInt(rawOrder, 10);
+        rawOrder = colOrder !== -1 && row[colOrder] !== undefined ? String(row[colOrder]).trim() : '';
+        scheduledVal = colScheduled !== -1 && row[colScheduled] !== undefined ? String(row[colScheduled]).trim() : '';
+        postponedVal = colPostponed !== -1 && row[colPostponed] !== undefined ? String(row[colPostponed]).trim() : '';
         topicVal = colTopic !== -1 && row[colTopic] !== undefined ? String(row[colTopic]).trim() : '';
         askerVal = colAsker !== -1 && row[colAsker] !== undefined ? String(row[colAsker]).trim() : '';
         ministerVal = colMinister !== -1 && row[colMinister] !== undefined ? String(row[colMinister]).trim() : '';
-        postponedVal = colPostponed !== -1 && row[colPostponed] !== undefined ? String(row[colPostponed]).trim() : '';
+        statusVal = colStatus !== -1 && row[colStatus] !== undefined ? String(row[colStatus]).trim() : '';
       } else {
         // Fallback by column count layout
-        if (row.length >= 6) {
-          // Layout: [ลำดับ, วันที่บรรจุ, เลื่อนตอบวันที่, เรื่อง, ผู้ตั้งถาม, รัฐมนตรี, ...]
-          orderVal = parseInt(String(row[0] || '').trim(), 10);
+        if (row.length >= 7) {
+          rawOrder = String(row[0] || '').trim();
+          scheduledVal = String(row[1] || '').trim();
+          postponedVal = String(row[2] || '').trim();
+          topicVal = String(row[3] || '').trim();
+          askerVal = String(row[4] || '').trim();
+          ministerVal = String(row[5] || '').trim();
+          statusVal = String(row[6] || '').trim();
+        } else if (row.length >= 6) {
+          rawOrder = String(row[0] || '').trim();
           postponedVal = String(row[2] || '').trim();
           topicVal = String(row[3] || '').trim();
           askerVal = String(row[4] || '').trim();
           ministerVal = String(row[5] || '').trim();
         } else if (row.length === 5) {
-          // Layout: [ลำดับ, เรื่อง, ผู้ตั้งถาม, รัฐมนตรี, เลื่อนตอบวันที่]
-          orderVal = parseInt(String(row[0] || '').trim(), 10);
+          rawOrder = String(row[0] || '').trim();
           topicVal = String(row[1] || '').trim();
           askerVal = String(row[2] || '').trim();
           ministerVal = String(row[3] || '').trim();
           postponedVal = String(row[4] || '').trim();
         } else {
-          // Layout: [ลำดับ, เรื่อง, ผู้ตั้งถาม, รัฐมนตรี]
-          orderVal = parseInt(String(row[0] || '').trim(), 10);
+          rawOrder = String(row[0] || '').trim();
           topicVal = String(row[1] || '').trim();
           askerVal = String(row[2] || '').trim();
           ministerVal = String(row[3] || '').trim();
         }
       }
 
+      if (!/^\d+$/.test(rawOrder)) {
+        if (!topicVal || (!askerVal && !ministerVal)) {
+          continue;
+        }
+      }
+
+      let orderVal = parseInt(rawOrder, 10);
       if (isNaN(orderVal) || orderVal <= 0) {
         orderVal = nextAutoOrder;
       }
@@ -145,17 +163,28 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
           cleanPostponedDate = parsedISO || postponedVal.trim();
         }
 
+        const isAnswered = statusVal.includes('ตอบแล้ว') || statusVal.toLowerCase() === 'answered';
+        let qStatus: QuestionItem['status'] = 'pending';
+        if (isAnswered) {
+          qStatus = 'completed';
+        } else if (cleanPostponedDate) {
+          qStatus = 'postponed';
+        }
+
         parsedItems.push({
           id: `sheet-q-${orderVal}-${Date.now()}-${i}`,
           submittedOrder: orderVal,
           topic: topicVal,
           asker: askerVal || 'ไม่ระบุผู้ตั้งถาม',
           minister: ministerVal || 'ไม่ระบุรัฐมนตรี',
+          scheduledDate: scheduledVal || undefined,
           postponedDate: cleanPostponedDate,
           postponedSheetRaw: postponedVal.trim() || undefined,
           isPostponedInSheet: !!cleanPostponedDate,
           sheetRowIndex: i + 1,
-          status: cleanPostponedDate ? 'postponed' : 'pending'
+          status: qStatus,
+          rawStatus: statusVal.trim() || undefined,
+          isAnswered: isAnswered
         });
       }
     }

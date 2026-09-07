@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Filter,
   CheckCircle2,
+  CheckCheck,
   Clock,
   Calendar,
   AlertCircle,
@@ -22,7 +23,14 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 
-export type QuestionStatusCategory = 'all' | 'scheduled' | 'pending' | 'postponed';
+export type QuestionStatusCategory =
+  | 'all'
+  | 'official'
+  | 'projected'
+  | 'scheduled'
+  | 'pending'
+  | 'postponed'
+  | 'answered';
 export type SearchScope = 'all' | 'asker' | 'topic';
 
 interface AllQuestionsTableProps {
@@ -92,7 +100,17 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
 
   // Map each question ID to its scheduled placement info
   const scheduledMap = useMemo(() => {
-    const map = new Map<string, { thaiDate: string; weekIndex: number; slotNumber: number; isPostponedNow: boolean }>();
+    const map = new Map<
+      string,
+      {
+        thaiDate: string;
+        weekIndex: number;
+        slotNumber: number;
+        isPostponedNow: boolean;
+        scheduleType?: 'official' | 'projected';
+        projectionType?: 'official_agenda' | 'postponed_priority' | 'projected_regular';
+      }
+    >();
     schedules.forEach((sch, wIdx) => {
       sch.questions.forEach((sq) => {
         if (!map.has(sq.question.id) || !sq.isPostponedNow) {
@@ -101,6 +119,8 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
             weekIndex: wIdx + 1,
             slotNumber: sq.slotNumber,
             isPostponedNow: !!sq.isPostponedNow,
+            scheduleType: sch.scheduleType,
+            projectionType: sq.projectionType,
           });
         }
       });
@@ -109,39 +129,78 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   }, [schedules]);
 
   // Determine the status category for any question
-  const getQuestionStatus = (qId: string): { category: 'postponed' | 'scheduled' | 'pending'; label: string; subLabel?: string } => {
-    if (postponedIds.has(qId)) {
+  const getQuestionStatus = (
+    target: QuestionItem | string
+  ): {
+    category: 'answered' | 'postponed' | 'official' | 'projected' | 'pending';
+    label: string;
+    subLabel?: string;
+    scheduleType?: 'official' | 'projected';
+    projectionType?: 'official_agenda' | 'postponed_priority' | 'projected_regular';
+  } => {
+    const q = typeof target === 'string' ? questions.find((item) => item.id === target) : target;
+    if (!q) return { category: 'pending', label: 'รอคิว', subLabel: 'รอการจัดวาระ' };
+
+    // 1. ตอบแล้ว (จาก Google Sheet หรือ completed)
+    if (q.status === 'completed' || q.status === 'answered' || q.isAnswered || (q.rawStatus && q.rawStatus.includes('ตอบแล้ว'))) {
+      return { category: 'answered', label: 'ตอบแล้ว', subLabel: 'ตอบในที่ประชุมแล้ว (ไม่นำมาจัดวาระ)' };
+    }
+
+    // 2. ขอเลื่อน
+    if (postponedIds.has(q.id) || (q.postponedDate && q.postponedDate.trim() !== '')) {
       return { category: 'postponed', label: 'ขอเลื่อน', subLabel: 'ยกยอดสัปดาห์ถัดไป' };
     }
-    const schedInfo = scheduledMap.get(qId);
+
+    // 3. บรรจุแล้ว (ตรวจสอบว่าเป็นการบรรจุระเบียบวาระทางการ หรือการคาดการณ์ล่วงหน้า)
+    const schedInfo = scheduledMap.get(q.id);
     if (schedInfo && !schedInfo.isPostponedNow) {
+      if (schedInfo.scheduleType === 'official') {
+        return {
+          category: 'official',
+          label: 'บรรจุในวาระแล้ว',
+          subLabel: `สัปดาห์ที่ ${schedInfo.weekIndex} (ลำดับที่ ${schedInfo.slotNumber})`,
+          scheduleType: 'official',
+          projectionType: schedInfo.projectionType,
+        };
+      }
       return {
-        category: 'scheduled',
-        label: 'บรรจุแล้ว',
+        category: 'projected',
+        label: 'คาดการณ์ล่วงหน้า',
         subLabel: `สัปดาห์ที่ ${schedInfo.weekIndex} (ลำดับที่ ${schedInfo.slotNumber})`,
+        scheduleType: 'projected',
+        projectionType: schedInfo.projectionType,
       };
     }
+
+    // 4. รอคิว
     return { category: 'pending', label: 'รอคิว', subLabel: 'รอการจัดวาระ' };
   };
 
   // Count per status category
   const counts = useMemo(() => {
-    let scheduled = 0;
+    let official = 0;
+    let projected = 0;
     let pending = 0;
     let postponed = 0;
+    let answered = 0;
 
     questions.forEach((q) => {
-      const status = getQuestionStatus(q.id).category;
-      if (status === 'postponed') postponed++;
-      else if (status === 'scheduled') scheduled++;
+      const status = getQuestionStatus(q).category;
+      if (status === 'answered') answered++;
+      else if (status === 'postponed') postponed++;
+      else if (status === 'official') official++;
+      else if (status === 'projected') projected++;
       else pending++;
     });
 
     return {
       all: questions.length,
-      scheduled,
+      official,
+      projected,
+      scheduled: official + projected,
       pending,
       postponed,
+      answered,
     };
   }, [questions, scheduledMap, postponedIds]);
 
@@ -183,7 +242,10 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
 
       // 2. Status filter
       if (statusFilter === 'all') return true;
-      const qStatus = getQuestionStatus(q.id).category;
+      const qStatus = getQuestionStatus(q).category;
+      if (statusFilter === 'scheduled') {
+        return qStatus === 'official' || qStatus === 'projected';
+      }
       return qStatus === statusFilter;
     });
   }, [questions, searchTerm, searchScope, statusFilter, scheduledMap, postponedIds]);
@@ -543,25 +605,47 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
             </span>
           </button>
 
-          {/* Scheduled: บรรจุแล้ว */}
+          {/* Official: บรรจุในวาระแล้ว */}
           <button
             type="button"
-            id="filter-status-scheduled"
-            onClick={() => setStatusFilter('scheduled')}
+            id="filter-status-official"
+            onClick={() => setStatusFilter('official')}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
-              statusFilter === 'scheduled'
-                ? 'bg-[#0369a1] text-white shadow-xs'
-                : 'bg-sky-50 text-[#0369a1] hover:bg-sky-100 border border-sky-200/60'
+              statusFilter === 'official'
+                ? 'bg-blue-700 text-white shadow-xs'
+                : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200/60'
             }`}
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>บรรจุแล้ว</span>
+            <span>บรรจุในวาระแล้ว (ทางการ)</span>
             <span
               className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                statusFilter === 'scheduled' ? 'bg-white/20 text-white' : 'bg-sky-200 text-sky-900'
+                statusFilter === 'official' ? 'bg-white/20 text-white' : 'bg-blue-200 text-blue-900'
               }`}
             >
-              {counts.scheduled}
+              {counts.official}
+            </span>
+          </button>
+
+          {/* Projected: คาดการณ์ล่วงหน้า */}
+          <button
+            type="button"
+            id="filter-status-projected"
+            onClick={() => setStatusFilter('projected')}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+              statusFilter === 'projected'
+                ? 'bg-purple-700 text-white shadow-xs'
+                : 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200/60'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>คาดการณ์ล่วงหน้า</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                statusFilter === 'projected' ? 'bg-white/20 text-white' : 'bg-purple-200 text-purple-900'
+              }`}
+            >
+              {counts.projected}
             </span>
           </button>
 
@@ -606,6 +690,28 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
               }`}
             >
               {counts.postponed}
+            </span>
+          </button>
+
+          {/* Answered: ตอบแล้ว */}
+          <button
+            type="button"
+            id="filter-status-answered"
+            onClick={() => setStatusFilter('answered')}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+              statusFilter === 'answered'
+                ? 'bg-emerald-700 text-white shadow-xs'
+                : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'
+            }`}
+          >
+            <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>ตอบแล้ว</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                statusFilter === 'answered' ? 'bg-white/20 text-white' : 'bg-emerald-200 text-emerald-900'
+              }`}
+            >
+              {counts.answered}
             </span>
           </button>
         </div>
@@ -689,7 +795,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
               </tr>
             ) : (
               filteredQuestions.map((q, idx) => {
-                const statusInfo = getQuestionStatus(q.id);
+                const statusInfo = getQuestionStatus(q);
                 const isBeingDragged = draggedId === q.id;
                 const isOverTop = dragOverId === q.id && dragPosition === 'top';
                 const isOverBottom = dragOverId === q.id && dragPosition === 'bottom';
@@ -711,10 +817,14 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                         ? 'border-t-2 border-[#0369a1] bg-sky-50/50'
                         : isOverBottom
                         ? 'border-b-2 border-[#0369a1] bg-sky-50/50'
+                        : statusInfo.category === 'answered'
+                        ? 'bg-emerald-50/25 hover:bg-emerald-50/50'
                         : statusInfo.category === 'postponed'
                         ? 'bg-amber-50/30 hover:bg-amber-50/60'
-                        : statusInfo.category === 'scheduled'
-                        ? 'bg-sky-50/20 hover:bg-sky-50/50'
+                        : statusInfo.category === 'official'
+                        ? 'bg-blue-50/25 hover:bg-blue-50/50'
+                        : statusInfo.category === 'projected'
+                        ? 'bg-purple-50/20 hover:bg-purple-50/40'
                         : 'hover:bg-slate-50/90'
                     }`}
                   >
@@ -777,6 +887,18 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                       {highlightMatch(q.minister, searchScope === 'all' ? searchTerm : '')}
                     </td>
                     <td className="px-6 py-3 text-center">
+                      {statusInfo.category === 'answered' && (
+                        <div className="inline-flex flex-col items-center">
+                          <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded text-[11px] font-bold inline-flex items-center gap-1">
+                            <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            ตอบแล้ว
+                          </span>
+                          <span className="text-[10px] text-emerald-700 font-medium mt-0.5">
+                            ตอบแล้วในที่ประชุม
+                          </span>
+                        </div>
+                      )}
+
                       {statusInfo.category === 'postponed' && (
                         <div className="inline-flex flex-col items-center">
                           <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 rounded text-[11px] font-bold inline-flex items-center gap-1">
@@ -789,14 +911,28 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                         </div>
                       )}
 
-                      {statusInfo.category === 'scheduled' && (
+                      {statusInfo.category === 'official' && (
                         <div className="inline-flex flex-col items-center">
-                          <span className="bg-[#f0f9ff] text-[#0369a1] border border-[#0369a1]/30 px-2.5 py-0.5 rounded text-[11px] font-bold inline-flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-[#0369a1]" />
-                            บรรจุแล้ว
+                          <span className="bg-blue-100 text-blue-900 border border-blue-300 px-2.5 py-0.5 rounded text-[11px] font-bold inline-flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-blue-700" />
+                            บรรจุในวาระแล้ว
                           </span>
                           {statusInfo.subLabel && (
-                            <span className="text-[10px] text-sky-700 font-medium mt-0.5">
+                            <span className="text-[10px] text-blue-800 font-medium mt-0.5">
+                              {statusInfo.subLabel}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {statusInfo.category === 'projected' && (
+                        <div className="inline-flex flex-col items-center">
+                          <span className="bg-purple-100 text-purple-900 border border-purple-300 px-2.5 py-0.5 rounded text-[11px] font-bold inline-flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-purple-700" />
+                            คาดการณ์ล่วงหน้า
+                          </span>
+                          {statusInfo.subLabel && (
+                            <span className="text-[10px] text-purple-800 font-medium mt-0.5">
                               {statusInfo.subLabel}
                             </span>
                           )}

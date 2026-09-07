@@ -1,309 +1,479 @@
 import { QuestionItem } from './types';
 
-// นำเข้าข้อมูลจาก Google Sheet ID: 18tE6RON_7Z3BO-NtrF4jaqH_qP92A1-FiZ-RPACXGdU (Sheet: Data)
+// ข้อมูลเริ่มต้นซิงค์ตรงจาก Google Sheet ID: 18tE6RON_7Z3BO-NtrF4jaqH_qP92A1-FiZ-RPACXGdU (Sheet: Data)
 export const INITIAL_QUESTIONS: QuestionItem[] = [
   {
-    "id": "q-1",
+    "id": "sheet-q-1-2",
     "submittedOrder": 1,
     "topic": "มาตรการในการกำกับดูแลการหาผลประโยชน์จากทรัพย์สินของกองทุนสนับสนุนการสร้างเสริมสุขภาพ ตามมาตรา 9 (3) แห่งพระราชบัญญัติกองทุนสนับสนุนการสร้างเสริมสุขภาพ พ.ศ.2544",
     "asker": "นายประพนธ์ ตั้งศรีเกียรติกุล",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "scheduledDate": "31/08/2026",
+    "postponedDate": "2026-09-21",
+    "postponedSheetRaw": "21/09/2026",
+    "isPostponedInSheet": true,
+    "sheetRowIndex": 2,
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
+    "isAnswered": false
   },
   {
-    "id": "q-2",
+    "id": "sheet-q-2-3",
     "submittedOrder": 2,
     "topic": "ความคืบหน้าเกี่ยวกับการลงนามร่างมาตรฐานทั่วไปเกี่ยวกับการให้ความดีความชอบประจำปีของข้าราชการหรือพนักงานส่วนท้องถิ่น",
     "asker": "นายมังกร ศรีเจริญกูล",
     "minister": "รัฐมนตรีว่าการกระทรวงมหาดไทย",
-    "status": "pending"
+    "scheduledDate": "31/08/2026",
+    "postponedDate": "2026-09-07",
+    "postponedSheetRaw": "07/09/2026",
+    "isPostponedInSheet": true,
+    "sheetRowIndex": 3,
+    "status": "completed",
+    "rawStatus": "ตอบแล้ว",
+    "isAnswered": true
   },
   {
-    "id": "q-3",
+    "id": "sheet-q-3-4",
     "submittedOrder": 3,
     "topic": "การกำกับดูแลการขนส่ง การใช้ประโยชน์ และความรับผิดชอบต่อผลกระทบของกากอุตสาหกรรมจากโรงไฟฟ้าหงสา สปป.ลาว ที่ขนส่งเข้ามาในประเทศไทย",
     "asker": "นายมังกร ศรีเจริญกูล",
     "minister": "รัฐมนตรีว่าการกระทรวงอุตสาหกรรม",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 4,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-4",
+    "id": "sheet-q-4-5",
     "submittedOrder": 4,
     "topic": "ปัญหาการบริหารจัดการที่ดินและทรัพยากรดินที่ยังมีความขัดแย้งสูง",
     "asker": "นายเปรมศักดิ์ เพียยุระ",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "scheduledDate": "31/08/2026",
+    "postponedDate": "2026-09-14",
+    "postponedSheetRaw": "14/09/2026",
+    "isPostponedInSheet": true,
+    "sheetRowIndex": 5,
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
+    "isAnswered": false
   },
   {
-    "id": "q-5",
+    "id": "sheet-q-5-6",
     "submittedOrder": 5,
     "topic": "ติดตามความคืบหน้าการจัดตั้งศูนย์บริหารจัดการมหานครผลไม้ครบวงจร จังหวัดจันทบุรี",
     "asker": "นายยุคล ชนะวัฒน์ปัญญา",
     "minister": "รัฐมนตรีว่าการกระทรวงพาณิชย์",
-    "status": "pending"
+    "scheduledDate": "07/09/2026",
+    "postponedDate": "2026-09-14",
+    "postponedSheetRaw": "14/09/2026",
+    "isPostponedInSheet": true,
+    "sheetRowIndex": 6,
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
+    "isAnswered": false
   },
   {
-    "id": "q-6",
+    "id": "sheet-q-6-7",
     "submittedOrder": 6,
     "topic": "การติดตามโครงการก่อสร้างประตูระบายน้ำบ้านวังชัน จังหวัดปราจีนบุรี",
     "asker": "นายเดชา นุตาลัย",
     "minister": "รัฐมนตรีว่าการกระทรวงเกษตรและสหกรณ์",
-    "status": "pending"
+    "scheduledDate": "07/09/2026",
+    "postponedDate": "2026-09-21",
+    "postponedSheetRaw": "21/09/2026",
+    "isPostponedInSheet": true,
+    "sheetRowIndex": 7,
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
+    "isAnswered": false
   },
   {
-    "id": "q-7",
+    "id": "sheet-q-7-8",
     "submittedOrder": 7,
     "topic": "โครงการเพิ่มประสิทธิภาพการระบายน้ำคลองหกวาสายล่างถึงคลองบางขนาก ปรับปรุงคลอง 13 (ช่วงที่ 2)",
     "asker": "นายเดชา นุตาลัย",
     "minister": "รัฐมนตรีว่าการกระทรวงเกษตรและสหกรณ์",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 8,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-8",
+    "id": "sheet-q-8-9",
     "submittedOrder": 8,
     "topic": "มาตรการในการป้องกันและปราบปรามยาเสพติดในปี พ.ศ. 2569 - 2570",
     "asker": "พลตำรวจโท บุญจันทร์ นวลสาย",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "scheduledDate": "07/09/2026",
+    "postponedDate": "2026-10-05",
+    "postponedSheetRaw": "05/10/2026",
+    "isPostponedInSheet": true,
+    "sheetRowIndex": 9,
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
+    "isAnswered": false
   },
   {
-    "id": "q-9",
+    "id": "sheet-q-9-10",
     "submittedOrder": 9,
     "topic": "การบริหารจัดการน้ำในลุ่มแม่น้ำมูล - แม่น้ำชี",
     "asker": "นางธารนี ปรีดาสันติ์",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 10,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-10",
+    "id": "sheet-q-10-11",
     "submittedOrder": 10,
     "topic": "การปรับปรุงกฎหมายและนโยบายที่เกี่ยวข้องกับกีฬาสนุกเกอร์และบิลเลียด",
     "asker": "นายพิสิษฐ์ อภิวัฒนาพงศ์",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 11,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-11",
+    "id": "sheet-q-11-12",
     "submittedOrder": 11,
     "topic": "แนวทางการส่งเสริมและพัฒนาศักยภาพกิจกรรมปืนหน้าผาในพื้นที่จังหวัดกระบี่สู่การเป็นจุดหมาย ปลายทางระดับโลกอย่างยั่งยืน",
     "asker": "นายพิสิษฐ์ อภิวัฒนาพงศ์",
     "minister": "รัฐมนตรีว่าการกระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 12,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-12",
+    "id": "sheet-q-12-13",
     "submittedOrder": 12,
     "topic": "มาตรการการแก้ไขปัญหาการยกเลิกโฉนดชุมชน",
     "asker": "นางสาวนันทนา นันทวโรภาส",
     "minister": "รัฐมนตรีว่าการกระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 13,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-13",
+    "id": "sheet-q-13-14",
     "submittedOrder": 13,
     "topic": "การติดตามการดำเนินงานของรัฐบาลในการแก้ไขปัญหามลพิษทางน้ำข้ามพรมแดน ในแม่น้ำกก แม่น้ำรวก แม่น้ำสาย และแม่น้ำโขง",
     "asker": "นางสาวมณีรัฐ เขมะวงค์",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 14,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-14",
+    "id": "sheet-q-14-15",
     "submittedOrder": 14,
     "topic": "การแก้ไขปรับปรุงกฎหมายเพื่อคุ้มครองและรับรองสิทธิของแรงงานแพลตฟอร์ม และมาตรการแก้ไขเยียวยาปัญหาระยะสั้นระหว่างที่กระบวนการแก้ไขปรับปรุงกฎหมายยังไม่แล้วเสร็จ",
     "asker": "นายเทวฤทธิ์ มณีฉาย",
     "minister": "รัฐมนตรีว่าการกระทรวงแรงงาน",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 15,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-15",
+    "id": "sheet-q-15-16",
     "submittedOrder": 15,
     "topic": "ความคืบหน้าและรายละเอียดของกระบวนการการให้สัตยาบันอนุสัญญาองค์การแรงงานระหว่างประเทศ (ILO) ฉบับที่ 87 และ 98 และขอทราบข้อท้วงติงของคณะกรรมการกฤษฎีกา",
     "asker": "นายเทวฤทธิ์ มณีฉาย",
     "minister": "รัฐมนตรีว่าการกระทรวงแรงงาน",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 16,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-16",
+    "id": "sheet-q-16-17",
     "submittedOrder": 16,
     "topic": "เงินค้างหนี้ของกองทุนประกันวินาศภัยต่อประชาชนกว่า 6 แสนคน",
     "asker": "นายสุนทร พฤกษพิพัฒน์",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 17,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-17",
+    "id": "sheet-q-17-18",
     "submittedOrder": 17,
     "topic": "ทางด่วน 2 ชั้น ช่วงงามวงศ์วาน - พระราม 9",
     "asker": "นายสุนทร พฤกษพิพัฒน์",
     "minister": "รัฐมนตรีว่าการกระทรวงคมนาคม",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 18,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-18",
+    "id": "sheet-q-18-19",
     "submittedOrder": 18,
     "topic": "ขอให้กำหนดหลักความเป็นธรรม “หนี้ที่มีหลักประกันต้องมีเพดานความรับผิด และจบลงไม่เกินมูลค่าหลักทรัพย์” เพื่อคุ้มครองประชาชนและสร้างดุลยภาพในระบบสินเชื่อ",
     "asker": "นางจุฑารัตน์ นิลเปรม",
     "minister": "รัฐมนตรีว่าการกระทรวงการคลัง",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 19,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-19",
+    "id": "sheet-q-19-20",
     "submittedOrder": 19,
     "topic": "การรายงานผลการดำเนินการประจำปีด้านการทรมานและการกระทำให้บุคคลสูญหายต่อรัฐสภา",
     "asker": "นางอังคณา นีละไพจิตร",
     "minister": "รัฐมนตรีว่าการกระทรวงยุติธรรม",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 20,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-20",
+    "id": "sheet-q-20-21",
     "submittedOrder": 20,
     "topic": "การปฏิบัติตามหลักการไม่ผลักดันสู่อันตราย",
     "asker": "นางอังคณา นีละไพจิตร",
     "minister": "รัฐมนตรีว่าการกระทรวงการต่างประเทศ",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 21,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-21",
+    "id": "sheet-q-21-22",
     "submittedOrder": 21,
     "topic": "ปัญหาเหตุเพลิงไหม้รุนแรงสถานบันเทิง",
     "asker": "นายเปรมศักดิ์ เพียยุระ",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 22,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-22",
+    "id": "sheet-q-22-23",
     "submittedOrder": 22,
     "topic": "ปัญหาความผิดพลาดและความล้มเหลวในการคัดกรองผู้มีสิทธิได้รับบัตรสวัสดิการแห่งรัฐ",
     "asker": "นายเปรมศักดิ์ เพียยุระ",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 23,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-23",
+    "id": "sheet-q-23-24",
     "submittedOrder": 23,
     "topic": "การปฏิรูประบบส่งเสริมการลงทุน (BOI) ให้เกิดประโยชน์สุทธิต่อประเทศและสร้างความเป็นธรรมแก่ผู้ประกอบการไทย",
     "asker": "นายชูชีพ เอื้อการณ์",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 24,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-24",
+    "id": "sheet-q-24-25",
     "submittedOrder": 24,
     "topic": "มาตรการจัดระเบียบการประกอบธุรกิจและการใช้แรงงานต่างด้าวในพื้นที่พาณิชยกรรมขนาดใหญ่เพื่อปกป้องเศรษฐกิจไทย",
     "asker": "นายชูชีพ เอื้อการณ์",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 25,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-25",
+    "id": "sheet-q-25-26",
     "submittedOrder": 25,
     "topic": "มาตรการป้องกันและปราบปรามการถือครองและควบคุมที่ดินโดยคนต่างด้าวผ่านนอมินีในจังหวัดท่องเที่ยว",
     "asker": "นายชูชีพ เอื้อการณ์",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 26,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-26",
+    "id": "sheet-q-26-27",
     "submittedOrder": 26,
     "topic": "ขอทราบความคุ้มค่า ผลกระทบต่อสิ่งแวดล้อม และมาตรการความมั่นคงด้านน้ำของประชาชน จังหวัดพังงา จากโครงการผันน้ำคลองพังงา จังหวัดพังงา ไปยังจังหวัดภูเก็ต",
     "asker": "นางสาวรัชนีกร ทองทิพย์",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 27,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-27",
+    "id": "sheet-q-27-28",
     "submittedOrder": 27,
     "topic": "การเร่งรัดโครงการรถไฟสายชุมพร–ท่าเรือระนอง เพื่อเสริมสร้างศักยภาพด้านคมนาคม และยกระดับโลจิสติกส์ไทยสู่ตลาดโลก",
     "asker": "พลตำรวจโท วันไชย เอกพรพิชญ์",
     "minister": "รัฐมนตรีว่าการกระทรวงคมนาคม",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 28,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-28",
+    "id": "sheet-q-28-29",
     "submittedOrder": 28,
     "topic": "ปัญหาคุณภาพและมาตรฐานการก่อสร้างทางหลวงของประเทศ และภาระงบประมาณในการซ่อมบำรุงรักษาก่อนอายุการใช้งานอันควร",
     "asker": "นายชูชีพ เอื้อการณ์",
     "minister": "รัฐมนตรีว่าการกระทรวงคมนาคม",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 29,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-29",
+    "id": "sheet-q-29-30",
     "submittedOrder": 29,
     "topic": "การยกระดับการรักษาความปลอดภัยในสถานศึกษาเพื่อมิให้เกิดเหตุสังหารหมู่",
     "asker": "นายเปรมศักดิ์ เพียยุระ",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 30,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-30",
+    "id": "sheet-q-30-31",
     "submittedOrder": 30,
     "topic": "มาตรการการแก้ไขปัญหาวิกฤตอุดมศึกษาไทย",
     "asker": "นางสาวนันทนา นันทวโรภาส",
     "minister": "รัฐมนตรีว่าการกระทรวงการอุดมศึกษา วิทยาศาสตร์ วิจัยและนวัตกรรม",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 31,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-31",
+    "id": "sheet-q-31-32",
     "submittedOrder": 31,
     "topic": "มาตรการบรรเทาผลกระทบอันเกิดจากการสร้างอ่างเก็บน้ำคลองวังโตนด",
     "asker": "นางสาวนันทนา นันทวโรภาส",
     "minister": "รัฐมนตรีว่าการกระทรวงเกษตรและสหกรณ์",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 32,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-32",
+    "id": "sheet-q-32-33",
     "submittedOrder": 32,
     "topic": "การยกระดับการกำกับดูแลแพลตฟอร์มดิจิทัลให้ทันต่อปัญญาประดิษฐ์และความเสี่ยงต่อประชาชน",
     "asker": "นายสุทนต์ กล้าการขาย",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 33,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-33",
+    "id": "sheet-q-33-34",
     "submittedOrder": 33,
     "topic": "แนวทางการส่งเสริมและกำกับดูแลผู้สร้างเนื้อหาดิจิทัล (Content Creator) ให้มีมาตรฐานและความรับผิดชอบต่อสังคม",
     "asker": "นายสุทนต์ กล้าการขาย",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 34,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-34",
+    "id": "sheet-q-34-35",
     "submittedOrder": 34,
     "topic": "แนวทางการกำกับดูแลและส่งเสริมวิชาชีพสื่อมวลชน ภายใต้เสรีภาพและความรับผิดชอบต่อสังคม",
     "asker": "นายสุทนต์ กล้าการขาย",
     "minister": "นายกรัฐมนตรี",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 35,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-35",
+    "id": "sheet-q-35-36",
     "submittedOrder": 35,
     "topic": "แนวทางในการปรับปรุงโครงสร้างของหน่วยงานในกระทรวงศึกษาธิการ",
     "asker": "นายเปรมศักดิ์ เพียยุระ",
     "minister": "รัฐมนตรีว่าการกระทรวงศึกษาธิการ",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 36,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-36",
+    "id": "sheet-q-36-37",
     "submittedOrder": 36,
     "topic": "การเร่งรัดและติดตามความคืบหน้าโครงการปรับปรุงฝายธงน้อย จังหวัดน่าน",
     "asker": "นายมังกร ศรีเจริญกูล",
     "minister": "รัฐมนตรีว่าการกระทรวงพลังงาน",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 37,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-37",
+    "id": "sheet-q-37-38",
     "submittedOrder": 37,
     "topic": "การแบ่งเงินค่าบริการและเงินค่าตอบแทนในอุทยานแห่งชาติ วนอุทยาน สวนพฤกษศาสตร์หรือสวนรุกขชาติ ให้แก่เทศบาลหรือองค์การบริหารส่วนตำบล",
     "asker": "นายพิสิษฐ์ อภิวัฒนาพงศ์",
     "minister": "รัฐมนตรีว่าการกระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 38,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   },
   {
-    "id": "q-38",
+    "id": "sheet-q-38-39",
     "submittedOrder": 38,
     "topic": "การป้องกันและปราบปรามการกระทำความผิดอันเนื่องมาจากแจ้งเกิด และย้ายเข้าทะเบียนบ้าน",
     "asker": "นายเปรมศักดิ์ เพียยุระ",
     "minister": "รัฐมนตรีว่าการกระทรวงมหาดไทย",
-    "status": "pending"
+    "isPostponedInSheet": false,
+    "sheetRowIndex": 39,
+    "status": "pending",
+    "rawStatus": "รอการบรรจุ",
+    "isAnswered": false
   }
 ];

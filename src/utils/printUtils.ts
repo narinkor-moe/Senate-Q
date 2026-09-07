@@ -90,7 +90,10 @@ export function generateReportHtml(
             ${allQuestions.map((q, idx) => {
               let statusText = 'รอดำเนินการ';
               let statusClass = 'status-pending';
-              if (q.status === 'postponed' || q.postponedDate) {
+              if (q.status === 'completed' || q.status === 'answered' || q.isAnswered || (q.rawStatus && q.rawStatus.includes('ตอบแล้ว'))) {
+                statusText = 'ตอบแล้ว (ไม่นำมาจัดวาระ)';
+                statusClass = 'status-completed';
+              } else if (q.status === 'postponed' || q.postponedDate) {
                 statusText = `ขอเลื่อนตอบ (${q.postponedDate || ''})`;
                 statusClass = 'status-postponed';
               } else if (q.status === 'scheduled') {
@@ -115,7 +118,10 @@ export function generateReportHtml(
   } else {
     // Render weekly schedules
     bodyContent = targetSchedules.map((schedule, weekIdx) => {
-      const isWeekPostponed = schedule.questions.some((q) => q.isPostponedNow || q.isPostponedFromPrevious || !!q.question.postponedDate);
+      const isOfficial = schedule.scheduleType === 'official';
+      const scheduleTypeBadge = isOfficial 
+        ? '<span style="background: #1d4ed8; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 6px;">ระเบียบวาระทางการ</span>' 
+        : '<span style="background: #7e22ce; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 6px;">คาดการณ์ล่วงหน้า</span>';
 
       return `
         <div class="week-card">
@@ -123,6 +129,7 @@ export function generateReportHtml(
             <div>
               <span class="week-badge">สัปดาห์ที่ ${weekIdx + 1}</span>
               <strong class="week-date">ระเบียบวาระการประชุม: ${schedule.thaiDateFormatted}</strong>
+              ${scheduleTypeBadge}
             </div>
             <span class="week-stat">บรรจุกระทู้: ${schedule.questions.length} / ${schedule.capacity} เรื่อง</span>
           </div>
@@ -146,10 +153,15 @@ export function generateReportHtml(
                   </td>
                 </tr>
               ` : schedule.questions.map((item, slotIdx) => {
-                let note = 'บรรจุตามลำดับปกติ';
+                let note = isOfficial ? 'บรรจุในระเบียบวาระ' : 'คาดการณ์ตามคิวลำดับ';
                 let noteClass = 'text-normal';
                 
-                if (item.isPostponedFromPrevious) {
+                const isAnswered = item.question.isAnswered === true || item.question.status === 'completed' || item.question.status === 'answered' || (item.question.rawStatus && item.question.rawStatus.includes('ตอบแล้ว'));
+
+                if (isAnswered) {
+                  note = 'ตอบแล้วในที่ประชุม (เสร็จสิ้น)';
+                  noteClass = 'text-success font-bold';
+                } else if (item.isPostponedFromPrevious) {
                   note = 'กระทู้เลื่อนมาจากสัปดาห์ก่อนหน้า (บรรจุลำดับแรก)';
                   noteClass = 'text-primary font-bold';
                 } else if (item.isPostponedNow) {
@@ -160,6 +172,8 @@ export function generateReportHtml(
                 } else if (item.question.postponedDate) {
                   note = `ขอเลื่อนตอบ: ${item.question.postponedDate}`;
                   noteClass = 'text-warning';
+                } else if (item.projectionType === 'projected_regular') {
+                  note = 'คาดการณ์ตามคิวลำดับปกติ';
                 }
 
                 return `
@@ -440,6 +454,10 @@ export function generateReportHtml(
       color: #b45309;
     }
 
+    .text-success {
+      color: #15803d;
+    }
+
     .font-bold {
       font-weight: 700;
     }
@@ -467,6 +485,17 @@ export function generateReportHtml(
       display: inline-block;
       background: #e0f2fe;
       color: #0369a1;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: ${Math.max(13, tableFontSize - 2)}pt;
+      font-weight: 600;
+    }
+
+    .status-completed {
+      display: inline-block;
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
       padding: 2px 8px;
       border-radius: 4px;
       font-size: ${Math.max(13, tableFontSize - 2)}pt;

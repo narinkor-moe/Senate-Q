@@ -10,7 +10,10 @@ export interface QuestionItem {
   isPostponedInSheet?: boolean; // ตรวจพบวันเลื่อนตอบใน Google Sheet หรือไม่
   sheetRowIndex?: number; // ลำดับแถวใน Google Sheet เช่น แถวที่ 2 (Data!C2)
   notes?: string; // หมายเหตุ
-  status?: 'pending' | 'scheduled' | 'postponed' | 'completed';
+  status?: 'pending' | 'scheduled' | 'postponed' | 'completed' | 'answered';
+  rawStatus?: string; // สถานะตามคอลัมน์ใน Google Sheet เช่น "ตอบแล้ว", "เลื่อนตอบ", "รอการบรรจุ"
+  isAnswered?: boolean; // ระบุว่าตอบแล้วหรือไม่ (ถ้าตอบแล้ว จะไม่นำมาจัดในวาระการประชุม)
+  scheduledDate?: string; // วันที่บรรจุตามที่บันทึกไว้ใน Google Sheet
 }
 
 export interface ScheduledQuestion {
@@ -19,6 +22,7 @@ export interface ScheduledQuestion {
   isPostponedFromPrevious: boolean; // มาจากการเลื่อนของสัปดาห์ก่อนหน้าหรือไม่ (ลำดับแรก)
   postponedFromDate?: string;
   isPostponedNow?: boolean; // ผู้ใช้กดขอเลื่อนในรอบนี้
+  projectionType?: 'official_agenda' | 'postponed_priority' | 'projected_regular'; // ประเภทการบรรจุ
 }
 
 export interface WeeklySchedule {
@@ -32,6 +36,27 @@ export interface WeeklySchedule {
   holidayName?: string;
   isCancelledMeeting?: boolean;
   cancelledReason?: string;
+  scheduleType?: 'official' | 'projected'; // 'official' = บรรจุในระเบียบวาระแล้ว (ทางการ), 'projected' = คาดการณ์การบรรจุล่วงหน้า
+  officialNotice?: string;
+}
+
+export interface RuleComplianceCheck {
+  ruleId: string;
+  ruleName: string;
+  description: string;
+  passed: boolean;
+  details: string;
+}
+
+export interface RuleComplianceAudit {
+  isFullyCompliant: boolean;
+  score: number; // 0 - 100
+  checks: RuleComplianceCheck[];
+  totalOfficialWeeks: number;
+  totalProjectedWeeks: number;
+  totalOfficialQuestions: number;
+  totalProjectedQuestions: number;
+  unassignedQuestionsCount: number;
 }
 
 export interface HolidayItem {
