@@ -45,7 +45,8 @@ import {
   Users,
   BarChart3,
   FileX2,
-  X
+  X,
+  Calculator,
 } from 'lucide-react';
 
 const STORAGE_KEY_HOLIDAYS = 'senate_official_holidays';
@@ -370,6 +371,64 @@ export default function App() {
     return list;
   }, [schedules, selectedWeekFilter, agendaTypeFilter]);
 
+  // 9. State & Handler for calculating all agendas across all submitted questions (คำนวณวาระทั้งหมด)
+  const [isCalculatingAll, setIsCalculatingAll] = useState<boolean>(false);
+
+  const handleCalculateAllAgendas = useCallback(() => {
+    setIsCalculatingAll(true);
+
+    try {
+      // Determine the minimum number of weeks required so that all questions are scheduled
+      let optimalWeeks = Math.max(maxWeeks, 4);
+      let found = false;
+
+      // Iteratively simulate schedule computation to find required week capacity
+      for (let testW = 4; testW <= 60; testW++) {
+        const testRes = computeWeeklySchedules(questions, postponedIds, startDate, testW, holidays);
+        if (testRes.remainingQuestions.length === 0) {
+          optimalWeeks = testW;
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        optimalWeeks = Math.max(maxWeeks + 8, 60);
+      }
+
+      // Ensure at least 6 weeks for balanced view
+      optimalWeeks = Math.max(optimalWeeks, 6);
+
+      setMaxWeeks(optimalWeeks);
+      setSelectedWeekFilter('all');
+      setAgendaTypeFilter('all');
+
+      // Check results
+      const finalSim = computeWeeklySchedules(questions, postponedIds, startDate, optimalWeeks, holidays);
+      const totalScheduled = finalSim.schedules.reduce((sum, s) => sum + s.questions.length, 0);
+      const remainingCount = finalSim.remainingQuestions.length;
+
+      setTimeout(() => {
+        setIsCalculatingAll(false);
+        setToastMessage({
+          type: 'success',
+          text: remainingCount === 0
+            ? `คำนวณวาระทั้งหมดสำเร็จ! จัดสรรกระทู้ถามครบทั้ง ${optimalWeeks} สัปดาห์ (${totalScheduled} เรื่อง ครบ 100% ไม่มีตกค้าง)`
+            : `คำนวณวาระทั้งหมดแล้ว: จัดสรรไปแล้ว ${optimalWeeks} สัปดาห์ (${totalScheduled} เรื่อง, ยังคงเหลือ ${remainingCount} เรื่อง)`,
+        });
+        setTimeout(() => setToastMessage(null), 4500);
+      }, 350);
+    } catch (err) {
+      console.error('Error calculating all agendas:', err);
+      setIsCalculatingAll(false);
+      setToastMessage({
+        type: 'error',
+        text: 'เกิดข้อผิดพลาดในการคำนวณวาระทั้งหมด โปรดตรวจสอบข้อมูลกระทู้ถาม',
+      });
+      setTimeout(() => setToastMessage(null), 4000);
+    }
+  }, [questions, postponedIds, startDate, maxWeeks, holidays]);
+
   // Asker Statistics States & Derived Engine
   const [isAskerStatsModalOpen, setIsAskerStatsModalOpen] = useState(false);
   const [showAskerStatsSection, setShowAskerStatsSection] = useState(true);
@@ -539,6 +598,24 @@ export default function App() {
               <span>{isCheckingSheet ? 'กำลังประมวลผล...' : `รีเฟรช (${currentSheetName})`}</span>
             </button>
 
+            {/* Calculate All Agendas Button in Header (ปุ่มคำนวณวาระทั้งหมด) */}
+            <button
+              type="button"
+              id="btn-calculate-all-agendas-header"
+              onClick={handleCalculateAllAgendas}
+              disabled={isCalculatingAll}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-bold border border-blue-400/40 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              title="คำนวณและจัดสรรระเบียบวาระการประชุมให้ครอบคลุมกระทู้ถามทั้งหมดครบทุกสัปดาห์ (อัตโนมัติ 100%)"
+            >
+              <Calculator className={`w-3.5 h-3.5 text-blue-100 ${isCalculatingAll ? 'animate-spin' : ''}`} />
+              <span>{isCalculatingAll ? 'กำลังคำนวณ...' : 'คำนวณวาระทั้งหมด'}</span>
+              {remainingQuestions.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-amber-950 text-[10px] font-extrabold animate-pulse">
+                  +{remainingQuestions.length}
+                </span>
+              )}
+            </button>
+
             <GoogleSheetsImport
               onImportQuestions={handleImportSheetQuestions}
               currentSheetName={currentSheetName}
@@ -633,6 +710,30 @@ export default function App() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Calculate All Agendas Button in Sidebar */}
+            <div className="pt-2">
+              <button
+                type="button"
+                id="btn-calculate-all-sidebar"
+                onClick={handleCalculateAllAgendas}
+                disabled={isCalculatingAll}
+                className="w-full py-1.5 px-3 rounded-lg bg-sky-50 hover:bg-sky-100 active:scale-98 text-[#0369a1] border border-sky-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                title="คำนวณและจัดสรรระเบียบวาระให้ครอบคลุมกระทู้ถามทั้งหมดครบทุกสัปดาห์"
+              >
+                <Calculator className={`w-3.5 h-3.5 text-[#0369a1] ${isCalculatingAll ? 'animate-spin' : ''}`} />
+                <span>คำนวณวาระทั้งหมด</span>
+                {remainingQuestions.length > 0 ? (
+                  <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300">
+                    รอจัด {remainingQuestions.length}
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300">
+                    ครบ 100%
+                  </span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -889,6 +990,23 @@ export default function App() {
                 <span>{isCheckingSheet ? 'กำลังรีเฟรช...' : 'รีเฟรช Sheet'}</span>
               </button>
 
+              <button
+                type="button"
+                id="btn-quick-calculate-all"
+                onClick={handleCalculateAllAgendas}
+                disabled={isCalculatingAll}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0369a1] hover:bg-[#075985] active:scale-95 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                title="คำนวณระเบียบวาระการประชุมให้ครอบคลุมกระทู้ถามทั้งหมดครบทุกสัปดาห์"
+              >
+                <Calculator className={`w-3.5 h-3.5 text-sky-200 ${isCalculatingAll ? 'animate-spin' : ''}`} />
+                <span>คำนวณวาระทั้งหมด</span>
+                {remainingQuestions.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-amber-950 text-[10px] font-bold">
+                    +{remainingQuestions.length}
+                  </span>
+                )}
+              </button>
+
               {selectedWeekFilter !== 'all' && (
                 <button
                   type="button"
@@ -936,18 +1054,33 @@ export default function App() {
 
           {/* Remaining Questions Banner */}
           {remainingQuestions.length > 0 && (
-            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs text-xs text-slate-600 flex items-center justify-between gap-4">
+            <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 shadow-2xs text-xs text-amber-900 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Info className="w-4 h-4 text-[#0369a1]" />
-                <span>ยังมีกระทู้ถามรอคิวบรรจุในสัปดาห์ถัดๆ ไปอีก {remainingQuestions.length} เรื่อง</span>
+                <Info className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  ยังมีกระทู้ถามรอคิวบรรจุในสัปดาห์ถัดๆ ไปอีก <strong>{remainingQuestions.length} เรื่อง</strong>
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setMaxWeeks((w) => w + 3)}
-                className="text-xs font-bold text-[#0369a1] hover:text-[#075985] underline cursor-pointer"
-              >
-                + คำนวณเพิ่มอีก 3 สัปดาห์
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMaxWeeks((w) => w + 3)}
+                  className="text-xs font-semibold text-amber-800 hover:text-amber-950 underline cursor-pointer"
+                >
+                  + คำนวณเพิ่มอีก 3 สัปดาห์
+                </button>
+                <button
+                  type="button"
+                  id="btn-calculate-all-banner"
+                  onClick={handleCalculateAllAgendas}
+                  disabled={isCalculatingAll}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#0369a1] hover:bg-[#075985] active:scale-95 text-white text-xs font-bold shadow-xs cursor-pointer transition-all"
+                  title="คำนวณและจัดสรรระเบียบวาระการประชุมให้ครบทุกกระทู้ที่ค้างอยู่ทันที"
+                >
+                  <Calculator className={`w-3.5 h-3.5 text-sky-200 ${isCalculatingAll ? 'animate-spin' : ''}`} />
+                  <span>คำนวณวาระทั้งหมดทันที</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -980,6 +1113,7 @@ export default function App() {
               isRefreshingSheet={isCheckingSheet}
               onOpenAskerStats={() => setIsAskerStatsModalOpen(true)}
               selectedAskerFilter={activeAskerFilter}
+              onCalculateAllAgendas={handleCalculateAllAgendas}
             />
           </div>
 

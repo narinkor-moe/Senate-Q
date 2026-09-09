@@ -23,6 +23,7 @@ import {
   FileText,
   FileSpreadsheet,
   FileX2,
+  Calculator,
 } from 'lucide-react';
 
 export type QuestionStatusCategory =
@@ -49,6 +50,7 @@ interface AllQuestionsTableProps {
   isRefreshingSheet?: boolean;
   onOpenAskerStats?: () => void;
   selectedAskerFilter?: string;
+  onCalculateAllAgendas?: () => void;
 }
 
 const highlightMatch = (text: string, query: string) => {
@@ -85,6 +87,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   isRefreshingSheet,
   onOpenAskerStats,
   selectedAskerFilter,
+  onCalculateAllAgendas,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchScope, setSearchScope] = useState<SearchScope>('all');
@@ -431,6 +434,19 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingSheet ? 'animate-spin' : ''}`} />
               <span>{isRefreshingSheet ? 'กำลังรีเฟรช...' : 'รีเฟรชจาก Sheet'}</span>
+            </button>
+          )}
+
+          {onCalculateAllAgendas && (
+            <button
+              type="button"
+              id="btn-table-calculate-all"
+              onClick={onCalculateAllAgendas}
+              title="คำนวณและจัดสรรระเบียบวาระการประชุมให้ครอบคลุมกระทู้ถามทั้งหมดครบทุกสัปดาห์"
+              className="bg-sky-600 hover:bg-sky-500 active:scale-95 text-white px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+            >
+              <Calculator className="w-3.5 h-3.5 text-sky-100" />
+              <span>คำนวณวาระทั้งหมด</span>
             </button>
           )}
 
