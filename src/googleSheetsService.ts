@@ -508,9 +508,29 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
       }
     }
 
-    // Skip rows that are clearly not parliamentary questions (e.g. timestamps or text notes without topic/asker)
-    if (!/^\d+$/.test(rawOrder)) {
-      if (!topicVal || (!askerVal && !ministerVal)) {
+    // Skip rows that are clearly not parliamentary questions (e.g. timestamps, chatbot logs, AI responses, notes)
+    const isNumericOrder = /^\d+$/.test(rawOrder);
+    const looksLikeChatOrNote =
+      topicVal.includes('**') ||
+      topicVal.includes('ออฟฟิศซินโดรม') ||
+      topicVal.includes('20-20-20') ||
+      topicVal.includes('Ergonomics') ||
+      rawOrder.includes('/') ||
+      rawOrder.includes(':') ||
+      /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(rawOrder) ||
+      /\d{1,2}:\d{2}:\d{2}/.test(rawOrder);
+
+    if (looksLikeChatOrNote) {
+      continue;
+    }
+
+    if (!isNumericOrder) {
+      // Must have both valid topic and a realistic parliamentary asker/minister to even consider
+      if (!topicVal || topicVal.length < 5 || (!askerVal && !ministerVal)) {
+        continue;
+      }
+      // If topic contains typical markdown bullets or multi-paragraph text, skip it
+      if (topicVal.includes('\n\n') || topicVal.startsWith('*') || topicVal.startsWith('#')) {
         continue;
       }
     }

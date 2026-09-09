@@ -252,6 +252,26 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                 </label>
 
                 <label className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-xs cursor-pointer transition-all ${
+                  reportType === 'asker_statistics'
+                    ? 'bg-sky-50 border-[#0369a1] text-sky-950 font-semibold shadow-2xs'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100/60'
+                }`}>
+                  <input
+                    type="radio"
+                    name="reportType"
+                    checked={reportType === 'asker_statistics'}
+                    onChange={() => setReportType('asker_statistics')}
+                    className="mt-0.5 text-[#0369a1]"
+                  />
+                  <div>
+                    <div className="font-bold">รายงานสถิติผู้ตั้งกระทู้ถาม (วุฒิสภา)</div>
+                    <div className="text-[11px] text-slate-500 font-normal">
+                      สรุปจำนวนกระทู้และสถานะจำแนกตามรายชื่อสมาชิกวุฒิสภา
+                    </div>
+                  </div>
+                </label>
+
+                <label className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-xs cursor-pointer transition-all ${
                   reportType === 'all_questions_table'
                     ? 'bg-sky-50 border-[#0369a1] text-sky-950 font-semibold shadow-2xs'
                     : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100/60'

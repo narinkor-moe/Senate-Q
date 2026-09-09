@@ -9,6 +9,9 @@ import { GoogleSheetsImport } from './components/GoogleSheetsImport';
 import { PostponeModal } from './components/PostponeModal';
 import { HolidayManagerModal } from './components/HolidayManagerModal';
 import { PrintReportModal } from './components/PrintReportModal';
+import { AskerStatsModal } from './components/AskerStatsModal';
+import { AskerStatsSection } from './components/AskerStatsSection';
+import { computeAskerStats } from './utils/askerStats';
 import { executePrintReport, generateReportHtml } from './utils/printUtils';
 import {
   fetchPostponeMapFromSheet,
@@ -39,6 +42,8 @@ import {
   FileSpreadsheet,
   RefreshCw,
   ExternalLink,
+  Users,
+  BarChart3,
   X
 } from 'lucide-react';
 
@@ -353,6 +358,25 @@ export default function App() {
     return list;
   }, [schedules, selectedWeekFilter, agendaTypeFilter]);
 
+  // Asker Statistics States & Derived Engine
+  const [isAskerStatsModalOpen, setIsAskerStatsModalOpen] = useState(false);
+  const [showAskerStatsSection, setShowAskerStatsSection] = useState(true);
+  const [activeAskerFilter, setActiveAskerFilter] = useState<string>('');
+
+  // Compute comprehensive asker statistics from current questions, schedules, and postponements
+  const askerStats = useMemo(() => {
+    return computeAskerStats(questions, schedules, postponedIds);
+  }, [questions, schedules, postponedIds]);
+
+  // Handle clicking on an asker (from stats card or modal) to filter the table
+  const handleFilterByAsker = (askerName: string) => {
+    setActiveAskerFilter(askerName);
+    const el = document.getElementById('all-questions-table-container');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   // Add new question handler
   const handleAddQuestion = (newQ: Omit<QuestionItem, 'id'>) => {
     const created: QuestionItem = {
@@ -452,6 +476,21 @@ export default function App() {
               <span>ปฏิทินวันหยุดราชการ</span>
               <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-rose-500/80 text-white text-[10px] font-bold">
                 {Object.keys(holidays).length}
+              </span>
+            </button>
+
+            {/* Asker Statistics Button */}
+            <button
+              type="button"
+              id="btn-header-asker-stats"
+              onClick={() => setIsAskerStatsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 active:scale-95 text-white text-xs font-bold border border-sky-400/40 transition-all cursor-pointer shadow-xs"
+              title="เปิดดูสถิติผู้ตั้งกระทู้ถามฉบับเต็มและการจัดสรรระเบียบวาระ"
+            >
+              <Users className="w-3.5 h-3.5 text-sky-200" />
+              <span>สถิติผู้ตั้งถาม</span>
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-sky-900/60 text-sky-100 text-[10px] font-bold border border-sky-400/30">
+                {askerStats.totalUniqueAskers}
               </span>
             </button>
 
@@ -704,19 +743,49 @@ export default function App() {
 
           {/* Overall Stats */}
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-              สรุปสถิติกระทู้ถาม
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                สรุปสถิติภาพรวม
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsAskerStatsModalOpen(true)}
+                className="text-[11px] font-bold text-[#0369a1] hover:underline flex items-center gap-1 cursor-pointer"
+                title="เปิดสถิติผู้ตั้งถามฉบับเต็ม"
+              >
+                <Users className="w-3 h-3" />
+                <span>ดูสถิติ</span>
+              </button>
+            </div>
+
             <div className="grid grid-cols-2 gap-2 text-center">
               <div className="bg-white p-2.5 rounded-lg border border-slate-200">
                 <div className="text-base font-bold text-slate-800">{questions.length}</div>
-                <div className="text-[10px] text-slate-500">ยื่นทั้งหมด</div>
+                <div className="text-[10px] text-slate-500">ยื่นทั้งหมด (เรื่อง)</div>
               </div>
               <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                <div className="text-base font-bold text-amber-600">{postponedIds.size}</div>
+                <div className="text-base font-bold text-sky-700">{askerStats.totalUniqueAskers}</div>
+                <div className="text-[10px] text-slate-500">ผู้ตั้งถาม (ท่าน)</div>
+              </div>
+              <div className="bg-white p-2 rounded-lg border border-slate-200">
+                <div className="text-sm font-bold text-amber-600">{postponedIds.size}</div>
                 <div className="text-[10px] text-slate-500">ขอเลื่อนตอบ</div>
               </div>
+              <div className="bg-white p-2 rounded-lg border border-slate-200">
+                <div className="text-sm font-bold text-emerald-600">{askerStats.avgQuestionsPerAsker}</div>
+                <div className="text-[10px] text-slate-500">เฉลี่ย/ท่าน</div>
+              </div>
             </div>
+
+            <button
+              type="button"
+              id="btn-sidebar-asker-stats"
+              onClick={() => setIsAskerStatsModalOpen(true)}
+              className="w-full py-1.5 px-2.5 bg-sky-50 hover:bg-sky-100 text-[#0369a1] border border-sky-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>สถิติผู้ตั้งถามและการจัดสรร</span>
+            </button>
           </div>
 
           {/* Rules Card matching theme */}
@@ -839,7 +908,21 @@ export default function App() {
             </div>
           )}
 
-          {/* Section 5: All Submitted Questions Table */}
+          {/* Section 5: Asker Statistics Dashboard Section */}
+          {showAskerStatsSection && (
+            <div id="asker-stats-section-container" className="pt-2">
+              <AskerStatsSection
+                questions={questions}
+                schedules={schedules}
+                postponedIds={postponedIds}
+                onOpenFullModal={() => setIsAskerStatsModalOpen(true)}
+                onFilterByAsker={handleFilterByAsker}
+                activeAskerFilter={activeAskerFilter}
+              />
+            </div>
+          )}
+
+          {/* Section 6: All Submitted Questions Table */}
           <div id="all-questions-table-container" className="pt-2">
             <AllQuestionsTable
               questions={questions}
@@ -852,6 +935,8 @@ export default function App() {
               onOpenPostponeModal={handleOpenPostponeModal}
               onRefreshSheet={() => handleRefreshFromGoogleSheet(true)}
               isRefreshingSheet={isCheckingSheet}
+              onOpenAskerStats={() => setIsAskerStatsModalOpen(true)}
+              selectedAskerFilter={activeAskerFilter}
             />
           </div>
 
@@ -889,6 +974,20 @@ export default function App() {
         allQuestions={questions}
         selectedWeekDate={printTargetWeek}
         skippedHolidays={skippedHolidays}
+      />
+
+      {/* Asker Statistics Modal (สถิติผู้ตั้งกระทู้ถามฉบับเต็ม / การจัดสรรระเบียบวาระ / พิมพ์รายงาน) */}
+      <AskerStatsModal
+        isOpen={isAskerStatsModalOpen}
+        onClose={() => setIsAskerStatsModalOpen(false)}
+        questions={questions}
+        schedules={schedules}
+        postponedIds={postponedIds}
+        onSelectAskerInTable={(name) => handleFilterByAsker(name)}
+        onOpenPrintReport={() => {
+          setIsAskerStatsModalOpen(false);
+          setIsPrintModalOpen(true);
+        }}
       />
 
       {/* Floating Toast Notification */}

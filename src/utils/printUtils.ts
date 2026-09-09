@@ -1,8 +1,9 @@
 import { WeeklySchedule, QuestionItem, HolidayItem } from '../types';
 import { formatThaiDateWithDayOfWeek } from '../scheduler';
+import { computeAskerStats } from './askerStats';
 
 export interface PrintReportOptions {
-  reportType: 'all_weeks' | 'selected_week' | 'all_questions_table' | 'postponed_only';
+  reportType: 'all_weeks' | 'selected_week' | 'all_questions_table' | 'postponed_only' | 'asker_statistics';
   selectedWeekDate?: string;
   includeSignature: boolean;
   includeHolidayNotice: boolean;
@@ -70,7 +71,68 @@ export function generateReportHtml(
 
   let bodyContent = '';
 
-  if (options.reportType === 'all_questions_table') {
+  if (options.reportType === 'asker_statistics') {
+    const postponedIdSet = new Set(allQuestions.filter((q) => q.postponedDate).map((q) => q.id));
+    const askerStats = computeAskerStats(allQuestions, schedules, postponedIdSet);
+
+    bodyContent = `
+      <div class="report-section">
+        <h3 class="section-title">รายงานสถิติผู้ตั้งกระทู้ถาม (วุฒิสภา) - รวมสมาชิกวุฒิสภา ${askerStats.totalUniqueAskers} ท่าน (${totalQuestions} กระทู้)</h3>
+        
+        <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 140px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; font-weight: bold;">ผู้ตั้งถามทั้งหมด</div>
+            <div style="font-size: 20px; font-weight: bold; color: #0f172a; margin-top: 2px;">${askerStats.totalUniqueAskers} ท่าน</div>
+          </div>
+          <div style="flex: 1; min-width: 140px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; font-weight: bold;">เฉลี่ยกระทู้ต่อท่าน</div>
+            <div style="font-size: 20px; font-weight: bold; color: #047857; margin-top: 2px;">${askerStats.avgQuestionsPerAsker} เรื่อง</div>
+          </div>
+          <div style="flex: 1; min-width: 140px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; font-weight: bold;">มีวาระทางการแล้ว</div>
+            <div style="font-size: 20px; font-weight: bold; color: #1d4ed8; margin-top: 2px;">${askerStats.askersWithOfficial} ท่าน</div>
+          </div>
+          <div style="flex: 1; min-width: 140px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; font-weight: bold;">มีกระทู้ขอเลื่อนตอบ</div>
+            <div style="font-size: 20px; font-weight: bold; color: #b45309; margin-top: 2px;">${askerStats.askersWithPostponed} ท่าน</div>
+          </div>
+        </div>
+
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th style="width: 60px; text-align: center;">ลำดับที่</th>
+              <th>ชื่อผู้ตั้งกระทู้ถาม (สมาชิกวุฒิสภา)</th>
+              <th style="width: 100px; text-align: center;">รวมยื่น (เรื่อง)</th>
+              <th style="width: 110px; text-align: center;">วาระทางการ</th>
+              <th style="width: 100px; text-align: center;">คาดการณ์</th>
+              <th style="width: 100px; text-align: center;">ขอเลื่อน</th>
+              <th style="width: 90px; text-align: center;">ตอบแล้ว</th>
+              <th style="width: 80px; text-align: center;">รอคิว</th>
+              <th style="${isLandscape ? 'width: 240px;' : 'width: 180px;'}">กระทรวงหลักที่ตั้งถาม</th>
+              <th style="width: 80px; text-align: center;">สัดส่วน</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${askerStats.allAskers.map((a) => `
+              <tr>
+                <td style="text-align: center; font-weight: bold;">${a.rank}</td>
+                <td><strong>${escapeHtml(a.asker)}</strong></td>
+                <td style="text-align: center; font-weight: bold; color: #0369a1;">${a.totalQuestions}</td>
+                <td style="text-align: center; font-weight: bold; color: #1d4ed8;">${a.officialCount || '-'}</td>
+                <td style="text-align: center; color: #7e22ce;">${a.projectedCount || '-'}</td>
+                <td style="text-align: center; color: #b45309; font-weight: bold;">${a.postponedCount || '-'}</td>
+                <td style="text-align: center; color: #047857;">${a.answeredCount || '-'}</td>
+                <td style="text-align: center; color: #64748b;">${a.pendingCount || '-'}</td>
+                <td>${escapeHtml(a.topMinisters.slice(0, 2).map((m) => `${m.minister} (${m.count})`).join(', ') || '-')}</td>
+                <td style="text-align: center;">${a.percentageOfTotal}%</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (options.reportType === 'all_questions_table') {
     // Render full questions directory table
     bodyContent = `
       <div class="report-section">

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { QuestionItem, WeeklySchedule } from '../types';
 import {
   Search,
@@ -19,6 +19,7 @@ import {
   ChevronDown,
   Sparkles,
   User,
+  Users,
   FileText,
   FileSpreadsheet,
 } from 'lucide-react';
@@ -44,6 +45,8 @@ interface AllQuestionsTableProps {
   onOpenPostponeModal?: (question: QuestionItem) => void;
   onRefreshSheet?: () => void;
   isRefreshingSheet?: boolean;
+  onOpenAskerStats?: () => void;
+  selectedAskerFilter?: string;
 }
 
 const highlightMatch = (text: string, query: string) => {
@@ -78,6 +81,8 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   onOpenPostponeModal,
   onRefreshSheet,
   isRefreshingSheet,
+  onOpenAskerStats,
+  selectedAskerFilter,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchScope, setSearchScope] = useState<SearchScope>('all');
@@ -91,6 +96,14 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
     const max = Math.max(...questions.map((q) => q.submittedOrder), 0);
     return max + 1;
   });
+
+  // Sync external asker filter
+  useEffect(() => {
+    if (selectedAskerFilter) {
+      setSearchTerm(selectedAskerFilter);
+      setSearchScope('asker');
+    }
+  }, [selectedAskerFilter]);
 
   // Drag & Drop reordering state
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -216,6 +229,15 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([name, count]) => ({ name, count }));
+  }, [questions]);
+
+  // Total unique askers count
+  const totalUniqueAskers = useMemo(() => {
+    const set = new Set<string>();
+    questions.forEach((q) => {
+      if (q.asker && q.asker.trim()) set.add(q.asker.trim());
+    });
+    return set.size;
   }, [questions]);
 
   // Filter questions by search AND status filter
@@ -398,6 +420,19 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
             </button>
           )}
 
+          {onOpenAskerStats && (
+            <button
+              type="button"
+              id="btn-table-open-asker-stats"
+              onClick={onOpenAskerStats}
+              title="เปิดดูสถิติผู้ตั้งกระทู้ถามและการจัดสรรระเบียบวาระฉบับเต็ม"
+              className="bg-white hover:bg-sky-50 text-[#0369a1] border border-sky-300 px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95"
+            >
+              <Users className="w-3.5 h-3.5 text-[#0369a1]" />
+              <span>สถิติผู้ตั้งถาม ({totalUniqueAskers} ท่าน)</span>
+            </button>
+          )}
+
           <button
             type="button"
             id="btn-open-add-question"
@@ -522,39 +557,53 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
 
         {/* Quick Asker Suggestion Badges */}
         {frequentAskers.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap text-xs text-slate-500 pt-0.5">
-            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1 mr-0.5">
-              <User className="w-3 h-3 text-[#0369a1]" />
-              ค้นหาด่วนตามผู้ตั้งถาม:
-            </span>
-            {frequentAskers.map(({ name, count }) => {
-              const isSelected = searchTerm === name && (searchScope === 'asker' || searchScope === 'all');
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => {
-                    if (isSelected) {
-                      setSearchTerm('');
-                    } else {
-                      setSearchTerm(name);
-                      setSearchScope('asker');
-                    }
-                  }}
-                  className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-all cursor-pointer border ${
-                    isSelected
-                      ? 'bg-[#0369a1] text-white border-[#0369a1] shadow-2xs'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-sky-300 hover:bg-sky-50'
-                  }`}
-                  title={`กรองกระทู้ถามของ ${name}`}
-                >
-                  <span>{name}</span>
-                  <span className={`ml-1 text-[10px] ${isSelected ? 'text-white/80' : 'text-slate-400'}`}>
-                    ({count})
-                  </span>
-                </button>
-              );
-            })}
+          <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-slate-500 pt-0.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1 mr-0.5">
+                <User className="w-3 h-3 text-[#0369a1]" />
+                ค้นหาด่วนตามผู้ตั้งถาม:
+              </span>
+              {frequentAskers.map(({ name, count }) => {
+                const isSelected = searchTerm === name && (searchScope === 'asker' || searchScope === 'all');
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setSearchTerm('');
+                      } else {
+                        setSearchTerm(name);
+                        setSearchScope('asker');
+                      }
+                    }}
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-all cursor-pointer border ${
+                      isSelected
+                        ? 'bg-[#0369a1] text-white border-[#0369a1] shadow-2xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-sky-300 hover:bg-sky-50'
+                    }`}
+                    title={`กรองกระทู้ถามของ ${name}`}
+                  >
+                    <span>{name}</span>
+                    <span className={`ml-1 text-[10px] ${isSelected ? 'text-white/80' : 'text-slate-400'}`}>
+                      ({count})
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {onOpenAskerStats && (
+              <button
+                type="button"
+                onClick={onOpenAskerStats}
+                className="text-[#0369a1] hover:text-[#075985] text-xs font-bold inline-flex items-center gap-1 hover:underline cursor-pointer ml-auto"
+                title="เปิดดูสถิติผู้ตั้งกระทู้ถามทั้งหมด"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>ดูสถิติผู้ตั้งถามทั้งหมด ({totalUniqueAskers} ท่าน)</span>
+              </button>
+            )}
           </div>
         )}
       </div>

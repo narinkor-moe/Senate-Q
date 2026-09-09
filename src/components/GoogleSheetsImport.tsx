@@ -144,8 +144,27 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
         }
       }
 
-      if (!/^\d+$/.test(rawOrder)) {
-        if (!topicVal || (!askerVal && !ministerVal)) {
+      // Skip rows that are clearly not parliamentary questions (e.g. timestamps, chatbot logs, AI responses, notes)
+      const isNumericOrder = /^\d+$/.test(rawOrder);
+      const looksLikeChatOrNote =
+        topicVal.includes('**') ||
+        topicVal.includes('ออฟฟิศซินโดรม') ||
+        topicVal.includes('20-20-20') ||
+        topicVal.includes('Ergonomics') ||
+        rawOrder.includes('/') ||
+        rawOrder.includes(':') ||
+        /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(rawOrder) ||
+        /\d{1,2}:\d{2}:\d{2}/.test(rawOrder);
+
+      if (looksLikeChatOrNote) {
+        continue;
+      }
+
+      if (!isNumericOrder) {
+        if (!topicVal || topicVal.length < 5 || (!askerVal && !ministerVal)) {
+          continue;
+        }
+        if (topicVal.includes('\n\n') || topicVal.startsWith('*') || topicVal.startsWith('#')) {
           continue;
         }
       }
