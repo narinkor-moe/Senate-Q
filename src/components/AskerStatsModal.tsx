@@ -20,6 +20,7 @@ import {
   Award,
   ArrowUpDown,
   ExternalLink,
+  FileX2,
 } from 'lucide-react';
 
 interface AskerStatsModalProps {
@@ -43,7 +44,7 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'questions' | 'name' | 'postponed'>('questions');
-  const [filterType, setFilterType] = useState<'all' | 'has_official' | 'has_postponed' | 'has_projected'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'has_official' | 'has_postponed' | 'has_projected' | 'has_withdrawn'>('all');
   const [expandedAsker, setExpandedAsker] = useState<string | null>(null);
 
   // Compute stats
@@ -68,6 +69,8 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
       list = list.filter((a) => a.postponedCount > 0);
     } else if (filterType === 'has_projected') {
       list = list.filter((a) => a.projectedCount > 0);
+    } else if (filterType === 'has_withdrawn') {
+      list = list.filter((a) => a.withdrawnCount > 0);
     }
 
     // Sorting
@@ -131,7 +134,7 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
         {/* Modal Body */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1 bg-[#f8fafc]">
           {/* Key Metric Overview Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
             {/* Metric 1: Total Askers */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
@@ -200,6 +203,25 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                 มีสิทธิ์ลำดับแรกในวันนัดตอบ
               </div>
             </div>
+
+            {/* Metric 5: Withdrawn Questions */}
+            <div className="bg-white p-4 rounded-xl border border-rose-200 bg-rose-50/20 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-rose-800 uppercase tracking-wider">
+                  ขอถอนกระทู้
+                </span>
+                <FileX2 className="w-4 h-4 text-rose-600" />
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-black text-rose-600">{stats.totalWithdrawnQuestions}</span>
+                <span className="text-xs text-rose-700 font-medium">เรื่อง</span>
+              </div>
+              <div className="mt-1 text-[11px] text-rose-600 font-medium">
+                {stats.askersWithWithdrawn > 0
+                  ? `จาก ส.ว. ${stats.askersWithWithdrawn} ท่าน (ไม่จัดในวาระ)`
+                  : 'ไม่มีกระทู้ขอถอน'}
+              </div>
+            </div>
           </div>
 
           {/* Top 5 Leaderboard & Status Distribution */}
@@ -209,7 +231,7 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                 <Award className="w-4 h-4 text-amber-500" />
                 <span>5 อันดับผู้ตั้งกระทู้ถามสูงสุด & สัดส่วนสถานะการบรรจุ</span>
               </h3>
-              <div className="flex items-center gap-3 text-[11px]">
+              <div className="flex items-center gap-3 text-[11px] flex-wrap">
                 <span className="flex items-center gap-1">
                   <span className="w-2.5 h-2.5 rounded-xs bg-blue-600 inline-block"></span>
                   <span className="text-slate-600">วาระทางการ</span>
@@ -227,6 +249,10 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                   <span className="text-slate-600">ตอบแล้ว</span>
                 </span>
                 <span className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-xs bg-rose-500 inline-block"></span>
+                  <span className="text-slate-600">ขอถอน</span>
+                </span>
+                <span className="flex items-center gap-1">
                   <span className="w-2.5 h-2.5 rounded-xs bg-slate-300 inline-block"></span>
                   <span className="text-slate-600">รอคิว</span>
                 </span>
@@ -242,6 +268,7 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                 const projectedPct = (asker.projectedCount / asker.totalQuestions) * 100;
                 const postponedPct = (asker.postponedCount / asker.totalQuestions) * 100;
                 const answeredPct = (asker.answeredCount / asker.totalQuestions) * 100;
+                const withdrawnPct = (asker.withdrawnCount / asker.totalQuestions) * 100;
                 const pendingPct = (asker.pendingCount / asker.totalQuestions) * 100;
 
                 return (
@@ -296,6 +323,13 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                           className="bg-emerald-600 h-full"
                           style={{ width: `${answeredPct}%` }}
                           title={`ตอบแล้ว: ${asker.answeredCount} เรื่อง`}
+                        />
+                      )}
+                      {withdrawnPct > 0 && (
+                        <div
+                          className="bg-rose-500 h-full"
+                          style={{ width: `${withdrawnPct}%` }}
+                          title={`ขอถอน: ${asker.withdrawnCount} เรื่อง (ไม่จัดในวาระ)`}
                         />
                       )}
                       {pendingPct > 0 && (
@@ -382,6 +416,19 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                 >
                   มีขอเลื่อนตอบ ({stats.askersWithPostponed})
                 </button>
+                {stats.askersWithWithdrawn > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFilterType('has_withdrawn')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      filterType === 'has_withdrawn'
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-rose-50 text-rose-800 hover:bg-rose-100'
+                    }`}
+                  >
+                    มีขอถอน ({stats.askersWithWithdrawn})
+                  </button>
+                )}
               </div>
 
               {/* Sort Switcher */}
@@ -490,6 +537,14 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                             </span>
                           ) : null}
 
+                          {/* Withdrawn */}
+                          {asker.withdrawnCount > 0 ? (
+                            <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-800 border border-rose-200 text-xs font-bold inline-flex items-center gap-1">
+                              <FileX2 className="w-3 h-3 text-rose-600" />
+                              ขอถอน {asker.withdrawnCount}
+                            </span>
+                          ) : null}
+
                           {/* Pending */}
                           {asker.pendingCount > 0 ? (
                             <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold">
@@ -546,6 +601,7 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                               const isProj = item.statusCategory === 'projected';
                               const isPost = item.statusCategory === 'postponed';
                               const isAns = item.statusCategory === 'answered';
+                              const isWithdrawn = item.statusCategory === 'withdrawn';
 
                               return (
                                 <div
@@ -584,7 +640,13 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                                           ตอบแล้ว
                                         </span>
                                       )}
-                                      {!isOff && !isProj && !isPost && !isAns && (
+                                      {isWithdrawn && (
+                                        <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-900 text-[11px] font-bold border border-rose-200 inline-flex items-center gap-1">
+                                          <FileX2 className="w-3 h-3 text-rose-600" />
+                                          ขอถอนกระทู้ (ไม่นำมาจัดในวาระ)
+                                        </span>
+                                      )}
+                                      {!isOff && !isProj && !isPost && !isAns && !isWithdrawn && (
                                         <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200">
                                           รอคิวบรรจุ
                                         </span>

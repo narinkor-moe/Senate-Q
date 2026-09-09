@@ -310,6 +310,24 @@ export function isQuestionAnswered(q: QuestionItem): boolean {
   return false;
 }
 
+/**
+ * Helper to check if a question has been requested to withdraw (ขอถอนกระทู้ถาม)
+ * หากมีการขอถอนกระทู้ถามในลำดับคิวที่ยื่น ให้ระบบไม่นำมาจัดในวาระการประชุม
+ */
+export function isQuestionWithdrawn(q: QuestionItem): boolean {
+  if (q.isWithdrawn === true) return true;
+  if (q.status === 'withdrawn') return true;
+  if (q.rawStatus) {
+    const rs = q.rawStatus.trim().toLowerCase();
+    if (rs.includes('ถอน') || rs.includes('ขอถอน') || rs.includes('withdrawn')) return true;
+  }
+  if (q.notes) {
+    const nt = q.notes.trim().toLowerCase();
+    if (nt.includes('ขอถอน') || nt.includes('ถอนกระทู้') || nt.includes('ถอนเรื่อง')) return true;
+  }
+  return false;
+}
+
 export function computeWeeklySchedules(
   allQuestions: QuestionItem[],
   postponedQuestionIds: Set<string>,
@@ -332,6 +350,7 @@ export function computeWeeklySchedules(
   const explicitScheduledIds = new Set<string>();
 
   for (const q of allSortedQuestions) {
+    if (isQuestionWithdrawn(q)) continue; // หากขอถอนกระทู้ถาม ไม่นำมาจัดในวาระการประชุม
     if (q.scheduledDate && q.scheduledDate.trim() !== '') {
       const parsed = parseThaiOrISODate(q.scheduledDate);
       if (parsed) {
@@ -351,10 +370,14 @@ export function computeWeeklySchedules(
   // เช่น ลำดับที่ยื่น 1 (นายประพนธ์), 2 (นายมังกร), 3 (นายมังกร - ซ้ำ ข้าม), 4 (นายเปรมศักดิ์) -> สัปดาห์แรกต้องเป็น 1, 2, 4
   const monday0 = workingMondays[0];
   const explicit0 = explicitScheduledByMonday.get(monday0);
-  let firstWeekCandidates: QuestionItem[] = explicit0 && explicit0.length > 0 ? [...explicit0] : [];
+  let firstWeekCandidates: QuestionItem[] = explicit0 && explicit0.length > 0 
+    ? explicit0.filter((q) => !isQuestionWithdrawn(q))
+    : [];
   if (firstWeekCandidates.length === 0) {
     const firstWeekAskers = new Set<string>();
     for (const q of allSortedQuestions) {
+      if (isQuestionWithdrawn(q)) continue; // ข้ามกระทู้ที่ขอถอน ไม่นำมาจัดในวาระ
+      if (isQuestionAnswered(q)) continue;
       if (!firstWeekAskers.has(q.asker)) {
         firstWeekCandidates.push(q);
         firstWeekAskers.add(q.asker);
@@ -370,6 +393,7 @@ export function computeWeeklySchedules(
   const explicitPostponedByMonday = new Map<string, { question: QuestionItem; originalDate: string }[]>();
 
   const registerPostponement = (q: QuestionItem, originMonday: string) => {
+    if (isQuestionWithdrawn(q)) return; // ข้ามกระทู้ที่ขอถอน
     if (q.postponedDate && q.postponedDate.trim() !== '') {
       const parsedISO = parseThaiOrISODate(q.postponedDate);
       if (parsedISO) {
@@ -398,9 +422,12 @@ export function computeWeeklySchedules(
   }
 
   // Pool สำหรับกระทู้ทั่วไปที่ยังไม่ถูกบรรจุ และ "ยังไม่ตอบ"
-  // (หากใน Google Sheet คอลัมน์ "สถานะ" เป็น "ตอบแล้ว" ให้ระบบไม่ต้องนำมาจัดในวาระการประชุม)
+  // (หากขอถอนกระทู้ถาม หรือใน Google Sheet คอลัมน์ "สถานะ" เป็น "ตอบแล้ว" ให้ระบบไม่ต้องนำมาจัดในวาระการประชุม)
   const regularPool: QuestionItem[] = [];
   for (const q of allSortedQuestions) {
+    if (isQuestionWithdrawn(q)) {
+      continue; // หากขอถอนกระทู้ถาม ไม่นำมาจัดในวาระการประชุม
+    }
     if (firstWeekCandidateIds.has(q.id) || explicitScheduledIds.has(q.id)) {
       continue;
     }
@@ -453,6 +480,9 @@ export function computeWeeklySchedules(
     let placedPostponedCount = 0;
 
     for (const item of allPostponedForToday) {
+      if (isQuestionWithdrawn(item.question)) {
+        continue; // ข้ามกระทู้ที่ขอถอน ไม่นำมาจัดในวาระ
+      }
       // ตรวจสอบว่าผู้ตั้งถามซ้ำกับกระทู้ที่ได้จัดในวันนี้แล้วหรือไม่
       if (askersScheduledToday.has(item.question.asker)) {
         // หากผู้ตั้งถามซ้ำกับกระทู้ที่จัดในวันนี้ -> ให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
@@ -798,7 +828,7 @@ export function auditScheduleCompliance(
   });
 
   const unassignedQuestionsCount = allQuestions.filter(
-    (q) => !scheduledQuestionIds.has(q.id) && !q.isAnswered
+    (q) => !scheduledQuestionIds.has(q.id) && !isQuestionAnswered(q) && !isQuestionWithdrawn(q)
   ).length;
 
   return {

@@ -1,8 +1,9 @@
 import { QuestionItem, WeeklySchedule } from '../types';
+import { isQuestionAnswered, isQuestionWithdrawn } from '../scheduler';
 
 export interface AskerQuestionDetail {
   question: QuestionItem;
-  statusCategory: 'official' | 'projected' | 'postponed' | 'answered' | 'pending';
+  statusCategory: 'official' | 'projected' | 'postponed' | 'answered' | 'withdrawn' | 'pending';
   statusLabel: string;
   scheduleInfo?: {
     thaiDate: string;
@@ -20,6 +21,7 @@ export interface AskerStatItem {
   projectedCount: number;
   postponedCount: number;
   answeredCount: number;
+  withdrawnCount: number;
   pendingCount: number;
   percentageOfTotal: number;
   topMinisters: { minister: string; count: number }[];
@@ -34,6 +36,8 @@ export interface OverallAskerStats {
   askersWithOfficial: number;
   askersWithProjected: number;
   askersWithAnswered: number;
+  askersWithWithdrawn: number;
+  totalWithdrawnQuestions: number;
   allAskers: AskerStatItem[];
   topAskers: AskerStatItem[];
   ministryDistribution: { minister: string; count: number; percentage: number }[];
@@ -75,12 +79,12 @@ export function computeAskerStats(
 
   // Helper to determine status
   const getStatusInfo = (q: QuestionItem) => {
-    const isAnswered =
-      q.isAnswered === true ||
-      q.status === 'completed' ||
-      q.status === 'answered' ||
-      (q.rawStatus && q.rawStatus.includes('ตอบแล้ว'));
+    const isWithdrawn = isQuestionWithdrawn(q);
+    if (isWithdrawn) {
+      return { category: 'withdrawn' as const, label: 'ขอถอนกระทู้ (ไม่นำมาจัดในวาระ)' };
+    }
 
+    const isAnswered = isQuestionAnswered(q);
     if (isAnswered) {
       return { category: 'answered' as const, label: 'ตอบแล้ว' };
     }
@@ -118,6 +122,7 @@ export function computeAskerStats(
       projectedCount: number;
       postponedCount: number;
       answeredCount: number;
+      withdrawnCount: number;
       pendingCount: number;
       details: AskerQuestionDetail[];
     }
@@ -140,6 +145,7 @@ export function computeAskerStats(
         projectedCount: 0,
         postponedCount: 0,
         answeredCount: 0,
+        withdrawnCount: 0,
         pendingCount: 0,
         details: [],
       });
@@ -152,7 +158,8 @@ export function computeAskerStats(
     const status = getStatusInfo(q);
     const sched = scheduledMap.get(q.id);
 
-    if (status.category === 'official') group.officialCount++;
+    if (status.category === 'withdrawn') group.withdrawnCount++;
+    else if (status.category === 'official') group.officialCount++;
     else if (status.category === 'projected') group.projectedCount++;
     else if (status.category === 'postponed') group.postponedCount++;
     else if (status.category === 'answered') group.answeredCount++;
@@ -191,6 +198,7 @@ export function computeAskerStats(
         projectedCount: item.projectedCount,
         postponedCount: item.postponedCount,
         answeredCount: item.answeredCount,
+        withdrawnCount: item.withdrawnCount,
         pendingCount: item.pendingCount,
         percentageOfTotal: Number(percentageOfTotal.toFixed(1)),
         topMinisters,
@@ -216,12 +224,16 @@ export function computeAskerStats(
   let askersWithOfficial = 0;
   let askersWithProjected = 0;
   let askersWithAnswered = 0;
+  let askersWithWithdrawn = 0;
+  let totalWithdrawnQuestions = 0;
 
   sortedAskers.forEach((item) => {
     if (item.postponedCount > 0) askersWithPostponed++;
     if (item.officialCount > 0) askersWithOfficial++;
     if (item.projectedCount > 0) askersWithProjected++;
     if (item.answeredCount > 0) askersWithAnswered++;
+    if (item.withdrawnCount > 0) askersWithWithdrawn++;
+    totalWithdrawnQuestions += item.withdrawnCount;
   });
 
   // Ministry distribution
@@ -241,6 +253,8 @@ export function computeAskerStats(
     askersWithOfficial,
     askersWithProjected,
     askersWithAnswered,
+    askersWithWithdrawn,
+    totalWithdrawnQuestions,
     allAskers: sortedAskers,
     topAskers: sortedAskers.slice(0, 5),
     ministryDistribution,

@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Clock,
   Sparkles,
+  FileX2,
 } from 'lucide-react';
 
 interface AskerStatsSectionProps {
@@ -83,7 +84,7 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
       {!isCollapsed && (
         <div className="p-4 space-y-4">
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200/80">
               <span className="text-[11px] font-semibold text-slate-500 block">ผู้ตั้งถามทั้งหมด</span>
               <div className="mt-1 flex items-baseline gap-1.5">
@@ -113,6 +114,16 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
               <div className="mt-1 flex items-baseline gap-1.5">
                 <span className="text-xl font-bold text-amber-800">{stats.askersWithPostponed}</span>
                 <span className="text-xs text-amber-600">ท่าน</span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-rose-50/50 border border-rose-200/60">
+              <span className="text-[11px] font-semibold text-rose-700 block">ขอถอนกระทู้</span>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-xl font-bold text-rose-800">{stats.totalWithdrawnQuestions}</span>
+                <span className="text-xs text-rose-600">
+                  เรื่อง {stats.askersWithWithdrawn > 0 ? `(${stats.askersWithWithdrawn} ท่าน)` : ''}
+                </span>
               </div>
             </div>
           </div>
@@ -185,6 +196,12 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
                         <span
                           className={`w-2 h-2 rounded-full ${isSelected ? 'bg-amber-200' : 'bg-amber-500'}`}
                           title={`ขอเลื่อน: ${asker.postponedCount} เรื่อง`}
+                        />
+                      )}
+                      {asker.withdrawnCount > 0 && (
+                        <span
+                          className={`w-2 h-2 rounded-full ${isSelected ? 'bg-rose-200' : 'bg-rose-500'}`}
+                          title={`ขอถอน: ${asker.withdrawnCount} เรื่อง (ไม่นำมาจัดวาระ)`}
                         />
                       )}
                     </div>

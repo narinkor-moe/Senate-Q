@@ -22,6 +22,7 @@ import {
   Users,
   FileText,
   FileSpreadsheet,
+  FileX2,
 } from 'lucide-react';
 
 export type QuestionStatusCategory =
@@ -31,7 +32,8 @@ export type QuestionStatusCategory =
   | 'scheduled'
   | 'pending'
   | 'postponed'
-  | 'answered';
+  | 'answered'
+  | 'withdrawn';
 export type SearchScope = 'all' | 'asker' | 'topic';
 
 interface AllQuestionsTableProps {
@@ -145,7 +147,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   const getQuestionStatus = (
     target: QuestionItem | string
   ): {
-    category: 'answered' | 'postponed' | 'official' | 'projected' | 'pending';
+    category: 'answered' | 'postponed' | 'official' | 'projected' | 'pending' | 'withdrawn';
     label: string;
     subLabel?: string;
     scheduleType?: 'official' | 'projected';
@@ -153,6 +155,15 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   } => {
     const q = typeof target === 'string' ? questions.find((item) => item.id === target) : target;
     if (!q) return { category: 'pending', label: 'รอคิว', subLabel: 'รอการจัดวาระ' };
+
+    // 0. ขอถอน (จาก Google Sheet หรือ withdrawn)
+    if (
+      q.status === 'withdrawn' ||
+      q.isWithdrawn ||
+      (q.rawStatus && (q.rawStatus.includes('ถอน') || q.rawStatus.toLowerCase().includes('withdrawn')))
+    ) {
+      return { category: 'withdrawn', label: 'ขอถอน', subLabel: 'ขอถอนกระทู้ถาม (ไม่นำมาจัดในวาระ)' };
+    }
 
     // 1. ตอบแล้ว (จาก Google Sheet หรือ completed)
     if (q.status === 'completed' || q.status === 'answered' || q.isAnswered || (q.rawStatus && q.rawStatus.includes('ตอบแล้ว'))) {
@@ -196,10 +207,12 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
     let pending = 0;
     let postponed = 0;
     let answered = 0;
+    let withdrawn = 0;
 
     questions.forEach((q) => {
       const status = getQuestionStatus(q).category;
-      if (status === 'answered') answered++;
+      if (status === 'withdrawn') withdrawn++;
+      else if (status === 'answered') answered++;
       else if (status === 'postponed') postponed++;
       else if (status === 'official') official++;
       else if (status === 'projected') projected++;
@@ -214,6 +227,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
       pending,
       postponed,
       answered,
+      withdrawn,
     };
   }, [questions, scheduledMap, postponedIds]);
 
@@ -763,6 +777,30 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
               {counts.answered}
             </span>
           </button>
+
+          {/* Withdrawn: ขอถอน */}
+          {counts.withdrawn > 0 && (
+            <button
+              type="button"
+              id="filter-status-withdrawn"
+              onClick={() => setStatusFilter('withdrawn')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                statusFilter === 'withdrawn'
+                  ? 'bg-rose-700 text-white shadow-xs'
+                  : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-300'
+              }`}
+            >
+              <FileX2 className="w-3.5 h-3.5 text-rose-600" />
+              <span>ขอถอน</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  statusFilter === 'withdrawn' ? 'bg-white/20 text-white' : 'bg-rose-200 text-rose-900'
+                }`}
+              >
+                {counts.withdrawn}
+              </span>
+            </button>
+          )}
         </div>
 
         {statusFilter !== 'all' && (
@@ -866,6 +904,8 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                         ? 'border-t-2 border-[#0369a1] bg-sky-50/50'
                         : isOverBottom
                         ? 'border-b-2 border-[#0369a1] bg-sky-50/50'
+                        : statusInfo.category === 'withdrawn'
+                        ? 'bg-rose-50/20 hover:bg-rose-50/40 text-slate-500'
                         : statusInfo.category === 'answered'
                         ? 'bg-emerald-50/25 hover:bg-emerald-50/50'
                         : statusInfo.category === 'postponed'
@@ -985,6 +1025,18 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                               {statusInfo.subLabel}
                             </span>
                           )}
+                        </div>
+                      )}
+
+                      {statusInfo.category === 'withdrawn' && (
+                        <div className="inline-flex flex-col items-center">
+                          <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-0.5 rounded text-[11px] font-bold inline-flex items-center gap-1">
+                            <FileX2 className="w-3.5 h-3.5 text-rose-600" />
+                            ขอถอน
+                          </span>
+                          <span className="text-[10px] text-rose-700 font-medium mt-0.5">
+                            ไม่นำมาจัดในวาระ
+                          </span>
                         </div>
                       )}
 

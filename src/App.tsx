@@ -44,6 +44,7 @@ import {
   ExternalLink,
   Users,
   BarChart3,
+  FileX2,
   X
 } from 'lucide-react';
 
@@ -95,7 +96,15 @@ export default function App() {
   const [maxWeeks, setMaxWeeks] = useState<number>(8);
   const [selectedWeekFilter, setSelectedWeekFilter] = useState<string | 'all'>('all');
 
-  // 7. Google Sheets Postpone Live Check & Status State
+  // 7. Google Sheets Connection & Active Worksheet Configuration
+  const [currentSheetName, setCurrentSheetName] = useState<string>(() => {
+    return localStorage.getItem('senate_current_sheet_name') || DEFAULT_SHEET_NAME;
+  });
+  const [currentSpreadsheetId, setCurrentSpreadsheetId] = useState<string>(() => {
+    return localStorage.getItem('senate_current_spreadsheet_id') || DEFAULT_SHEET_ID;
+  });
+
+  // 8. Google Sheets Postpone Live Check & Status State
   const [isCheckingSheet, setIsCheckingSheet] = useState<boolean>(false);
   const [sheetCheckStatus, setSheetCheckStatus] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -104,11 +113,14 @@ export default function App() {
   const handleRefreshFromGoogleSheet = useCallback(async (showNotification: boolean = true) => {
     try {
       setIsCheckingSheet(true);
-      setSheetCheckStatus('กำลังดึงข้อมูลล่าสุดจาก Google Sheet และประมวลผลจัดวาระใหม่...');
+      setSheetCheckStatus(`กำลังดึงข้อมูลล่าสุดจาก Google Sheet (แผ่นงาน "${currentSheetName}")...`);
 
-      const freshQuestions = await fetchFullQuestionsFromSheet(DEFAULT_SHEET_ID, DEFAULT_RANGE);
+      const freshQuestions = await fetchFullQuestionsFromSheet(currentSpreadsheetId, {
+        sheetName: currentSheetName,
+        range: 'A1:Z500'
+      });
       if (!freshQuestions || freshQuestions.length === 0) {
-        throw new Error('ไม่พบข้อมูลกระทู้ใน Google Sheet (ชีต Data)');
+        throw new Error(`ไม่พบข้อมูลกระทู้ใน Google Sheet (แผ่นงาน "${currentSheetName}")`);
       }
 
       setQuestions(freshQuestions);
@@ -126,13 +138,13 @@ export default function App() {
 
       const now = new Date();
       const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const statusMsg = `รีเฟรชล่าสุด ${timeStr} น. (โหลดข้อมูล ${freshQuestions.length} กระทู้, เลื่อนตอบ ${postponeCount} เรื่อง)`;
+      const statusMsg = `รีเฟรชล่าสุด ${timeStr} น. [แผ่นงาน: ${currentSheetName}] (โหลดข้อมูล ${freshQuestions.length} กระทู้, เลื่อนตอบ ${postponeCount} เรื่อง)`;
       setSheetCheckStatus(statusMsg);
 
       if (showNotification) {
         setToastMessage({
           type: 'success',
-          text: `รีเฟรชข้อมูลจาก Google Sheet สำเร็จ! โหลดข้อมูลล่าสุด ${freshQuestions.length} กระทู้ (เลื่อนตอบ ${postponeCount} เรื่อง) และประมวลผลจัดวาระใหม่เรียบร้อยแล้ว`,
+          text: `รีเฟรชข้อมูลจาก Google Sheet (แผ่นงาน "${currentSheetName}") สำเร็จ! โหลดข้อมูลล่าสุด ${freshQuestions.length} กระทู้ (เลื่อนตอบ ${postponeCount} เรื่อง) และประมวลผลจัดวาระใหม่เรียบร้อยแล้ว`,
         });
         setTimeout(() => setToastMessage(null), 4500);
       }
@@ -140,7 +152,7 @@ export default function App() {
       console.warn('Refresh from Google Sheet error, attempting postpone map check fallback:', err);
       // Fallback: try checking postpone map
       try {
-        const sheetMap = await fetchPostponeMapFromSheet(DEFAULT_SHEET_ID, DEFAULT_SHEET_NAME);
+        const sheetMap = await fetchPostponeMapFromSheet(currentSpreadsheetId, currentSheetName);
         let foundCount = 0;
         setQuestions((prev) =>
           prev.map((q) => {
@@ -164,7 +176,7 @@ export default function App() {
           })
         );
         const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-        setSheetCheckStatus(`อัปเดตวันเลื่อนตอบ ${timeStr} น. (${foundCount} เรื่อง)`);
+        setSheetCheckStatus(`อัปเดตวันเลื่อนตอบ ${timeStr} น. (${foundCount} เรื่อง) [แผ่นงาน: ${currentSheetName}]`);
       } catch (innerErr) {
         setSheetCheckStatus('ไม่สามารถรีเฟรช Google Sheet ได้ในขณะนี้');
       }
@@ -172,14 +184,14 @@ export default function App() {
       if (showNotification) {
         setToastMessage({
           type: 'error',
-          text: `เกิดข้อผิดพลาดในการรีเฟรชจาก Google Sheet: ${err?.message || 'โปรดตรวจสอบการเชื่อมต่อ'}`,
+          text: `เกิดข้อผิดพลาดในการรีเฟรชจาก Google Sheet (แผ่นงาน "${currentSheetName}"): ${err?.message || 'โปรดตรวจสอบการเชื่อมต่อ'}`,
         });
         setTimeout(() => setToastMessage(null), 5000);
       }
     } finally {
       setIsCheckingSheet(false);
     }
-  }, []);
+  }, [currentSheetName, currentSpreadsheetId]);
 
   // Function to inspect Google Sheet column "เลื่อนตอบวันที่" and sync into questions
   const checkAndSyncGoogleSheet = useCallback(async (showNotification: boolean = false) => {
@@ -270,8 +282,8 @@ export default function App() {
         const res = await savePostponeDateToSheet(
           question.submittedOrder,
           targetDateISO,
-          DEFAULT_SHEET_ID,
-          DEFAULT_SHEET_NAME
+          currentSpreadsheetId,
+          currentSheetName
         );
         finalRowIndex = res.sheetRowNumber;
         finalRawDate = res.writtenValue || undefined;
@@ -279,7 +291,7 @@ export default function App() {
         console.error('Failed to write to Google Sheet:', err);
         setToastMessage({
           type: 'error',
-          text: `บันทึกในระบบแล้ว แต่บันทึกลง Google Sheet ไม่สำเร็จ: ${err?.message || 'ข้อผิดพลาดเครือข่าย'}`,
+          text: `บันทึกในระบบแล้ว แต่บันทึกลง Google Sheet [แผ่นงาน: ${currentSheetName}] ไม่สำเร็จ: ${err?.message || 'ข้อผิดพลาดเครือข่าย'}`,
         });
         setTimeout(() => setToastMessage(null), 6000);
         throw err;
@@ -318,8 +330,8 @@ export default function App() {
       setToastMessage({
         type: 'success',
         text: targetDateISO
-          ? `บันทึกลง Google Sheet สำเร็จ! (ลำดับที่ ${question.submittedOrder} แถวที่ ${finalRowIndex}: Data!C${finalRowIndex} = "${finalRawDate}")`
-          : `ลบวันเลื่อนตอบใน Google Sheet เรียบร้อยแล้ว (Data!C${finalRowIndex})`,
+          ? `บันทึกลง Google Sheet สำเร็จ! (ลำดับที่ ${question.submittedOrder} แถวที่ ${finalRowIndex}: ${currentSheetName}!C${finalRowIndex} = "${finalRawDate}")`
+          : `ลบวันเลื่อนตอบใน Google Sheet เรียบร้อยแล้ว (${currentSheetName}!C${finalRowIndex})`,
       });
       setTimeout(() => setToastMessage(null), 4500);
     } else {
@@ -413,7 +425,10 @@ export default function App() {
   };
 
   // Import from Google Sheets
-  const handleImportSheetQuestions = (imported: QuestionItem[]) => {
+  const handleImportSheetQuestions = (
+    imported: QuestionItem[],
+    meta?: { sheetName: string; spreadsheetId: string }
+  ) => {
     setQuestions(imported);
     const newPostponedIds = new Set<string>();
     imported.forEach((q) => {
@@ -422,6 +437,23 @@ export default function App() {
       }
     });
     setPostponedIds(newPostponedIds);
+
+    if (meta?.sheetName) {
+      setCurrentSheetName(meta.sheetName);
+      try {
+        localStorage.setItem('senate_current_sheet_name', meta.sheetName);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (meta?.spreadsheetId) {
+      setCurrentSpreadsheetId(meta.spreadsheetId);
+      try {
+        localStorage.setItem('senate_current_spreadsheet_id', meta.spreadsheetId);
+      } catch (e) {
+        console.error(e);
+      }
+    }
   };
 
   // Open print report modal with optional preselected week
@@ -501,13 +533,17 @@ export default function App() {
               onClick={() => handleRefreshFromGoogleSheet(true)}
               disabled={isCheckingSheet}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold border border-emerald-400/40 transition-all cursor-pointer shadow-xs disabled:opacity-50"
-              title="ดึงข้อมูลที่เป็นปัจจุบันทั้งหมดจาก Google Sheet และประมวลผลจัดวาระใหม่ทันที (Refresh from Google Sheet)"
+              title={`ดึงข้อมูลที่เป็นปัจจุบันทั้งหมดจาก Google Sheet (แผ่นงาน "${currentSheetName}") และประมวลผลจัดวาระใหม่ทันที`}
             >
               <RefreshCw className={`w-3.5 h-3.5 text-emerald-100 ${isCheckingSheet ? 'animate-spin' : ''}`} />
-              <span>{isCheckingSheet ? 'กำลังประมวลผล...' : 'รีเฟรชข้อมูล (Google Sheet)'}</span>
+              <span>{isCheckingSheet ? 'กำลังประมวลผล...' : `รีเฟรช (${currentSheetName})`}</span>
             </button>
 
-            <GoogleSheetsImport onImportQuestions={handleImportSheetQuestions} />
+            <GoogleSheetsImport
+              onImportQuestions={handleImportSheetQuestions}
+              currentSheetName={currentSheetName}
+              currentSpreadsheetId={currentSpreadsheetId}
+            />
             
             {/* Print Report Button Group */}
             <div className="inline-flex items-center rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-colors overflow-hidden">
@@ -769,11 +805,18 @@ export default function App() {
               </div>
               <div className="bg-white p-2 rounded-lg border border-slate-200">
                 <div className="text-sm font-bold text-amber-600">{postponedIds.size}</div>
-                <div className="text-[10px] text-slate-500">ขอเลื่อนตอบ</div>
+                <div className="text-[10px] text-slate-500">ขอเลื่อนตอบ (เรื่อง)</div>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-slate-200">
-                <div className="text-sm font-bold text-emerald-600">{askerStats.avgQuestionsPerAsker}</div>
-                <div className="text-[10px] text-slate-500">เฉลี่ย/ท่าน</div>
+              <div className="bg-white p-2 rounded-lg border border-rose-200 bg-rose-50/40">
+                <div className="text-sm font-bold text-rose-600">{askerStats.totalWithdrawnQuestions}</div>
+                <div className="text-[10px] text-rose-700 font-semibold">ขอถอนกระทู้ (เรื่อง)</div>
+              </div>
+              <div className="bg-white p-2 rounded-lg border border-slate-200 col-span-2 flex items-center justify-between px-3">
+                <span className="text-[11px] text-slate-500">เฉลี่ยต่อผู้ตั้งถาม</span>
+                <span className="text-sm font-bold text-emerald-600">
+                  {askerStats.avgQuestionsPerAsker}{' '}
+                  <span className="text-[10px] font-normal text-slate-500">เรื่อง/ท่าน</span>
+                </span>
               </div>
             </div>
 

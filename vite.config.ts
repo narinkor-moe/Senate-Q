@@ -64,9 +64,57 @@ function aistudioMediaPlugin(): Plugin {
 }
 // LINT.ThenChange(//depot/google3/java/com/google/alkali/boq/makersuite/applet_dev_service/templates/initializers/react_theme/vite.config.ts:aistudio_media_plugin)
 
+function googleSheetsProxyPlugin(): Plugin {
+  return {
+    name: 'vite-plugin-google-sheets-proxy',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (req.url && req.url.startsWith('/api/sheets/worksheets')) {
+          try {
+            const parsedUrl = new URL(req.url, 'http://localhost:3000');
+            const sheetId = parsedUrl.searchParams.get('id') || '18tE6RON_7Z3BO-NtrF4jaqH_qP92A1-FiZ-RPACXGdU';
+            const googleUrl = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(sheetId)}/htmlview`;
+            const resp = await fetch(googleUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+              },
+            });
+            if (!resp.ok) {
+              res.statusCode = resp.status;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({ error: `Google Sheets returned status ${resp.status}` }));
+              return;
+            }
+            const html = await resp.text();
+            const regex = /items\.push\({\s*name:\s*"([^"]+)",[^}]*?gid:\s*"([^"]+)"/g;
+            let match;
+            const worksheets: Array<{ title: string; gid: string }> = [];
+            while ((match = regex.exec(html)) !== null) {
+              worksheets.push({
+                title: match[1],
+                gid: match[2],
+              });
+            }
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ success: true, worksheets }));
+            return;
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ error: err?.message || 'Failed to fetch worksheets' }));
+            return;
+          }
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss(), aistudioMediaPlugin()],
+    plugins: [react(), tailwindcss(), aistudioMediaPlugin(), googleSheetsProxyPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

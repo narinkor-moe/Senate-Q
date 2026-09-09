@@ -25,6 +25,48 @@ export const DEFAULT_SHEET_NAME = 'Data';
 export const DEFAULT_RANGE = 'Data!A1:Z500';
 export const GOOGLE_OAUTH_CLIENT_ID = '819658838500-8he6f1sam7g1c1ml8h9b1kp20ulmk4i3.apps.googleusercontent.com';
 
+export interface SheetWorksheetInfo {
+  title: string;
+  gid: string;
+}
+
+export interface SpreadsheetUrlInfo {
+  spreadsheetId: string;
+  gid?: string;
+}
+
+export interface FetchSheetOptions {
+  range?: string;
+  sheetName?: string;
+  gid?: string;
+}
+
+/**
+ * Helper to format a worksheet range, wrapping sheet names containing spaces or dashes in quotes
+ */
+export function formatSheetRange(sheetName: string, cellRange: string = 'A1:Z500'): string {
+  const cleanSheet = sheetName.trim().replace(/^'|'$/g, '');
+  const cleanRange = cellRange.includes('!') ? cellRange.split('!')[1] : cellRange;
+  if (/[\s\-ก-๙]/.test(cleanSheet)) {
+    return `'${cleanSheet}'!${cleanRange || 'A1:Z500'}`;
+  }
+  return `${cleanSheet}!${cleanRange || 'A1:Z500'}`;
+}
+
+/**
+ * Extract spreadsheet ID and optional worksheet gid from URL or ID string
+ */
+export function extractSpreadsheetInfo(input: string): SpreadsheetUrlInfo {
+  const trimmed = input.trim();
+  const idMatch = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  const spreadsheetId = idMatch && idMatch[1] ? idMatch[1] : trimmed;
+
+  const gidMatch = trimmed.match(/[#&?]gid=([0-9]+)/);
+  const gid = gidMatch && gidMatch[1] ? gidMatch[1] : undefined;
+
+  return { spreadsheetId, gid };
+}
+
 export interface GoogleUserSession {
   accessToken: string;
   expiresAt: number;
@@ -38,8 +80,9 @@ export interface SheetPostponeInfo {
   rawDate: string; // Raw string from cell (e.g. "21 ก.ย. 26")
   parsedISO: string | null; // Parsed ISO YYYY-MM-DD (e.g. "2026-09-21")
   hasDate: boolean; // True if column "เลื่อนตอบวันที่" has a non-empty date
-  rawStatus?: string; // สถานะตามคอลัมน์ใน Sheet เช่น "ตอบแล้ว", "เลื่อนตอบ", "รอการบรรจุ"
+  rawStatus?: string; // สถานะตามคอลัมน์ใน Sheet เช่น "ตอบแล้ว", "เลื่อนตอบ", "รอการบรรจุ", "ขอถอน", "ถอนกระทู้"
   isAnswered?: boolean; // True if status is "ตอบแล้ว"
+  isWithdrawn?: boolean; // True if status is "ขอถอน" / "ถอนกระทู้"
 }
 
 let cachedSession: GoogleUserSession | null = null;
@@ -136,31 +179,118 @@ export function parseCSVString(text: string): string[][] {
 }
 
 /**
- * Fetch rows from a Google Sheet given spreadsheetId and range (e.g. "Data!A1:G100" or "Data")
+ * Fetch the list of worksheets (แผ่นงาน / tabs) available in a Google Spreadsheet.
+ * Tries the local backend proxy first, then Google Sheets API if authenticated,
+ * and falls back to default known worksheets.
+ */
+export async function fetchSpreadsheetWorksheets(
+  spreadsheetId: string = DEFAULT_SHEET_ID,
+  token?: string
+): Promise<SheetWorksheetInfo[]> {
+  const cleanId = spreadsheetId.trim() || DEFAULT_SHEET_ID;
+
+  // 1. Try local proxy endpoint first (fast, handles any accessible spreadsheet without client auth)
+  try {
+    const res = await fetch(`/api/sheets/worksheets?id=${encodeURIComponent(cleanId)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.worksheets && Array.isArray(data.worksheets) && data.worksheets.length > 0) {
+        return data.worksheets;
+      }
+    }
+  } catch (err) {
+    console.warn('Proxy worksheets fetch failed, trying Google API or defaults:', err);
+  }
+
+  // 2. If authenticated token available, try Google Sheets API v4
+  if (token || cachedSession?.accessToken) {
+    try {
+      const authToken = token || cachedSession?.accessToken || (await requestGoogleToken());
+      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
+        cleanId
+      )}?fields=sheets(properties(sheetId,title,index))`;
+      const res = await fetch(apiUrl, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.sheets && Array.isArray(data.sheets)) {
+          return data.sheets
+            .map((s: any) => ({
+              title: s.properties?.title || '',
+              gid: String(s.properties?.sheetId ?? '0'),
+            }))
+            .filter((s: any) => s.title);
+        }
+      }
+    } catch (err) {
+      console.warn('Google Sheets API worksheets fetch error:', err);
+    }
+  }
+
+  // 3. Fallback for default parliamentary spreadsheet
+  if (cleanId === DEFAULT_SHEET_ID) {
+    return [
+      { title: 'Data', gid: '0' },
+      { title: '25 ส.ค. 69 - 22 ธ.ค. 69', gid: '1703245146' },
+    ];
+  }
+
+  return [{ title: DEFAULT_SHEET_NAME, gid: '0' }];
+}
+
+/**
+ * Fetch rows from a Google Sheet given spreadsheetId and range/options (e.g. "Data!A1:G100", "Data", or { sheetName, gid, range })
  * Tries direct public GViz / CSV export first (zero auth needed for accessible sheets),
  * and falls back to authenticated Sheets API v4.
  */
 export async function fetchSheetRows(
   spreadsheetId: string = DEFAULT_SHEET_ID,
-  range: string = DEFAULT_RANGE,
+  rangeOrOptions: string | FetchSheetOptions = DEFAULT_RANGE,
   token?: string
 ): Promise<string[][]> {
-  // Extract sheet name if given in range (e.g., "Data!A1:G100" -> sheet="Data", range="A1:G100")
   let sheetName = DEFAULT_SHEET_NAME;
   let sheetRange = '';
-  if (range.includes('!')) {
-    const parts = range.split('!');
-    sheetName = parts[0];
-    sheetRange = parts[1] || '';
-  } else if (range.trim()) {
-    sheetName = range.trim();
+  let gid: string | undefined = undefined;
+
+  if (typeof rangeOrOptions === 'string') {
+    if (rangeOrOptions.includes('!')) {
+      const parts = rangeOrOptions.split('!');
+      sheetName = parts[0].replace(/^'|'$/g, '');
+      sheetRange = parts[1] || '';
+    } else if (rangeOrOptions.trim()) {
+      sheetName = rangeOrOptions.trim().replace(/^'|'$/g, '');
+    }
+  } else if (rangeOrOptions && typeof rangeOrOptions === 'object') {
+    if (rangeOrOptions.sheetName) {
+      sheetName = rangeOrOptions.sheetName.replace(/^'|'$/g, '');
+    }
+    if (rangeOrOptions.gid !== undefined && rangeOrOptions.gid !== '') {
+      gid = String(rangeOrOptions.gid);
+    }
+    if (rangeOrOptions.range) {
+      if (rangeOrOptions.range.includes('!')) {
+        const parts = rangeOrOptions.range.split('!');
+        sheetName = parts[0].replace(/^'|'$/g, '');
+        sheetRange = parts[1] || '';
+      } else {
+        sheetRange = rangeOrOptions.range;
+      }
+    }
   }
 
   // 1. Try public GViz CSV endpoint first (fastest, zero friction)
   try {
     let gvizUrl = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(
       spreadsheetId
-    )}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+    )}/gviz/tq?tqx=out:csv`;
+
+    if (gid !== undefined && gid !== '') {
+      gvizUrl += `&gid=${encodeURIComponent(gid)}`;
+    } else {
+      gvizUrl += `&sheet=${encodeURIComponent(sheetName)}`;
+    }
+
     if (sheetRange) {
       gvizUrl += `&range=${encodeURIComponent(sheetRange)}`;
     }
@@ -182,9 +312,10 @@ export async function fetchSheetRows(
 
   // 2. Fallback to authenticated Google Sheets API v4
   const authToken = token || (await requestGoogleToken());
+  const formattedRange = formatSheetRange(sheetName, sheetRange || 'A1:Z500');
   const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
     spreadsheetId
-  )}/values/${encodeURIComponent(range)}`;
+  )}/values/${encodeURIComponent(formattedRange)}`;
 
   const res = await fetch(apiUrl, {
     headers: {
@@ -211,7 +342,7 @@ export async function fetchPostponeMapFromSheet(
   spreadsheetId: string = DEFAULT_SHEET_ID,
   sheetName: string = DEFAULT_SHEET_NAME
 ): Promise<Map<number, SheetPostponeInfo>> {
-  const rows = await fetchSheetRows(spreadsheetId, `${sheetName}!A1:G100`);
+  const rows = await fetchSheetRows(spreadsheetId, { sheetName, range: 'A1:G100' });
   const resultMap = new Map<number, SheetPostponeInfo>();
 
   if (!rows || rows.length === 0) {
@@ -257,8 +388,9 @@ export async function fetchPostponeMapFromSheet(
     const rawPostponed = colPostponed < row.length ? String(row[colPostponed] || '').trim() : '';
     const rawStatus = colStatus !== -1 && colStatus < row.length ? String(row[colStatus] || '').trim() : '';
     const isAnswered = rawStatus.includes('ตอบแล้ว') || rawStatus.toLowerCase() === 'answered';
+    const isWithdrawn = rawStatus.includes('ถอน') || rawStatus.toLowerCase().includes('withdrawn');
     const sheetRowNumber = i + 1; // 1-indexed row number in Google Sheet
-    const cellRange = `${sheetName}!${colLetter}${sheetRowNumber}`;
+    const cellRange = formatSheetRange(sheetName, `${colLetter}${sheetRowNumber}`);
     const parsedISO = rawPostponed ? parseThaiOrISODate(rawPostponed) : null;
 
     resultMap.set(orderNum, {
@@ -270,7 +402,8 @@ export async function fetchPostponeMapFromSheet(
       parsedISO,
       hasDate: rawPostponed.length > 0,
       rawStatus,
-      isAnswered
+      isAnswered,
+      isWithdrawn
     });
   }
 
@@ -398,7 +531,7 @@ export async function savePostponeDateToSheet(
     targetColLetter = 'C';
   }
 
-  const cellRange = `${sheetName}!${targetColLetter}${targetRowNumber}`;
+  const cellRange = formatSheetRange(sheetName, `${targetColLetter}${targetRowNumber}`);
   const writtenValue = newDateISOOrThai ? formatDateForSheet(newDateISOOrThai) : '';
 
   await updateSheetCell(spreadsheetId, cellRange, writtenValue);
@@ -548,10 +681,13 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
         cleanPostponedDate = parsedISO || postponedVal.trim();
       }
 
-      // Check if status is "ตอบแล้ว"
+      // Check if status is "ตอบแล้ว" or "ขอถอน"
       const isAnswered = statusVal.includes('ตอบแล้ว') || statusVal.toLowerCase() === 'answered';
+      const isWithdrawn = statusVal.includes('ถอน') || statusVal.toLowerCase().includes('withdrawn');
       let qStatus: QuestionItem['status'] = 'pending';
-      if (isAnswered) {
+      if (isWithdrawn) {
+        qStatus = 'withdrawn';
+      } else if (isAnswered) {
         qStatus = 'completed';
       } else if (cleanPostponedDate) {
         qStatus = 'postponed';
@@ -571,6 +707,7 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
         status: qStatus,
         rawStatus: statusVal.trim() || undefined,
         isAnswered: isAnswered,
+        isWithdrawn: isWithdrawn,
       });
     }
   }
@@ -585,9 +722,9 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
  */
 export async function fetchFullQuestionsFromSheet(
   spreadsheetId: string = DEFAULT_SHEET_ID,
-  range: string = DEFAULT_RANGE
+  rangeOrOptions: string | FetchSheetOptions = DEFAULT_RANGE
 ): Promise<QuestionItem[]> {
-  const rows = await fetchSheetRows(spreadsheetId, range);
+  const rows = await fetchSheetRows(spreadsheetId, rangeOrOptions);
   return parseSheetRowsToQuestions(rows);
 }
 

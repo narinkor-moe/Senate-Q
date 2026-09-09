@@ -96,21 +96,28 @@ export function generateReportHtml(
             <div style="font-size: 11px; color: #64748b; font-weight: bold;">มีกระทู้ขอเลื่อนตอบ</div>
             <div style="font-size: 20px; font-weight: bold; color: #b45309; margin-top: 2px;">${askerStats.askersWithPostponed} ท่าน</div>
           </div>
+          ${askerStats.askersWithWithdrawn > 0 ? `
+          <div style="flex: 1; min-width: 140px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 11px; color: #9f1239; font-weight: bold;">มีกระทู้ขอถอน</div>
+            <div style="font-size: 20px; font-weight: bold; color: #e11d48; margin-top: 2px;">${askerStats.askersWithWithdrawn} ท่าน</div>
+          </div>
+          ` : ''}
         </div>
 
         <table class="report-table">
           <thead>
             <tr>
-              <th style="width: 60px; text-align: center;">ลำดับที่</th>
+              <th style="width: 55px; text-align: center;">ลำดับที่</th>
               <th>ชื่อผู้ตั้งกระทู้ถาม (สมาชิกวุฒิสภา)</th>
-              <th style="width: 100px; text-align: center;">รวมยื่น (เรื่อง)</th>
-              <th style="width: 110px; text-align: center;">วาระทางการ</th>
-              <th style="width: 100px; text-align: center;">คาดการณ์</th>
-              <th style="width: 100px; text-align: center;">ขอเลื่อน</th>
-              <th style="width: 90px; text-align: center;">ตอบแล้ว</th>
-              <th style="width: 80px; text-align: center;">รอคิว</th>
-              <th style="${isLandscape ? 'width: 240px;' : 'width: 180px;'}">กระทรวงหลักที่ตั้งถาม</th>
-              <th style="width: 80px; text-align: center;">สัดส่วน</th>
+              <th style="width: 90px; text-align: center;">รวมยื่น</th>
+              <th style="width: 95px; text-align: center;">วาระทางการ</th>
+              <th style="width: 85px; text-align: center;">คาดการณ์</th>
+              <th style="width: 85px; text-align: center;">ขอเลื่อน</th>
+              <th style="width: 80px; text-align: center;">ตอบแล้ว</th>
+              <th style="width: 80px; text-align: center;">ขอถอน</th>
+              <th style="width: 75px; text-align: center;">รอคิว</th>
+              <th style="${isLandscape ? 'width: 220px;' : 'width: 160px;'}">กระทรวงหลักที่ตั้งถาม</th>
+              <th style="width: 70px; text-align: center;">สัดส่วน</th>
             </tr>
           </thead>
           <tbody>
@@ -123,6 +130,7 @@ export function generateReportHtml(
                 <td style="text-align: center; color: #7e22ce;">${a.projectedCount || '-'}</td>
                 <td style="text-align: center; color: #b45309; font-weight: bold;">${a.postponedCount || '-'}</td>
                 <td style="text-align: center; color: #047857;">${a.answeredCount || '-'}</td>
+                <td style="text-align: center; color: #e11d48; font-weight: bold;">${a.withdrawnCount || '-'}</td>
                 <td style="text-align: center; color: #64748b;">${a.pendingCount || '-'}</td>
                 <td>${escapeHtml(a.topMinisters.slice(0, 2).map((m) => `${m.minister} (${m.count})`).join(', ') || '-')}</td>
                 <td style="text-align: center;">${a.percentageOfTotal}%</td>
@@ -152,7 +160,10 @@ export function generateReportHtml(
             ${allQuestions.map((q, idx) => {
               let statusText = 'รอดำเนินการ';
               let statusClass = 'status-pending';
-              if (q.status === 'completed' || q.status === 'answered' || q.isAnswered || (q.rawStatus && q.rawStatus.includes('ตอบแล้ว'))) {
+              if (q.status === 'withdrawn' || q.isWithdrawn || (q.rawStatus && (q.rawStatus.includes('ถอน') || q.rawStatus.toLowerCase().includes('withdrawn')))) {
+                statusText = 'ขอถอน (ไม่นำมาจัดวาระ)';
+                statusClass = 'status-withdrawn';
+              } else if (q.status === 'completed' || q.status === 'answered' || q.isAnswered || (q.rawStatus && q.rawStatus.includes('ตอบแล้ว'))) {
                 statusText = 'ตอบแล้ว (ไม่นำมาจัดวาระ)';
                 statusClass = 'status-completed';
               } else if (q.status === 'postponed' || q.postponedDate) {
@@ -558,6 +569,17 @@ export function generateReportHtml(
       background: #dcfce7;
       color: #166534;
       border: 1px solid #86efac;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: ${Math.max(13, tableFontSize - 2)}pt;
+      font-weight: 600;
+    }
+
+    .status-withdrawn {
+      display: inline-block;
+      background: #ffe4e6;
+      color: #9f1239;
+      border: 1px solid #fecdd3;
       padding: 2px 8px;
       border-radius: 4px;
       font-size: ${Math.max(13, tableFontSize - 2)}pt;

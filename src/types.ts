@@ -10,9 +10,12 @@ export interface QuestionItem {
   isPostponedInSheet?: boolean; // ตรวจพบวันเลื่อนตอบใน Google Sheet หรือไม่
   sheetRowIndex?: number; // ลำดับแถวใน Google Sheet เช่น แถวที่ 2 (Data!C2)
   notes?: string; // หมายเหตุ
-  status?: 'pending' | 'scheduled' | 'postponed' | 'completed' | 'answered';
-  rawStatus?: string; // สถานะตามคอลัมน์ใน Google Sheet เช่น "ตอบแล้ว", "เลื่อนตอบ", "รอการบรรจุ"
+  status?: 'pending' | 'scheduled' | 'postponed' | 'completed' | 'answered' | 'withdrawn';
+  rawStatus?: string; // สถานะตามคอลัมน์ใน Google Sheet เช่น "ตอบแล้ว", "เลื่อนตอบ", "รอการบรรจุ", "ขอถอน", "ถอนกระทู้"
   isAnswered?: boolean; // ระบุว่าตอบแล้วหรือไม่ (ถ้าตอบแล้ว จะไม่นำมาจัดในวาระการประชุม)
+  isWithdrawn?: boolean; // ระบุว่าขอถอนกระทู้ถามหรือไม่ (ถ้าขอถอน จะไม่นำมาจัดในวาระการประชุม)
+  withdrawnDate?: string; // วันที่ขอถอน (ถ้ามี)
+  withdrawnReason?: string; // เหตุผลการขอถอน (ถ้ามี)
   scheduledDate?: string; // วันที่บรรจุตามที่บันทึกไว้ใน Google Sheet
 }
 
