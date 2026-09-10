@@ -384,13 +384,13 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                   {tableFontSize} pt {tableFontSize === 16 ? '(มาตรฐานงานสารบรรณ)' : ''}
                 </span>
               </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {[14, 15, 16, 18].map((size) => (
+              <div className="grid grid-cols-5 gap-1.5">
+                {[13, 14, 15, 16, 18].map((size) => (
                   <button
                     key={size}
                     type="button"
                     onClick={() => setTableFontSize(size)}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
+                    className={`py-1.5 px-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer text-center ${
                       tableFontSize === size
                         ? 'bg-[#0369a1] text-white border-[#0369a1] shadow-2xs'
                         : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
@@ -401,7 +401,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                 ))}
               </div>
               <p className="text-[11px] text-slate-500">
-                ตามระเบียบงานสารบรรณราชการ กำหนดขนาดตัวอักษร 16 pt (TH Sarabun) เป็นค่ามาตรฐาน
+                ตามระเบียบงานสารบรรณราชการ กำหนดขนาดตัวอักษร 16 pt (TH Sarabun) เป็นค่ามาตรฐาน โดยตารางแสดง 5 คอลัมน์หลักตามลำดับวาระประชุม
               </p>
             </div>
 

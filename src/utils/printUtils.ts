@@ -193,8 +193,8 @@ export function generateReportHtml(
     bodyContent = targetSchedules.map((schedule, weekIdx) => {
       const isOfficial = schedule.scheduleType === 'official';
       const scheduleTypeBadge = isOfficial 
-        ? '<span style="background: #1d4ed8; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 6px;">ระเบียบวาระทางการ</span>' 
-        : '<span style="background: #7e22ce; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 6px;">คาดการณ์ล่วงหน้า</span>';
+        ? '<span style="background: #1e40af; color: #ffffff; padding: 2px 8px; border-radius: 3px; font-size: 11pt; font-weight: bold; margin-left: 8px;">ระเบียบวาระทางการ</span>' 
+        : '<span style="background: #475569; color: #ffffff; padding: 2px 8px; border-radius: 3px; font-size: 11pt; font-weight: bold; margin-left: 8px;">คาดการณ์ล่วงหน้า</span>';
 
       return `
         <div class="week-card">
@@ -210,55 +210,51 @@ export function generateReportHtml(
           <table class="report-table">
             <thead>
               <tr>
-                <th style="width: 75px; text-align: center;">วาระที่</th>
-                <th style="width: 85px; text-align: center;">ลำดับยื่น</th>
+                <th style="${isLandscape ? 'width: 70px;' : 'width: 60px;'} text-align: center;">วาระที่</th>
                 <th>ชื่อเรื่องกระทู้ถาม</th>
-                <th style="${isLandscape ? 'width: 220px;' : 'width: 180px;'}">ผู้ตั้งกระทู้ถาม</th>
-                <th style="${isLandscape ? 'width: 220px;' : 'width: 180px;'}">ถามรัฐมนตรี</th>
-                <th style="${isLandscape ? 'width: 210px;' : 'width: 170px;'}">สถานะ / หมายเหตุ</th>
+                <th style="${isLandscape ? 'width: 220px;' : 'width: 175px;'}">ผู้ตั้งกระทู้ถาม</th>
+                <th style="${isLandscape ? 'width: 220px;' : 'width: 175px;'}">ถามรัฐมนตรี</th>
+                <th style="${isLandscape ? 'width: 195px;' : 'width: 155px;'}">สถานะ / หมายเหตุ</th>
               </tr>
             </thead>
             <tbody>
               ${schedule.questions.length === 0 ? `
                 <tr>
-                  <td colspan="6" style="text-align: center; color: #64748b; padding: 14px;">
+                  <td colspan="5" style="text-align: center; color: #64748b; padding: 14px;">
                     - ไม่มีการบรรจุกระทู้ถามในสัปดาห์นี้ -
                   </td>
                 </tr>
               ` : schedule.questions.map((item, slotIdx) => {
-                let note = isOfficial ? 'บรรจุในระเบียบวาระ' : 'คาดการณ์ตามคิวลำดับ';
-                let noteClass = 'text-normal';
+                let noteHtml = isOfficial 
+                  ? '<span class="status-badge status-official">บรรจุในระเบียบวาระ</span>' 
+                  : '<span class="status-badge status-projected">คาดการณ์ตามลำดับ</span>';
                 
                 const isAnswered = item.question.isAnswered === true || item.question.status === 'completed' || item.question.status === 'answered' || (item.question.rawStatus && item.question.rawStatus.includes('ตอบแล้ว'));
 
                 if (isAnswered) {
-                  note = 'ตอบแล้วในที่ประชุม (เสร็จสิ้น)';
-                  noteClass = 'text-success font-bold';
+                  noteHtml = '<span class="status-badge status-answered">ตอบแล้วในที่ประชุม (เสร็จสิ้น)</span>';
                 } else if (item.isPostponedFromPrevious) {
-                  note = 'กระทู้เลื่อนมาจากสัปดาห์ก่อนหน้า (บรรจุลำดับแรก)';
-                  noteClass = 'text-primary font-bold';
+                  noteHtml = '<span class="status-badge status-previous-postponed">กระทู้เลื่อนมาจากสัปดาห์ก่อนหน้า (บรรจุลำดับแรก)</span>';
                 } else if (item.isPostponedNow) {
-                  note = item.question.postponedDate 
-                    ? `ขอเลื่อนไปตอบ: ${formatThaiDateWithDayOfWeek(item.question.postponedDate)}` 
-                    : 'ขอเลื่อนการตอบกระทู้';
-                  noteClass = 'text-warning font-bold';
+                  const pDate = item.question.postponedDate 
+                    ? formatThaiDateWithDayOfWeek(item.question.postponedDate) 
+                    : '';
+                  noteHtml = `<span class="status-badge status-postponed">ขอเลื่อนไปตอบ${pDate ? ': ' + pDate : ''}</span>`;
                 } else if (item.question.postponedDate) {
-                  note = `ขอเลื่อนตอบ: ${item.question.postponedDate}`;
-                  noteClass = 'text-warning';
+                  noteHtml = `<span class="status-badge status-postponed">ขอเลื่อนตอบ: ${item.question.postponedDate}</span>`;
                 } else if (item.projectionType === 'projected_regular') {
-                  note = 'คาดการณ์ตามคิวลำดับปกติ';
+                  noteHtml = '<span class="status-badge status-projected">คาดการณ์ตามลำดับปกติ</span>';
                 }
 
                 return `
                   <tr>
-                    <td style="text-align: center; font-weight: bold;">${item.slotNumber || slotIdx + 1}</td>
-                    <td style="text-align: center;">${item.question.submittedOrder}</td>
+                    <td style="text-align: center; font-weight: 700; vertical-align: middle;">${item.slotNumber || slotIdx + 1}</td>
                     <td>
-                      <strong>${escapeHtml(item.question.topic)}</strong>
+                      <div style="font-weight: 700; line-height: 1.45;">${escapeHtml(item.question.topic)}</div>
                     </td>
-                    <td>${escapeHtml(item.question.asker)}</td>
-                    <td>${escapeHtml(item.question.minister)}</td>
-                    <td class="${noteClass}">${note}</td>
+                    <td style="font-weight: 500;">${escapeHtml(item.question.asker)}</td>
+                    <td style="color: #1e293b;">${escapeHtml(item.question.minister)}</td>
+                    <td>${noteHtml}</td>
                   </tr>
                 `;
               }).join('')}
@@ -340,11 +336,11 @@ export function generateReportHtml(
   <title>${escapeHtml(title)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
   <style>
     @page {
       size: A4 ${orientation};
-      margin: ${isLandscape ? '12mm 15mm 12mm 15mm' : '15mm 15mm 15mm 15mm'};
+      margin: ${isLandscape ? '10mm 12mm 10mm 12mm' : '12mm 15mm 12mm 15mm'};
     }
 
     * {
@@ -354,9 +350,9 @@ export function generateReportHtml(
     }
 
     body {
-      font-family: 'Sarabun', 'TH Sarabun New', sans-serif;
-      font-size: 16pt;
-      line-height: 1.5;
+      font-family: 'TH Sarabun New', 'Sarabun', 'TH Sarabun PSK', sans-serif;
+      font-size: ${tableFontSize}pt;
+      line-height: 1.45;
       color: #0f172a;
       background: #ffffff;
       margin: 0;
@@ -365,7 +361,7 @@ export function generateReportHtml(
 
     .report-container {
       width: 100%;
-      max-width: ${isLandscape ? '1060px' : '860px'};
+      max-width: ${isLandscape ? '1080px' : '860px'};
       margin: 0 auto;
     }
 
@@ -373,36 +369,37 @@ export function generateReportHtml(
     .report-header {
       text-align: center;
       border-bottom: 2px solid #0f172a;
-      padding-bottom: 12px;
-      margin-bottom: 16px;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
     }
 
     .emblem-placeholder {
-      font-size: 17pt;
+      font-size: 15pt;
       font-weight: 700;
       color: #0369a1;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
+      letter-spacing: 0.3px;
+      margin-bottom: 2px;
     }
 
     .report-main-title {
-      font-size: 20pt;
+      font-size: 19pt;
       font-weight: 700;
       color: #0f172a;
-      margin: 0 0 4px 0;
+      margin: 2px 0 3px 0;
+      line-height: 1.3;
     }
 
     .report-sub-title {
-      font-size: 16pt;
+      font-size: 15pt;
       font-weight: 500;
       color: #334155;
-      margin: 0 0 6px 0;
+      margin: 0 0 3px 0;
     }
 
     .report-meta {
-      font-size: 14pt;
-      color: #64748b;
-      margin-top: 4px;
+      font-size: 13pt;
+      color: #475569;
+      margin-top: 2px;
     }
 
     /* Summary Bar */
@@ -412,11 +409,11 @@ export function generateReportHtml(
       justify-content: space-between;
       gap: 8px;
       background: #f8fafc;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      padding: 10px 16px;
-      margin-bottom: 18px;
-      font-size: 15pt;
+      border: 1px solid #64748b;
+      border-radius: 4px;
+      padding: 8px 14px;
+      margin-bottom: 14px;
+      font-size: 14pt;
     }
 
     .summary-item {
@@ -426,7 +423,7 @@ export function generateReportHtml(
     }
 
     .summary-label {
-      color: #475569;
+      color: #334155;
     }
 
     .summary-val {
@@ -435,28 +432,28 @@ export function generateReportHtml(
 
     /* Notice Box */
     .notice-box {
-      background: #fff1f2;
-      border: 1px solid #fecdd3;
-      border-radius: 6px;
-      padding: 10px 14px;
-      margin-bottom: 16px;
-      font-size: 14.5pt;
-      color: #9f1239;
+      background: #fff8f8;
+      border: 1px solid #fca5a5;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      font-size: 13.5pt;
+      color: #991b1b;
     }
 
     /* Week Card */
     .week-card {
-      margin-bottom: 22px;
+      margin-bottom: 18px;
       page-break-inside: avoid;
-      border: 1px solid #94a3b8;
-      border-radius: 6px;
+      border: 1.5px solid #475569;
+      border-radius: 4px;
       overflow: hidden;
     }
 
     .week-header {
-      background: #f1f5f9;
-      border-bottom: 1px solid #94a3b8;
-      padding: 10px 14px;
+      background: #f8fafc;
+      border-bottom: 1.5px solid #475569;
+      padding: 7px 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -464,25 +461,25 @@ export function generateReportHtml(
 
     .week-badge {
       display: inline-block;
-      background: #0369a1;
+      background: #0f172a;
       color: #ffffff;
-      font-size: 13pt;
+      font-size: 12pt;
       font-weight: 700;
-      padding: 3px 10px;
-      border-radius: 4px;
+      padding: 2px 8px;
+      border-radius: 3px;
       margin-right: 8px;
     }
 
     .week-date {
-      font-size: 16pt;
+      font-size: 15.5pt;
       color: #0f172a;
       font-weight: 700;
     }
 
     .week-stat {
-      font-size: 14pt;
-      color: #475569;
-      font-weight: 500;
+      font-size: 13.5pt;
+      color: #334155;
+      font-weight: 600;
     }
 
     /* Table */
@@ -493,22 +490,23 @@ export function generateReportHtml(
     }
 
     .report-table th {
-      background: #e2e8f0;
+      background: #f1f5f9;
       color: #0f172a;
       font-weight: 700;
-      border: 1px solid #94a3b8;
+      border: 1px solid #475569;
       padding: 8px 10px;
       text-align: left;
       font-size: ${tableFontSize}pt;
+      vertical-align: middle;
     }
 
     .report-table td {
-      border: 1px solid #cbd5e1;
-      padding: 8px 10px;
+      border: 1px solid #64748b;
+      padding: 7px 10px;
       vertical-align: top;
       color: #0f172a;
       font-size: ${tableFontSize}pt;
-      line-height: 1.5;
+      line-height: 1.45;
     }
 
     .report-table strong {
@@ -516,7 +514,7 @@ export function generateReportHtml(
     }
 
     .report-table tr:nth-child(even) {
-      background: #fafafa;
+      background: #fafbfc;
     }
 
     .text-primary {
@@ -535,60 +533,91 @@ export function generateReportHtml(
       font-weight: 700;
     }
 
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: ${Math.max(12, tableFontSize - 2)}pt;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .status-official {
+      color: #1e3a8a;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+    }
+
+    .status-projected {
+      color: #334155;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+    }
+
+    .status-postponed {
+      color: #92400e;
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+    }
+
+    .status-answered {
+      color: #166534;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+
+    .status-previous-postponed {
+      color: #0369a1;
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+    }
+
     .status-pending {
       display: inline-block;
       background: #f1f5f9;
       color: #475569;
+      border: 1px solid #cbd5e1;
       padding: 2px 8px;
-      border-radius: 4px;
-      font-size: ${Math.max(13, tableFontSize - 2)}pt;
-    }
-
-    .status-postponed {
-      display: inline-block;
-      background: #fef3c7;
-      color: #92400e;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: ${Math.max(13, tableFontSize - 2)}pt;
-      font-weight: 600;
+      border-radius: 3px;
+      font-size: ${Math.max(12, tableFontSize - 2)}pt;
     }
 
     .status-scheduled {
       display: inline-block;
-      background: #e0f2fe;
-      color: #0369a1;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
       padding: 2px 8px;
-      border-radius: 4px;
-      font-size: ${Math.max(13, tableFontSize - 2)}pt;
+      border-radius: 3px;
+      font-size: ${Math.max(12, tableFontSize - 2)}pt;
       font-weight: 600;
     }
 
     .status-completed {
       display: inline-block;
-      background: #dcfce7;
+      background: #f0fdf4;
       color: #166534;
-      border: 1px solid #86efac;
+      border: 1px solid #bbf7d0;
       padding: 2px 8px;
-      border-radius: 4px;
-      font-size: ${Math.max(13, tableFontSize - 2)}pt;
+      border-radius: 3px;
+      font-size: ${Math.max(12, tableFontSize - 2)}pt;
       font-weight: 600;
     }
 
     .status-withdrawn {
       display: inline-block;
-      background: #ffe4e6;
+      background: #fff1f2;
       color: #9f1239;
       border: 1px solid #fecdd3;
       padding: 2px 8px;
-      border-radius: 4px;
-      font-size: ${Math.max(13, tableFontSize - 2)}pt;
+      border-radius: 3px;
+      font-size: ${Math.max(12, tableFontSize - 2)}pt;
       font-weight: 600;
     }
 
     /* Signature Section */
     .signature-section {
-      margin-top: 32px;
+      margin-top: 26px;
       display: flex;
       justify-content: space-between;
       gap: 16px;
@@ -598,35 +627,35 @@ export function generateReportHtml(
     .signature-col {
       flex: 1;
       text-align: center;
-      font-size: 15pt;
-      color: #334155;
+      font-size: 14pt;
+      color: #1e293b;
     }
 
     .sig-title {
-      font-weight: 600;
-      margin: 0 0 8px 0;
+      font-weight: 700;
+      margin: 0 0 6px 0;
       color: #0f172a;
-      font-size: 15pt;
+      font-size: 14pt;
     }
 
     .sig-space {
-      height: 48px;
+      height: 44px;
     }
 
     .sig-name {
-      margin: 0 0 3px 0;
-      font-size: 15pt;
+      margin: 0 0 2px 0;
+      font-size: 14pt;
     }
 
     .sig-post {
-      font-size: 14pt;
-      color: #64748b;
-      margin: 0 0 3px 0;
+      font-size: 13pt;
+      color: #475569;
+      margin: 0 0 2px 0;
     }
 
     .sig-date {
-      font-size: 13.5pt;
-      color: #94a3b8;
+      font-size: 12.5pt;
+      color: #64748b;
       margin: 0;
     }
 
