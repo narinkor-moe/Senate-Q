@@ -24,6 +24,8 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
 }) => {
   const isOfficial = schedule.scheduleType === 'official';
   const isPostponedPresent = schedule.questions.some((q) => q.isPostponedNow || !!q.question.postponedDate);
+  const effectiveWeekNumber = schedule.weekNumber ?? (weekIndex + 1);
+  const effectiveWeekIndex = effectiveWeekNumber - 1;
 
   return (
     <section
@@ -40,18 +42,22 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
       >
         <div className="flex items-center gap-3">
           <div
-            className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs ${
+            className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs shrink-0 ${
               isOfficial ? 'bg-[#0369a1] text-white' : 'bg-indigo-600 text-white'
             }`}
+            title={`สัปดาห์ที่ ${effectiveWeekNumber} (W${effectiveWeekNumber})`}
           >
-            W{weekIndex + 1}
+            W{effectiveWeekNumber}
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-bold text-lg text-slate-800 tracking-tight">
                 {isOfficial ? 'ระเบียบวาระ: ' : 'คาดการณ์ระเบียบวาระ: '}
                 {schedule.thaiDateFormatted}
               </h3>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                สัปดาห์ที่ {effectiveWeekNumber}
+              </span>
               {isOfficial ? (
                 <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-900 border border-blue-200 px-2 py-0.5 rounded text-[11px] font-bold">
                   <Landmark className="w-3 h-3 text-blue-700" />
@@ -79,7 +85,7 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
             </span>
           )}
 
-          {weekIndex === 0 && schedule.questions.some((q) => q.isPostponedNow) && (
+          {effectiveWeekIndex === 0 && schedule.questions.some((q) => q.isPostponedNow) && (
             <span className="bg-amber-50 text-amber-900 border border-amber-300 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
               <span>สัปดาห์ที่ 1: คงชื่อเรื่องกระทู้ที่เลื่อนตอบไว้ในวาระ และระบบนำไปจัดในระเบียบวาระในสัปดาห์ที่ขอเลื่อนไปตอบ</span>
@@ -93,7 +99,7 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
             </span>
           ) : null}
 
-          {weekIndex > 0 && isPostponedPresent && isOfficial && (
+          {effectiveWeekIndex > 0 && isPostponedPresent && isOfficial && (
             <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border border-amber-200">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
               มีกระทู้ขอเลื่อนตอบในรอบนี้
@@ -147,7 +153,7 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
         {schedule.questions.length === 0 ? (
           <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
             <p className="text-slate-600 font-semibold text-sm">ไม่มีกระทู้ถามที่บรรจุในสัปดาห์นี้</p>
-            {weekIndex === 0 && (
+            {effectiveWeekIndex === 0 && (
               <p className="text-slate-400 text-xs mt-1">
                 (สัปดาห์เริ่มต้นวาระ: กระทู้ถามที่ถูกจัดลำดับในสัปดาห์แรกขอเลื่อนวันตอบ และไม่มีการจัดกระทู้ถามตามลำดับที่ยื่นขึ้นมาแทน)
               </p>

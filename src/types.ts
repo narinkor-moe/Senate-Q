@@ -31,6 +31,7 @@ export interface ScheduledQuestion {
 export interface WeeklySchedule {
   date: string; // ISO format YYYY-MM-DD
   thaiDateFormatted: string; // e.g. วันจันทร์ที่ 31 สิงหาคม 2569
+  weekNumber?: number; // ลำดับสัปดาห์ในปฏิทินวาระการประชุม (เช่น 1, 2, 3... สำหรับ W1, W2, W3)
   questions: ScheduledQuestion[];
   capacity: number; // default 3 or 3 + postponedCount
   baseCapacity?: number; // 3

@@ -653,6 +653,7 @@ export function computeWeeklySchedules(
     schedules.push({
       date: mondayDate,
       thaiDateFormatted: formatThaiDate(mondayDate),
+      weekNumber: w + 1,
       questions: scheduledQuestions,
       capacity: dynamicCapacity,
       baseCapacity: baseCapacity,

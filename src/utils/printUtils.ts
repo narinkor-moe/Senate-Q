@@ -199,11 +199,14 @@ export function generateReportHtml(
         ? '<span style="background: #1e40af; color: #ffffff; padding: 2px 8px; border-radius: 3px; font-size: 11pt; font-weight: bold; margin-left: 8px;">ระเบียบวาระทางการ</span>' 
         : '<span style="background: #475569; color: #ffffff; padding: 2px 8px; border-radius: 3px; font-size: 11pt; font-weight: bold; margin-left: 8px;">คาดการณ์ล่วงหน้า</span>';
 
+      // Compute consistent global week number across the full session timeline
+      const actualWeekNum = schedule.weekNumber || (schedules.findIndex((s) => s.date === schedule.date) !== -1 ? schedules.findIndex((s) => s.date === schedule.date) + 1 : weekIdx + 1);
+
       return `
         <div class="week-card">
           <div class="week-header">
             <div>
-              <span class="week-badge">สัปดาห์ที่ ${weekIdx + 1}</span>
+              <span class="week-badge">สัปดาห์ที่ ${actualWeekNum} (W${actualWeekNum})</span>
               <strong class="week-date">ระเบียบวาระการประชุม: ${schedule.thaiDateFormatted}</strong>
               ${scheduleTypeBadge}
             </div>

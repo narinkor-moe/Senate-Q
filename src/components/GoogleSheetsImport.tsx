@@ -421,12 +421,12 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
         type="button"
         id="btn-google-sheets-toggle"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-colors cursor-pointer"
+        className="h-9 px-3 inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-colors cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
         title={`เปิดเครื่องมือนำเข้าจาก Google Sheets (ปัจจุบัน: แผ่นงาน "${selectedSheetName}")`}
       >
-        <FileSpreadsheet className="w-4 h-4 text-sky-300" />
+        <FileSpreadsheet className="w-3.5 h-3.5 text-sky-300 shrink-0" />
         <span>นำเข้า Google Sheets</span>
-        <span className="px-1.5 py-0.5 rounded-md bg-sky-950/60 text-sky-200 text-[10px] font-bold border border-sky-400/30">
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-sky-950/60 text-sky-200 text-[10px] font-bold border border-sky-400/30 leading-none whitespace-nowrap">
           แผ่นงาน: {selectedSheetName}
         </span>
       </button>

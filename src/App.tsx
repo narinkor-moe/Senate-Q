@@ -707,16 +707,16 @@ export default function App() {
           </div>
 
           {/* User badge & Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setIsHolidayModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-colors cursor-pointer"
+              className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-colors cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
               title="เพิ่ม ลบ หรือแก้ไขวันหยุดราชการในปฏิทิน"
             >
-              <CalendarOff className="w-3.5 h-3.5 text-rose-300" />
+              <CalendarOff className="w-3.5 h-3.5 text-rose-300 shrink-0" />
               <span>ปฏิทินวันหยุดราชการ</span>
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-rose-500/80 text-white text-[10px] font-bold">
+              <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-rose-500/80 text-white text-[10px] font-bold leading-none">
                 {Object.keys(holidays).length}
               </span>
             </button>
@@ -726,12 +726,12 @@ export default function App() {
               type="button"
               id="btn-header-asker-stats"
               onClick={() => setIsAskerStatsModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 active:scale-95 text-white text-xs font-bold border border-sky-400/40 transition-all cursor-pointer shadow-xs"
+              className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 active:scale-95 text-white text-xs font-bold border border-sky-400/40 transition-all cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
               title="เปิดดูสถิติผู้ตั้งกระทู้ถามฉบับเต็มและการจัดสรรระเบียบวาระ"
             >
-              <Users className="w-3.5 h-3.5 text-sky-200" />
+              <Users className="w-3.5 h-3.5 text-sky-200 shrink-0" />
               <span>สถิติผู้ตั้งถาม</span>
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-sky-900/60 text-sky-100 text-[10px] font-bold border border-sky-400/30">
+              <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-sky-900/60 text-sky-100 text-[10px] font-bold border border-sky-400/30 leading-none">
                 {askerStats.totalUniqueAskers}
               </span>
             </button>
@@ -742,10 +742,10 @@ export default function App() {
               id="btn-refresh-google-sheet"
               onClick={() => handleRefreshFromGoogleSheet(true)}
               disabled={isCheckingSheet}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold border border-emerald-400/40 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold border border-emerald-400/40 transition-all cursor-pointer shrink-0 whitespace-nowrap shadow-xs disabled:opacity-50"
               title={`ดึงข้อมูลที่เป็นปัจจุบันทั้งหมดจาก Google Sheet (แผ่นงาน "${currentSheetName}") และประมวลผลจัดวาระใหม่ทันที`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-emerald-100 ${isCheckingSheet ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-emerald-100 shrink-0 ${isCheckingSheet ? 'animate-spin' : ''}`} />
               <span>{isCheckingSheet ? 'กำลังประมวลผล...' : `รีเฟรช (${currentSheetName})`}</span>
             </button>
 
@@ -755,13 +755,13 @@ export default function App() {
               id="btn-calculate-all-agendas-header"
               onClick={handleCalculateAllAgendas}
               disabled={isCalculatingAll}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-bold border border-blue-400/40 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-bold border border-blue-400/40 transition-all cursor-pointer shrink-0 whitespace-nowrap shadow-xs disabled:opacity-50"
               title="คำนวณและจัดสรรระเบียบวาระการประชุมให้ครอบคลุมกระทู้ถามทั้งหมดครบทุกสัปดาห์ (อัตโนมัติ 100%)"
             >
-              <Calculator className={`w-3.5 h-3.5 text-blue-100 ${isCalculatingAll ? 'animate-spin' : ''}`} />
+              <Calculator className={`w-3.5 h-3.5 text-blue-100 shrink-0 ${isCalculatingAll ? 'animate-spin' : ''}`} />
               <span>{isCalculatingAll ? 'กำลังคำนวณ...' : 'คำนวณวาระทั้งหมด'}</span>
               {remainingQuestions.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-amber-950 text-[10px] font-extrabold animate-pulse">
+                <span className="px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 text-[10px] font-extrabold leading-none animate-pulse">
                   +{remainingQuestions.length}
                 </span>
               )}
@@ -774,22 +774,22 @@ export default function App() {
             />
             
             {/* Print Report Button Group */}
-            <div className="inline-flex items-center rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-colors overflow-hidden">
+            <div className="h-9 inline-flex items-center rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-colors overflow-hidden shrink-0 shadow-xs">
               <button
                 type="button"
                 id="btn-header-open-print-modal"
                 onClick={() => handleOpenPrintModal(selectedWeekFilter !== 'all' ? selectedWeekFilter : undefined)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-semibold hover:bg-white/10 transition-colors cursor-pointer"
+                className="h-full inline-flex items-center gap-1.5 px-3 text-white text-xs font-semibold hover:bg-white/10 transition-colors cursor-pointer whitespace-nowrap"
                 title="เปิดหน้าต่างพิมพ์รายงาน (เลือกสัปดาห์ / รูปแบบรายงาน / พรีวิว)"
               >
-                <Printer className="w-3.5 h-3.5 text-sky-300" />
+                <Printer className="w-3.5 h-3.5 text-sky-300 shrink-0" />
                 <span>พิมพ์รายงาน</span>
               </button>
               <button
                 type="button"
                 id="btn-header-quick-print"
                 onClick={handleDirectQuickPrint}
-                className="px-2 py-1.5 text-[11px] font-bold text-sky-200 hover:text-white hover:bg-white/20 border-l border-white/20 transition-colors cursor-pointer"
+                className="h-full inline-flex items-center px-2.5 text-[11px] font-bold text-sky-200 hover:text-white hover:bg-white/20 border-l border-white/20 transition-colors cursor-pointer whitespace-nowrap"
                 title="สั่งพิมพ์ออกเครื่องพิมพ์ทันที (Quick Print)"
               >
                 พิมพ์ด่วน
@@ -802,22 +802,19 @@ export default function App() {
               id="btn-header-download-pdf"
               onClick={() => handleDownloadFilteredPdf()}
               disabled={isDownloadingPdf}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold border border-emerald-400/40 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold border border-emerald-400/40 transition-all cursor-pointer shadow-xs disabled:opacity-50 shrink-0 whitespace-nowrap"
               title="ดาวน์โหลดมุมมองระเบียบวาระที่กำลังแสดงอยู่เป็นไฟล์ PDF (A4 คมชัดสูง)"
             >
-              <FileDown className={`w-3.5 h-3.5 text-emerald-100 ${isDownloadingPdf ? 'animate-bounce' : ''}`} />
+              <FileDown className={`w-3.5 h-3.5 text-emerald-100 shrink-0 ${isDownloadingPdf ? 'animate-bounce' : ''}`} />
               <span>{isDownloadingPdf ? 'กำลังสร้าง PDF...' : 'ดาวน์โหลด PDF'}</span>
             </button>
 
             {/* User Authentication Status & Switcher */}
-            <div className="flex items-center gap-1.5 pl-2.5 border-l border-slate-700">
+            <div className="flex items-center gap-1.5 pl-2 border-l border-slate-700 shrink-0">
               {userRole === 'admin' ? (
-                <div className="flex items-center gap-2 bg-sky-900/80 border border-sky-400/40 rounded-lg px-2.5 py-1 text-xs shadow-inner">
+                <div className="h-9 inline-flex items-center gap-2 bg-sky-900/80 border border-sky-400/40 rounded-lg px-2.5 text-xs shadow-inner shrink-0 whitespace-nowrap">
                   <ShieldCheck className="w-4 h-4 text-sky-300 shrink-0" />
-                  <div className="text-left hidden sm:block leading-tight">
-                    <span className="font-bold text-sky-100 block text-[11px]">Admin (ผู้ดูแลระบบ)</span>
-                    <span className="text-[9px] text-sky-300">ทุกฟังก์ชันสมบูรณ์</span>
-                  </div>
+                  <span className="font-bold text-sky-100 text-xs hidden sm:inline">Admin (ผู้ดูแลระบบ)</span>
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -828,12 +825,9 @@ export default function App() {
                   </button>
                 </div>
               ) : userRole === 'user' ? (
-                <div className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1 text-xs">
+                <div className="h-9 inline-flex items-center gap-2 bg-slate-800 border border-slate-600 rounded-lg px-2.5 text-xs shrink-0 whitespace-nowrap">
                   <User className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <div className="text-left hidden sm:block leading-tight">
-                    <span className="font-bold text-slate-200 block text-[11px]">ผู้ใช้งานทั่วไป</span>
-                    <span className="text-[9px] text-slate-400">ดู/ค้นหา/พิมพ์รายงาน</span>
-                  </div>
+                  <span className="font-bold text-slate-200 text-xs hidden sm:inline">ผู้ใช้งานทั่วไป</span>
                   <button
                     type="button"
                     onClick={() => handleOpenLoginModal('admin')}
@@ -848,9 +842,9 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => handleOpenLoginModal('user')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                  className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
                 >
-                  <LogIn className="w-3.5 h-3.5" />
+                  <LogIn className="w-3.5 h-3.5 shrink-0" />
                   <span>เข้าสู่ระบบ</span>
                 </button>
               )}
@@ -1195,7 +1189,12 @@ export default function App() {
                 <span className="text-sm font-bold text-slate-800">
                   {selectedWeekFilter === 'all'
                     ? `แสดงตารางระเบียบวาระครบทั้ง ${schedules.length} สัปดาห์`
-                    : `แสดงเฉพาะระเบียบวาระ: วันที่ ${selectedWeekFilter}`}
+                    : (() => {
+                        const targetSch = schedules.find((s) => s.date === selectedWeekFilter);
+                        const targetWeekIdx = schedules.findIndex((s) => s.date === selectedWeekFilter);
+                        const weekNum = targetWeekIdx !== -1 ? targetWeekIdx + 1 : (targetSch?.weekNumber || 1);
+                        return `แสดงเฉพาะระเบียบวาระ: ${targetSch ? targetSch.thaiDateFormatted : selectedWeekFilter} (สัปดาห์ที่ ${weekNum} • W${weekNum})`;
+                      })()}
                 </span>
                 <span className="text-xs text-slate-500 block">
                   ระบบคำนวณและจัดสรรคิวอัตโนมัติตามข้อบังคับการประชุม (เริ่ม 31 ส.ค. 2569 ครั้งละ 3 เรื่อง)
@@ -1293,18 +1292,28 @@ export default function App() {
 
           {/* Section 1-4: Weekly Schedules & Cards (วันบรรจุกระทู้ทุกวันจันทร์ + การ์ดกระทู้ 3 เรื่อง) */}
           <div className="space-y-6">
-            {displayedSchedules.map((schedule, idx) => (
-              <WeeklySection
-                key={schedule.date}
-                schedule={schedule}
-                weekIndex={idx}
-                onOpenPostponeModal={handleOpenPostponeModal}
-                onDownloadWeekPdf={(date) => handleDownloadFilteredPdf(date)}
-                onPrintWeek={(date) => handleOpenPrintModal(date)}
-                onCancelWeek={(date) => handleToggleCancelMeeting(date)}
-                isAdmin={userRole === 'admin'}
-              />
-            ))}
+            {displayedSchedules.map((schedule, idx) => {
+              // Find the true global week index in master schedules list
+              const globalIndex = schedules.findIndex((s) => s.date === schedule.date);
+              const realWeekIndex = globalIndex !== -1 ? globalIndex : (schedule.weekNumber ? schedule.weekNumber - 1 : idx);
+              const realWeekNumber = realWeekIndex + 1;
+
+              return (
+                <WeeklySection
+                  key={schedule.date}
+                  schedule={{
+                    ...schedule,
+                    weekNumber: realWeekNumber,
+                  }}
+                  weekIndex={realWeekIndex}
+                  onOpenPostponeModal={handleOpenPostponeModal}
+                  onDownloadWeekPdf={(date) => handleDownloadFilteredPdf(date)}
+                  onPrintWeek={(date) => handleOpenPrintModal(date)}
+                  onCancelWeek={(date) => handleToggleCancelMeeting(date)}
+                  isAdmin={userRole === 'admin'}
+                />
+              );
+            })}
           </div>
 
           {/* Remaining Questions Banner */}
