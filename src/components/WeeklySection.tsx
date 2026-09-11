@@ -1,14 +1,16 @@
 import React from 'react';
 import { WeeklySchedule, QuestionItem } from '../types';
 import { QuestionCard } from './QuestionCard';
-import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff, Landmark, Sparkles, FileCheck } from 'lucide-react';
+import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff, Landmark, Sparkles, FileCheck, FileDown } from 'lucide-react';
 
 interface WeeklySectionProps {
   schedule: WeeklySchedule;
   weekIndex: number;
   onOpenPostponeModal: (question: QuestionItem) => void;
   onPrintWeek?: (date: string) => void;
+  onDownloadWeekPdf?: (date: string) => void;
   onCancelWeek?: (date: string) => void;
+  isAdmin?: boolean;
 }
 
 export const WeeklySection: React.FC<WeeklySectionProps> = ({
@@ -16,7 +18,9 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
   weekIndex,
   onOpenPostponeModal,
   onPrintWeek,
+  onDownloadWeekPdf,
   onCancelWeek,
+  isAdmin = true,
 }) => {
   const isOfficial = schedule.scheduleType === 'official';
   const isPostponedPresent = schedule.questions.some((q) => q.isPostponedNow || !!q.question.postponedDate);
@@ -112,6 +116,18 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
             </button>
           )}
 
+          {onDownloadWeekPdf && (
+            <button
+              type="button"
+              onClick={() => onDownloadWeekPdf(schedule.date)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+              title="ดาวน์โหลดเฉพาะระเบียบวาระสัปดาห์นี้เป็นไฟล์ PDF"
+            >
+              <FileDown className="w-3.5 h-3.5 text-emerald-700" />
+              <span>PDF วาระนี้</span>
+            </button>
+          )}
+
           {onPrintWeek && (
             <button
               type="button"
@@ -144,6 +160,7 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
                 key={item.question.id}
                 scheduledItem={item}
                 onOpenPostponeModal={onOpenPostponeModal}
+                isAdmin={isAdmin}
               />
             ))}
           </div>

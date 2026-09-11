@@ -73,3 +73,10 @@ export interface SimulationConfig {
   maxWeeks: number; // จำนวนสัปดาห์ที่ต้องการจัดล่วงหน้า
   questionsPerWeek: number; // 3
 }
+
+export type UserRole = 'admin' | 'user';
+
+export interface UserSession {
+  role: UserRole;
+  loginAt: string;
+}

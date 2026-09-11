@@ -13,7 +13,8 @@ import {
   CalendarCheck,
   FileSpreadsheet,
   RefreshCw,
-  CheckCircle2
+  CheckCircle2,
+  Lock,
 } from 'lucide-react';
 
 interface PostponeModalProps {
@@ -27,6 +28,7 @@ interface PostponeModalProps {
   ) => Promise<boolean | void> | boolean | void;
   startDate: string;
   holidays?: Record<string, string>;
+  isAdmin?: boolean;
 }
 
 export const PostponeModal: React.FC<PostponeModalProps> = ({
@@ -36,6 +38,7 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
   onSavePostpone,
   startDate,
   holidays,
+  isAdmin = true,
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [syncToGoogleSheet, setSyncToGoogleSheet] = useState<boolean>(true);
@@ -75,6 +78,11 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    if (!isAdmin) {
+      setErrorMsg('เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถบันทึกข้อมูลการขอเลื่อนตอบไปยัง Google Sheet ได้');
+      return;
+    }
+
     if (!selectedDate || selectedDate.trim() === '') {
       setErrorMsg('กรุณาระบุวันที่ต้องการขอเลื่อนไปตอบ');
       return;
@@ -110,6 +118,12 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
   const handleResetPostpone = async () => {
     setErrorMsg(null);
     setSuccessMsg(null);
+
+    if (!isAdmin) {
+      setErrorMsg('เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถยกเลิกการขอเลื่อนตอบใน Google Sheet ได้');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       const res = await onSavePostpone(question, undefined, syncToGoogleSheet);
@@ -301,18 +315,23 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
 
           {/* Google Sheets Sync Checkbox */}
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+            <label className={`flex items-start gap-2.5 ${!isAdmin ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer select-none'}`}>
               <input
                 type="checkbox"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !isAdmin}
                 checked={syncToGoogleSheet}
                 onChange={(e) => setSyncToGoogleSheet(e.target.checked)}
-                className="mt-0.5 rounded border-slate-300 text-[#0369a1] focus:ring-[#0369a1] cursor-pointer"
+                className="mt-0.5 rounded border-slate-300 text-[#0369a1] focus:ring-[#0369a1] cursor-pointer disabled:cursor-not-allowed"
               />
               <div className="text-xs">
                 <span className="font-bold text-slate-800 flex items-center gap-1.5">
                   <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                   บันทึกข้อมูลลง Google Sheet ด้วย
+                  {!isAdmin && (
+                    <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-bold">
+                      เฉพาะ Admin
+                    </span>
+                  )}
                 </span>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   ระบบจะบันทึกวันที่ลงในเซลล์ <strong className="text-slate-800 font-mono">{targetCellName}</strong>{' '}
@@ -321,6 +340,20 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
               </div>
             </label>
           </div>
+
+          {!isAdmin && (
+            <div className="bg-amber-50 rounded-xl p-3 border border-amber-300 text-xs text-amber-950 flex items-start gap-2.5">
+              <Lock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold block text-amber-900">
+                  สิทธิ์ผู้ใช้งานทั่วไป: ไม่สามารถบันทึกการขอเลื่อนตอบไปยัง Google Sheet ได้
+                </span>
+                <p className="text-[11px] text-amber-800 mt-0.5">
+                  ฟังก์ชันนี้สงวนสิทธิ์สำหรับผู้ดูแลระบบ (Admin) เท่านั้น กรุณาเข้าสู่ระบบด้วยรหัสผ่าน <strong className="font-mono underline">admin1234</strong> เพื่อบันทึกข้อมูล
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Parliamentary Rules Guide */}
           <div className="bg-sky-50/80 rounded-xl p-3 border border-sky-200 text-[11px] text-sky-900 space-y-1">
@@ -378,10 +411,20 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-[#0369a1] hover:bg-[#075985] text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-colors disabled:opacity-50"
+              disabled={isSubmitting || !isAdmin}
+              className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold shadow-xs transition-colors ${
+                !isAdmin
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed border border-slate-300'
+                  : 'bg-[#0369a1] hover:bg-[#075985] text-white cursor-pointer disabled:opacity-50'
+              }`}
+              title={!isAdmin ? 'เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถบันทึกข้อมูลลง Google Sheet ได้' : undefined}
             >
-              {isSubmitting ? (
+              {!isAdmin ? (
+                <>
+                  <Lock className="w-4 h-4 text-slate-500" />
+                  <span>เฉพาะ Admin (บันทึกลง Google Sheet)</span>
+                </>
+              ) : isSubmitting ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
                   <span>กำลังบันทึกลง Sheet...</span>

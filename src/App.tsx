@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { QuestionItem } from './types';
+import { QuestionItem, UserRole } from './types';
 import { INITIAL_QUESTIONS } from './mockData';
 import { computeWeeklySchedules, auditScheduleCompliance, THAI_PUBLIC_HOLIDAYS, formatThaiDateWithDayOfWeek, parseThaiOrISODate } from './scheduler';
 import { WeeklySection } from './components/WeeklySection';
@@ -11,8 +11,14 @@ import { HolidayManagerModal } from './components/HolidayManagerModal';
 import { PrintReportModal } from './components/PrintReportModal';
 import { AskerStatsModal } from './components/AskerStatsModal';
 import { AskerStatsSection } from './components/AskerStatsSection';
+import { LoginModal } from './components/LoginModal';
 import { computeAskerStats } from './utils/askerStats';
-import { executePrintReport, generateReportHtml } from './utils/printUtils';
+import {
+  executePrintReport,
+  generateReportHtml,
+  downloadFilteredSchedulePdf,
+  downloadScheduleAsPdf
+} from './utils/printUtils';
 import {
   fetchPostponeMapFromSheet,
   fetchFullQuestionsFromSheet,
@@ -47,6 +53,13 @@ import {
   FileX2,
   X,
   Calculator,
+  User,
+  Lock,
+  LogOut,
+  LogIn,
+  KeyRound,
+  Shield,
+  FileDown,
 } from 'lucide-react';
 
 const STORAGE_KEY_HOLIDAYS = 'senate_official_holidays';
@@ -84,20 +97,89 @@ export default function App() {
 
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
 
-  // 4. Print Report Modal State
+  // 4. User Role & Authentication State
+  // Requirement: admin (password: admin1234) has full access; general user has no password and cannot use postpone to Google Sheet
+  const STORAGE_KEY_USER_ROLE = 'senate_app_user_role';
+  const [userRole, setUserRole] = useState<UserRole | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_USER_ROLE);
+      if (saved === 'admin' || saved === 'user') {
+        return saved as UserRole;
+      }
+    } catch (e) {
+      console.error('Error loading user role from localStorage', e);
+    }
+    return null;
+  });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [loginModalPendingMessage, setLoginModalPendingMessage] = useState<string | null>(null);
+  const [loginModalInitialTab, setLoginModalInitialTab] = useState<'user' | 'admin'>('user');
+  const [pendingPostponeQuestion, setPendingPostponeQuestion] = useState<QuestionItem | null>(null);
+
+  // Prompt login modal on first visit if not logged in
+  useEffect(() => {
+    if (!userRole) {
+      setIsLoginModalOpen(true);
+    }
+  }, [userRole]);
+
+  const handleSelectRole = (role: UserRole) => {
+    setUserRole(role);
+    try {
+      localStorage.setItem(STORAGE_KEY_USER_ROLE, role);
+    } catch (e) {
+      console.error(e);
+    }
+    setToastMessage({
+      type: 'success',
+      text:
+        role === 'admin'
+          ? 'เข้าสู่ระบบในฐานะ ผู้ดูแลระบบ (Admin) — สามารถใช้งานได้ทุกฟังก์ชันครบถ้วน'
+          : 'เข้าสู่ระบบในฐานะ ผู้ใช้งานทั่วไป — สามารถดูข้อมูล ค้นหา และพิมพ์รายงานได้ทั้งหมด',
+    });
+    setTimeout(() => setToastMessage(null), 4000);
+
+    // If there was a pending postpone request from user that just logged in as admin, open the postpone modal now
+    if (role === 'admin' && pendingPostponeQuestion) {
+      setPostponeModalQuestion(pendingPostponeQuestion);
+      setIsPostponeModalOpen(true);
+      setPendingPostponeQuestion(null);
+    }
+    setLoginModalPendingMessage(null);
+  };
+
+  const handleLogout = () => {
+    setUserRole(null);
+    try {
+      localStorage.removeItem(STORAGE_KEY_USER_ROLE);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoginModalPendingMessage(null);
+    setLoginModalInitialTab('user');
+    setIsLoginModalOpen(true);
+  };
+
+  const handleOpenLoginModal = (tab: 'user' | 'admin' = 'user') => {
+    setLoginModalInitialTab(tab);
+    setLoginModalPendingMessage(null);
+    setIsLoginModalOpen(true);
+  };
+
+  // 5. Print Report Modal State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [printTargetWeek, setPrintTargetWeek] = useState<string | undefined>(undefined);
 
-  // 5. Postpone Modal State
+  // 6. Postpone Modal State
   const [postponeModalQuestion, setPostponeModalQuestion] = useState<QuestionItem | null>(null);
   const [isPostponeModalOpen, setIsPostponeModalOpen] = useState(false);
 
-  // 6. Configuration for starting Monday date (Default: 31 สิงหาคม 2569 / 2026-08-31)
+  // 7. Configuration for starting Monday date (Default: 31 สิงหาคม 2569 / 2026-08-31)
   const [startDate, setStartDate] = useState<string>('2026-08-31');
   const [maxWeeks, setMaxWeeks] = useState<number>(8);
   const [selectedWeekFilter, setSelectedWeekFilter] = useState<string | 'all'>('all');
 
-  // 7. Google Sheets Connection & Active Worksheet Configuration
+  // 8. Google Sheets Connection & Active Worksheet Configuration
   const [currentSheetName, setCurrentSheetName] = useState<string>(() => {
     return localStorage.getItem('senate_current_sheet_name') || DEFAULT_SHEET_NAME;
   });
@@ -264,7 +346,17 @@ export default function App() {
   };
 
   // Open Postpone Modal for a question
+  // User restriction rule: Non-admin users cannot use postpone button that saves to Google Sheets
   const handleOpenPostponeModal = (question: QuestionItem) => {
+    if (userRole !== 'admin') {
+      setPendingPostponeQuestion(question);
+      setLoginModalInitialTab('admin');
+      setLoginModalPendingMessage(
+        'ปุ่มเลื่อนตอบที่บันทึกข้อมูลไปยัง Google Sheet สงวนสิทธิ์สำหรับผู้ดูแลระบบ (Admin) เท่านั้น กรุณาเข้าสู่ระบบด้วยรหัสผ่าน admin1234'
+      );
+      setIsLoginModalOpen(true);
+      return;
+    }
     setPostponeModalQuestion(question);
     setIsPostponeModalOpen(true);
   };
@@ -275,6 +367,16 @@ export default function App() {
     targetDateISO: string | undefined,
     syncToSheet: boolean = true
   ) => {
+    // Extra security check for role
+    if (syncToSheet && userRole !== 'admin') {
+      setToastMessage({
+        type: 'error',
+        text: 'เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถบันทึกข้อมูลการขอเลื่อนตอบไปยัง Google Sheet ได้',
+      });
+      setTimeout(() => setToastMessage(null), 4500);
+      return false;
+    }
+
     let finalRowIndex = question.sheetRowIndex || (question.submittedOrder + 1);
     let finalRawDate = targetDateISO ? formatDateForSheet(targetDateISO) : undefined;
 
@@ -535,6 +637,55 @@ export default function App() {
     await executePrintReport(html);
   };
 
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  // Download PDF for the currently filtered view of the schedule
+  const handleDownloadFilteredPdf = async (targetWeekDate?: string) => {
+    setIsDownloadingPdf(true);
+    setToastMessage({
+      type: 'info',
+      text: 'กำลังประมวลผลและสร้างไฟล์เอกสาร PDF จากวาระที่เลือก...',
+    });
+
+    try {
+      const activeFilter = targetWeekDate || selectedWeekFilter;
+      const targetSchedules = targetWeekDate
+        ? schedules.filter((s) => s.date === targetWeekDate)
+        : displayedSchedules;
+
+      const success = await downloadFilteredSchedulePdf({
+        schedules,
+        allQuestions: questions,
+        skippedHolidays,
+        filteredSchedules: targetSchedules,
+        selectedWeekFilter: activeFilter,
+        agendaTypeFilter: targetWeekDate ? 'all' : agendaTypeFilter,
+      });
+
+      if (success) {
+        setToastMessage({
+          type: 'success',
+          text: 'ดาวน์โหลดไฟล์เอกสาร PDF สำเร็จเรียบร้อยแล้ว!',
+        });
+      } else {
+        setToastMessage({
+          type: 'info',
+          text: 'เปิดหน้าต่างพิมพ์สำหรับบันทึกเป็น PDF แล้ว',
+        });
+      }
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err) {
+      console.error('Failed to download PDF:', err);
+      setToastMessage({
+        type: 'error',
+        text: 'เกิดข้อผิดพลาดในการดาวน์โหลด PDF',
+      });
+      setTimeout(() => setToastMessage(null), 4000);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f1f5f9] text-slate-900 font-['Sarabun',sans-serif] flex flex-col">
       {/* Top Header matching Professional Polish theme */}
@@ -626,6 +777,7 @@ export default function App() {
             <div className="inline-flex items-center rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-colors overflow-hidden">
               <button
                 type="button"
+                id="btn-header-open-print-modal"
                 onClick={() => handleOpenPrintModal(selectedWeekFilter !== 'all' ? selectedWeekFilter : undefined)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-semibold hover:bg-white/10 transition-colors cursor-pointer"
                 title="เปิดหน้าต่างพิมพ์รายงาน (เลือกสัปดาห์ / รูปแบบรายงาน / พรีวิว)"
@@ -635,6 +787,7 @@ export default function App() {
               </button>
               <button
                 type="button"
+                id="btn-header-quick-print"
                 onClick={handleDirectQuickPrint}
                 className="px-2 py-1.5 text-[11px] font-bold text-sky-200 hover:text-white hover:bg-white/20 border-l border-white/20 transition-colors cursor-pointer"
                 title="สั่งพิมพ์ออกเครื่องพิมพ์ทันที (Quick Print)"
@@ -643,13 +796,93 @@ export default function App() {
               </button>
             </div>
 
-            <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-slate-700 text-xs text-slate-300">
+            {/* Download PDF Button */}
+            <button
+              type="button"
+              id="btn-header-download-pdf"
+              onClick={() => handleDownloadFilteredPdf()}
+              disabled={isDownloadingPdf}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold border border-emerald-400/40 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              title="ดาวน์โหลดมุมมองระเบียบวาระที่กำลังแสดงอยู่เป็นไฟล์ PDF (A4 คมชัดสูง)"
+            >
+              <FileDown className={`w-3.5 h-3.5 text-emerald-100 ${isDownloadingPdf ? 'animate-bounce' : ''}`} />
+              <span>{isDownloadingPdf ? 'กำลังสร้าง PDF...' : 'ดาวน์โหลด PDF'}</span>
+            </button>
+
+            {/* User Authentication Status & Switcher */}
+            <div className="flex items-center gap-1.5 pl-2.5 border-l border-slate-700">
+              {userRole === 'admin' ? (
+                <div className="flex items-center gap-2 bg-sky-900/80 border border-sky-400/40 rounded-lg px-2.5 py-1 text-xs shadow-inner">
+                  <ShieldCheck className="w-4 h-4 text-sky-300 shrink-0" />
+                  <div className="text-left hidden sm:block leading-tight">
+                    <span className="font-bold text-sky-100 block text-[11px]">Admin (ผู้ดูแลระบบ)</span>
+                    <span className="text-[9px] text-sky-300">ทุกฟังก์ชันสมบูรณ์</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="ml-1 p-1 hover:bg-white/10 rounded text-slate-300 hover:text-rose-300 transition-colors cursor-pointer"
+                    title="ออกจากระบบ / สลับผู้ใช้งาน"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : userRole === 'user' ? (
+                <div className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1 text-xs">
+                  <User className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div className="text-left hidden sm:block leading-tight">
+                    <span className="font-bold text-slate-200 block text-[11px]">ผู้ใช้งานทั่วไป</span>
+                    <span className="text-[9px] text-slate-400">ดู/ค้นหา/พิมพ์รายงาน</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenLoginModal('admin')}
+                    className="ml-1 px-2 py-0.5 bg-sky-700 hover:bg-sky-600 text-white rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                    title="เข้าสู่ระบบ Admin ด้วยรหัสผ่าน admin1234 เพื่อใช้งานปุ่มเลื่อนตอบและบันทึกลง Google Sheet"
+                  >
+                    <Lock className="w-3 h-3" />
+                    <span>Admin</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleOpenLoginModal('user')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>เข้าสู่ระบบ</span>
+                </button>
+              )}
+            </div>
+
+            <div className="hidden xl:flex items-center gap-2 pl-2 border-l border-slate-700 text-xs text-slate-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>ระบบออนไลน์</span>
             </div>
           </div>
         </div>
       </header>
+
+      {/* Notice Banner when in General User Mode */}
+      {userRole === 'user' && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 px-6 py-2 flex flex-wrap items-center justify-between gap-3 text-xs text-amber-950 shrink-0 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>
+              คุณกำลังใช้งานในโหมด <strong>ผู้ใช้งานทั่วไป</strong>: สามารถตรวจสอบวาระ คำนวณวาระ ค้นหา สถิติ และพิมพ์รายงานได้ทั้งหมด (ไม่อนุญาตให้ใช้ปุ่มเลื่อนตอบที่บันทึกข้อมูลไปยัง Google Sheet)
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleOpenLoginModal('admin')}
+            className="px-2.5 py-1 rounded-md bg-amber-700 hover:bg-amber-800 text-white font-bold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs shrink-0"
+          >
+            <Lock className="w-3 h-3" />
+            <span>เข้าสู่ระบบ Admin (รหัสผ่าน: admin1234)</span>
+          </button>
+        </div>
+      )}
 
       {/* Main App Layout: Sidebar + Content Area */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
@@ -1007,6 +1240,26 @@ export default function App() {
                 )}
               </button>
 
+              <button
+                type="button"
+                id="btn-schedule-download-pdf"
+                onClick={() => handleDownloadFilteredPdf()}
+                disabled={isDownloadingPdf}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+                title="ดาวน์โหลดระเบียบวาระการประชุมที่กำลังแสดงผลอยู่นี้เป็นไฟล์ PDF (A4 คมชัดสูง)"
+              >
+                <FileDown className={`w-3.5 h-3.5 text-emerald-100 ${isDownloadingPdf ? 'animate-bounce' : ''}`} />
+                <span>
+                  {isDownloadingPdf
+                    ? 'กำลังสร้าง PDF...'
+                    : selectedWeekFilter !== 'all'
+                    ? 'ดาวน์โหลด PDF (สัปดาห์นี้)'
+                    : agendaTypeFilter !== 'all'
+                    ? `ดาวน์โหลด PDF (${agendaTypeFilter === 'official' ? 'วาระทางการ' : 'วาระคาดการณ์'})`
+                    : `ดาวน์โหลด PDF (${displayedSchedules.length} สัปดาห์)`}
+                </span>
+              </button>
+
               {selectedWeekFilter !== 'all' && (
                 <button
                   type="button"
@@ -1046,8 +1299,10 @@ export default function App() {
                 schedule={schedule}
                 weekIndex={idx}
                 onOpenPostponeModal={handleOpenPostponeModal}
+                onDownloadWeekPdf={(date) => handleDownloadFilteredPdf(date)}
                 onPrintWeek={(date) => handleOpenPrintModal(date)}
                 onCancelWeek={(date) => handleToggleCancelMeeting(date)}
+                isAdmin={userRole === 'admin'}
               />
             ))}
           </div>
@@ -1114,6 +1369,7 @@ export default function App() {
               onOpenAskerStats={() => setIsAskerStatsModalOpen(true)}
               selectedAskerFilter={activeAskerFilter}
               onCalculateAllAgendas={handleCalculateAllAgendas}
+              isAdmin={userRole === 'admin'}
             />
           </div>
 
@@ -1131,6 +1387,17 @@ export default function App() {
         onSavePostpone={handleSavePostponedDate}
         startDate={startDate}
         holidays={holidays}
+        isAdmin={userRole === 'admin'}
+      />
+
+      {/* User Login & Role Switcher Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        currentRole={userRole}
+        onSelectRole={handleSelectRole}
+        pendingMessage={loginModalPendingMessage}
+        initialTab={loginModalInitialTab}
       />
 
       {/* Holiday Manager Modal (เพิ่ม ลบ แก้ไข วันหยุดราชการในปฏิทิน) */}

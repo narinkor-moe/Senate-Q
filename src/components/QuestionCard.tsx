@@ -1,16 +1,18 @@
 import React from 'react';
 import { ScheduledQuestion, QuestionItem } from '../types';
-import { User, Briefcase, Clock, RotateCcw, CornerDownRight, Calendar, Sparkles, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
+import { User, Briefcase, Clock, RotateCcw, CornerDownRight, Calendar, Sparkles, FileSpreadsheet, CheckCircle2, Lock } from 'lucide-react';
 import { formatThaiShortDate, formatThaiDateWithDayOfWeek } from '../scheduler';
 
 interface QuestionCardProps {
   scheduledItem: ScheduledQuestion;
   onOpenPostponeModal: (question: QuestionItem) => void;
+  isAdmin?: boolean;
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({
   scheduledItem,
   onOpenPostponeModal,
+  isAdmin = true,
 }) => {
   const { question, slotNumber, isPostponedFromPrevious, isPostponedNow } = scheduledItem;
   const isAnswered = question.isAnswered === true || question.status === 'completed' || question.status === 'answered' || (question.rawStatus && question.rawStatus.includes('ตอบแล้ว'));
@@ -147,21 +149,27 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             id={`btn-postpone-${question.id}`}
             onClick={() => onOpenPostponeModal(question)}
             className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer shadow-2xs ${
-              question.postponedDate || isPostponedNow
+              !isAdmin
+                ? 'bg-slate-100/90 hover:bg-amber-50/80 text-slate-600 hover:text-amber-900 border border-slate-200 hover:border-amber-300'
+                : question.postponedDate || isPostponedNow
                 ? question.isPostponedInSheet
                   ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300'
                   : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
                 : 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300'
             }`}
             title={
-              question.postponedDate
+              !isAdmin
+                ? 'ปุ่มเลื่อนตอบที่บันทึกข้อมูลไปยัง Google Sheet สงวนสิทธิ์สำหรับ Admin เท่านั้น (คลิกเพื่อเข้าสู่ระบบ Admin)'
+                : question.postponedDate
                 ? question.isPostponedInSheet
                   ? `ข้อมูลวันเลื่อนตอบจาก Google Sheet: ${question.postponedSheetRaw || question.postponedDate} (คลิกเพื่อแก้ไขหรือล้าง)`
                   : `เลื่อนตอบวันที่: ${question.postponedDate} (คลิกเพื่อแก้ไข/บันทึกลง Sheet)`
                 : 'ใน Google Sheet ยังไม่มีวันเลื่อนตอบ — คลิกเพื่อขอเลื่อนและบันทึกลง Google Sheet'
             }
           >
-            {question.postponedDate || isPostponedNow ? (
+            {!isAdmin ? (
+              <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            ) : question.postponedDate || isPostponedNow ? (
               question.isPostponedInSheet ? (
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
               ) : (
@@ -179,7 +187,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 : 'ขอเลื่อนวันตอบ'}
             </span>
 
-            {question.isPostponedInSheet ? (
+            {!isAdmin ? (
+              <span className="text-[10px] bg-slate-200 text-slate-600 px-1 py-0.2 rounded font-medium flex items-center gap-0.5">
+                เฉพาะ Admin
+              </span>
+            ) : question.isPostponedInSheet ? (
               <span className="text-[10px] bg-emerald-200/80 text-emerald-900 px-1 py-0.2 rounded font-bold border border-emerald-300/80">
                 Sheet
               </span>

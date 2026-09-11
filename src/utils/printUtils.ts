@@ -1,10 +1,13 @@
 import { WeeklySchedule, QuestionItem, HolidayItem } from '../types';
 import { formatThaiDateWithDayOfWeek } from '../scheduler';
 import { computeAskerStats } from './askerStats';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 export interface PrintReportOptions {
-  reportType: 'all_weeks' | 'selected_week' | 'all_questions_table' | 'postponed_only' | 'asker_statistics';
+  reportType: 'all_weeks' | 'selected_week' | 'all_questions_table' | 'postponed_only' | 'asker_statistics' | 'filtered_schedule';
   selectedWeekDate?: string;
+  customSchedules?: WeeklySchedule[];
   includeSignature: boolean;
   includeHolidayNotice: boolean;
   includeSummary: boolean;
@@ -50,22 +53,22 @@ export function generateReportHtml(
   const orientation = options.orientation || 'landscape';
   const isLandscape = orientation === 'landscape';
 
-  // Filter schedules based on reportType
-  let targetSchedules = schedules;
-  if (options.reportType === 'selected_week' && options.selectedWeekDate) {
+  // Filter schedules based on customSchedules or reportType
+  let targetSchedules = options.customSchedules || schedules;
+  if (!options.customSchedules && options.reportType === 'selected_week' && options.selectedWeekDate) {
     targetSchedules = schedules.filter((s) => s.date === options.selectedWeekDate);
   }
 
   // If postponed only, filter questions inside schedules
   if (options.reportType === 'postponed_only') {
-    targetSchedules = schedules.map((s) => ({
+    targetSchedules = targetSchedules.map((s) => ({
       ...s,
       questions: s.questions.filter((q) => q.isPostponedNow || q.isPostponedFromPrevious || !!q.question.postponedDate)
     })).filter((s) => s.questions.length > 0);
   }
 
   // Calculate statistics
-  const totalScheduled = schedules.reduce((sum, s) => sum + s.questions.length, 0);
+  const totalScheduled = targetSchedules.reduce((sum, s) => sum + s.questions.length, 0);
   const totalPostponed = allQuestions.filter((q) => q.status === 'postponed' || !!q.postponedDate).length;
   const totalQuestions = allQuestions.length;
 
@@ -787,4 +790,243 @@ export function executePrintReport(htmlContent: string): Promise<boolean> {
       resolve(false);
     }
   });
+}
+
+/**
+ * Generate and download clean PDF file from official HTML report content.
+ * Uses html2canvas for accurate Thai font rendering and jsPDF for standard A4 document pagination.
+ */
+export async function downloadScheduleAsPdf(
+  htmlContent: string,
+  filename: string = 'รายงานการจัดระเบียบวาระกระทู้ถาม_วุฒิสภา.pdf',
+  orientation?: 'landscape' | 'portrait'
+): Promise<boolean> {
+  // Determine orientation
+  const isLandscape = orientation === 'portrait' ? false : !htmlContent.includes('size: A4 portrait');
+
+  // Create temporary isolated sandbox container in DOM
+  const sandboxIframe = document.createElement('iframe');
+  sandboxIframe.id = 'parliamentary-pdf-sandbox';
+  sandboxIframe.style.position = 'fixed';
+  sandboxIframe.style.left = '-9999px';
+  sandboxIframe.style.top = '0';
+  sandboxIframe.style.width = isLandscape ? '1140px' : '820px';
+  sandboxIframe.style.height = '1800px';
+  sandboxIframe.style.opacity = '0.01';
+  sandboxIframe.style.pointerEvents = 'none';
+  sandboxIframe.style.zIndex = '-9999';
+
+  document.body.appendChild(sandboxIframe);
+
+  try {
+    const iframeDoc = sandboxIframe.contentDocument || sandboxIframe.contentWindow?.document;
+    if (!iframeDoc) {
+      throw new Error('ไม่สามารถเข้าถึง DOM ของเอกสารสำหรับการสร้าง PDF ได้');
+    }
+
+    iframeDoc.open();
+    iframeDoc.write(htmlContent);
+    iframeDoc.close();
+
+    // Allow CSS, fonts, and layout to render
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    if (iframeDoc.fonts?.ready) {
+      try {
+        await iframeDoc.fonts.ready;
+      } catch (e) {
+        // ignore font loading rejection
+      }
+    }
+
+    const reportContainer = (iframeDoc.querySelector('.report-container') as HTMLElement) || iframeDoc.body;
+
+    // Render DOM to high-DPI canvas
+    const canvas = await html2canvas(reportContainer, {
+      scale: 2, // 2x gives ~192-200 DPI for crisp typography
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      windowWidth: isLandscape ? 1140 : 820,
+    });
+
+    // Calculate A4 dimensions
+    const pageWidthMm = isLandscape ? 297 : 210;
+    const pageHeightMm = isLandscape ? 210 : 297;
+    const marginX = 8;
+    const marginY = 8;
+    const contentWidthMm = pageWidthMm - (marginX * 2);
+    const contentHeightMm = pageHeightMm - (marginY * 2);
+
+    // Height in canvas pixels that fits on one A4 page
+    const pageCanvasHeight = (contentHeightMm * canvas.width) / contentWidthMm;
+
+    // Collect candidate natural section break points to avoid cutting week cards or tables in half
+    const targetRect = reportContainer.getBoundingClientRect();
+    const scaleFactor = canvas.width / reportContainer.offsetWidth;
+    const sectionNodes = reportContainer.querySelectorAll(
+      '.week-card, .signature-section, .report-section, .summary-box, .notice-box'
+    );
+    const candidateBreaks: number[] = [];
+
+    sectionNodes.forEach((node) => {
+      const rect = (node as HTMLElement).getBoundingClientRect();
+      const topInCanvas = (rect.top - targetRect.top) * scaleFactor;
+      if (topInCanvas > 20) {
+        candidateBreaks.push(Math.round(topInCanvas));
+      }
+    });
+    candidateBreaks.sort((a, b) => a - b);
+
+    // Calculate page break points
+    const breakPoints: number[] = [0];
+    let currentY = 0;
+
+    while (currentY < canvas.height) {
+      const maxNextY = currentY + pageCanvasHeight;
+      if (maxNextY >= canvas.height - 15) {
+        breakPoints.push(canvas.height);
+        break;
+      }
+
+      // Look for a clean candidate break in the bottom 45% of the page
+      const minBreak = currentY + (0.55 * pageCanvasHeight);
+      let chosenBreak = maxNextY;
+      for (const b of candidateBreaks) {
+        if (b > minBreak && b <= maxNextY) {
+          chosenBreak = b;
+        }
+      }
+
+      breakPoints.push(chosenBreak);
+      currentY = chosenBreak;
+    }
+
+    // Initialize jsPDF document
+    const pdf = new jsPDF({
+      orientation: isLandscape ? 'landscape' : 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true,
+    });
+
+    // Render slices into PDF pages
+    for (let i = 0; i < breakPoints.length - 1; i++) {
+      const startY = breakPoints[i];
+      const endY = breakPoints[i + 1];
+      const sliceHeight = endY - startY;
+      if (sliceHeight <= 0) continue;
+
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceHeight;
+      const pageCtx = pageCanvas.getContext('2d');
+      if (!pageCtx) continue;
+
+      pageCtx.fillStyle = '#ffffff';
+      pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      pageCtx.drawImage(
+        canvas,
+        0, startY, canvas.width, sliceHeight,
+        0, 0, canvas.width, sliceHeight
+      );
+
+      const imgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+      if (i > 0) {
+        pdf.addPage('a4', isLandscape ? 'landscape' : 'portrait');
+      }
+
+      const renderedHeightMm = (sliceHeight * contentWidthMm) / canvas.width;
+      pdf.addImage(imgData, 'JPEG', marginX, marginY, contentWidthMm, renderedHeightMm, undefined, 'FAST');
+    }
+
+    // Save and download PDF file
+    const cleanFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+    pdf.save(cleanFilename);
+    return true;
+  } catch (err) {
+    console.error('Failed to generate PDF directly, falling back to print dialog:', err);
+    // Fallback: invoke print window which allows saving to PDF natively
+    await executePrintReport(htmlContent);
+    return false;
+  } finally {
+    try {
+      sandboxIframe.remove();
+    } catch (e) {
+      // ignore
+    }
+  }
+}
+
+/**
+ * Convenience helper to download the currently filtered view of the schedule as a PDF document.
+ */
+export async function downloadFilteredSchedulePdf(params: {
+  schedules: WeeklySchedule[];
+  allQuestions: QuestionItem[];
+  skippedHolidays: HolidayItem[];
+  filteredSchedules: WeeklySchedule[];
+  selectedWeekFilter: string | 'all';
+  agendaTypeFilter: 'all' | 'official' | 'projected';
+  customTitle?: string;
+  customDepartment?: string;
+  filename?: string;
+}): Promise<boolean> {
+  const {
+    schedules,
+    allQuestions,
+    skippedHolidays,
+    filteredSchedules,
+    selectedWeekFilter,
+    agendaTypeFilter,
+    customDepartment,
+  } = params;
+
+  // Build descriptive title
+  let computedTitle = params.customTitle;
+  if (!computedTitle) {
+    if (selectedWeekFilter !== 'all') {
+      const matched = filteredSchedules.find((s) => s.date === selectedWeekFilter);
+      const thaiDate = matched ? matched.thaiDateFormatted : selectedWeekFilter;
+      computedTitle = `รายงานการจัดระเบียบวาระกระทู้ถาม (วาระวันที่ ${thaiDate})`;
+    } else if (agendaTypeFilter === 'official') {
+      computedTitle = `รายงานการจัดระเบียบวาระกระทู้ถาม (เฉพาะระเบียบวาระทางการ - ${filteredSchedules.length} สัปดาห์)`;
+    } else if (agendaTypeFilter === 'projected') {
+      computedTitle = `รายงานการจัดระเบียบวาระกระทู้ถาม (เฉพาะวาระคาดการณ์ล่วงหน้า - ${filteredSchedules.length} สัปดาห์)`;
+    } else {
+      computedTitle = `รายงานการจัดระเบียบวาระกระทู้ถามในการประชุมวุฒิสภา (${filteredSchedules.length} สัปดาห์)`;
+    }
+  }
+
+  // Generate clean HTML
+  const htmlContent = generateReportHtml(schedules, allQuestions, skippedHolidays, {
+    reportType: 'all_weeks',
+    customSchedules: filteredSchedules,
+    includeSignature: true,
+    includeHolidayNotice: true,
+    includeSummary: true,
+    orientation: 'landscape',
+    tableFontSize: 16,
+    customTitle: computedTitle,
+    customDepartment: customDepartment || 'กลุ่มการเมือง สำนักงานรัฐมนตรี กระทรวงศึกษาธิการ',
+  });
+
+  // Build appropriate filename
+  let filename = params.filename;
+  if (!filename) {
+    const today = new Date().toISOString().slice(0, 10);
+    let filterPart = 'ระเบียบวาระกระทู้ถาม_วุฒิสภา';
+    if (selectedWeekFilter !== 'all') {
+      filterPart += `_วาระ_${selectedWeekFilter}`;
+    } else if (agendaTypeFilter === 'official') {
+      filterPart += `_วาระทางการ_${filteredSchedules.length}สัปดาห์`;
+    } else if (agendaTypeFilter === 'projected') {
+      filterPart += `_วาระคาดการณ์_${filteredSchedules.length}สัปดาห์`;
+    } else {
+      filterPart += `_ครบ${filteredSchedules.length}สัปดาห์`;
+    }
+    filename = `${filterPart}_${today}.pdf`;
+  }
+
+  return downloadScheduleAsPdf(htmlContent, filename, 'landscape');
 }

@@ -12,13 +12,15 @@ import {
   AlertTriangle,
   RotateCcw,
   Eye,
-  Check
+  Check,
+  FileDown
 } from 'lucide-react';
 import { WeeklySchedule, QuestionItem, HolidayItem } from '../types';
 import {
   PrintReportOptions,
   generateReportHtml,
   executePrintReport,
+  downloadScheduleAsPdf,
   getCurrentThaiDateTimeString
 } from '../utils/printUtils';
 import { formatThaiDateWithDayOfWeek } from '../scheduler';
@@ -58,6 +60,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
   );
 
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
   const [printSuccessNotice, setPrintSuccessNotice] = useState<string | null>(null);
 
   // Generate HTML for current options
@@ -106,6 +109,36 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
     }
   };
 
+  const handleDownloadPdf = async () => {
+    setIsDownloadingPdf(true);
+    setPrintSuccessNotice('กำลังสร้างและดาวน์โหลดไฟล์ PDF...');
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      let filename = `รายงานระเบียบวาระ_วุฒิสภา_${today}.pdf`;
+      if (reportType === 'selected_week' && targetWeekDate) {
+        filename = `รายงานระเบียบวาระ_วุฒิสภา_วาระ_${targetWeekDate}_${today}.pdf`;
+      } else if (reportType === 'all_questions_table') {
+        filename = `ทะเบียนกระทู้ถามวุฒิสภา_${today}.pdf`;
+      } else if (reportType === 'asker_statistics') {
+        filename = `สถิติผู้ตั้งกระทู้ถามวุฒิสภา_${today}.pdf`;
+      } else if (reportType === 'postponed_only') {
+        filename = `รายงานกระทู้ขอเลื่อนตอบ_วุฒิสภา_${today}.pdf`;
+      }
+      const ok = await downloadScheduleAsPdf(reportHtml, filename, orientation);
+      if (ok) {
+        setPrintSuccessNotice('ดาวน์โหลดไฟล์ PDF เรียบร้อยแล้ว');
+      } else {
+        setPrintSuccessNotice('เปิดหน้าต่างพิมพ์สำหรับบันทึกเป็น PDF แล้ว');
+      }
+      setTimeout(() => setPrintSuccessNotice(null), 4500);
+    } catch (err) {
+      console.error(err);
+      setPrintSuccessNotice('เกิดข้อผิดพลาดในการสร้างไฟล์ PDF');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 md:p-6 animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-6xl xl:max-w-7xl w-full flex flex-col max-h-[94vh] overflow-hidden">
@@ -134,12 +167,26 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              id="btn-modal-download-pdf"
+              onClick={handleDownloadPdf}
+              disabled={isDownloadingPdf || isPrinting}
+              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+              title="ดาวน์โหลดเป็นไฟล์เอกสาร PDF (A4 คมชัดสูง)"
+            >
+              <FileDown className={`w-4 h-4 ${isDownloadingPdf ? 'animate-bounce' : ''}`} />
+              <span>{isDownloadingPdf ? 'กำลังสร้าง PDF...' : 'ดาวน์โหลด PDF'}</span>
+            </button>
+
+            <button
+              type="button"
+              id="btn-modal-print"
               onClick={handlePrint}
-              disabled={isPrinting}
+              disabled={isPrinting || isDownloadingPdf}
               className="px-4 py-2 rounded-lg bg-[#0369a1] hover:bg-[#075985] text-white text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+              title="สั่งพิมพ์ออกเครื่องพิมพ์โดยตรง (Print)"
             >
               <Printer className="w-4 h-4" />
-              <span>{isPrinting ? 'กำลังสั่งพิมพ์...' : 'สั่งพิมพ์ออกเครื่องพิมพ์ (Print)'}</span>
+              <span>{isPrinting ? 'กำลังสั่งพิมพ์...' : 'สั่งพิมพ์ (Print)'}</span>
             </button>
 
             <button

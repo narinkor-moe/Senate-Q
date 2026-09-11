@@ -24,6 +24,7 @@ import {
   FileSpreadsheet,
   FileX2,
   Calculator,
+  Lock,
 } from 'lucide-react';
 
 export type QuestionStatusCategory =
@@ -51,6 +52,7 @@ interface AllQuestionsTableProps {
   onOpenAskerStats?: () => void;
   selectedAskerFilter?: string;
   onCalculateAllAgendas?: () => void;
+  isAdmin?: boolean;
 }
 
 const highlightMatch = (text: string, query: string) => {
@@ -88,6 +90,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   onOpenAskerStats,
   selectedAskerFilter,
   onCalculateAllAgendas,
+  isAdmin = true,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchScope, setSearchScope] = useState<SearchScope>('all');
@@ -1078,21 +1081,27 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                             id={`btn-table-postpone-${q.id}`}
                             onClick={() => onOpenPostponeModal(q)}
                             title={
-                              q.postponedDate
+                              !isAdmin
+                                ? 'เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถเลื่อนตอบและบันทึกลง Google Sheet ได้ (คลิกเพื่อเข้าสู่ระบบ Admin)'
+                                : q.postponedDate
                                 ? q.isPostponedInSheet
                                   ? `ข้อมูลจาก Google Sheet: ${q.postponedSheetRaw || q.postponedDate} (คลิกเพื่อแก้ไข/ล้าง)`
                                   : `แก้ไขวันขอเลื่อน (${q.postponedDate})`
                                 : 'ใน Sheet ยังไม่มีวันเลื่อนตอบ (คลิกเพื่อขอเลื่อนและบันทึกลง Sheet)'
                             }
                             className={`p-1 rounded transition-colors cursor-pointer mr-0.5 ${
-                              q.postponedDate
+                              !isAdmin
+                                ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
+                                : q.postponedDate
                                 ? q.isPostponedInSheet
                                   ? 'text-emerald-800 bg-emerald-100 hover:bg-emerald-200'
                                   : 'text-amber-700 bg-amber-100 hover:bg-amber-200'
                                 : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
                             }`}
                           >
-                            {q.isPostponedInSheet ? (
+                            {!isAdmin ? (
+                              <Lock className="w-3.5 h-3.5 text-slate-400" />
+                            ) : q.isPostponedInSheet ? (
                               <FileSpreadsheet className="w-3.5 h-3.5" />
                             ) : (
                               <Clock className="w-3.5 h-3.5" />
