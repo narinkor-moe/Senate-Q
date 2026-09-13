@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { QuestionItem, UserRole } from './types';
 import { INITIAL_QUESTIONS } from './mockData';
 import { computeWeeklySchedules, auditScheduleCompliance, THAI_PUBLIC_HOLIDAYS, formatThaiDateWithDayOfWeek, parseThaiOrISODate } from './scheduler';
@@ -60,6 +60,8 @@ import {
   KeyRound,
   Shield,
   FileDown,
+  GraduationCap,
+  ArrowUp,
 } from 'lucide-react';
 
 const STORAGE_KEY_HOLIDAYS = 'senate_official_holidays';
@@ -461,7 +463,15 @@ export default function App() {
   // Agenda filter: show all, only official, or only projected schedules
   const [agendaTypeFilter, setAgendaTypeFilter] = useState<'all' | 'official' | 'projected'>('all');
 
-  // Filtered schedules if a specific week or agenda type is selected
+  // One-click quick filter for questions asked to the Minister of Education (Option 4)
+  const [onlyEduMinisterFilter, setOnlyEduMinisterFilter] = useState<boolean>(false);
+
+  // Total count of questions addressed to Minister of Education
+  const eduQuestionsCount = useMemo(() => {
+    return questions.filter((q) => q.minister?.includes('ศึกษาธิการ')).length;
+  }, [questions]);
+
+  // Filtered schedules if a specific week, agenda type, or education minister filter is selected
   const displayedSchedules = useMemo(() => {
     let list = schedules;
     if (agendaTypeFilter !== 'all') {
@@ -470,8 +480,16 @@ export default function App() {
     if (selectedWeekFilter !== 'all') {
       list = list.filter((s) => s.date === selectedWeekFilter);
     }
+    if (onlyEduMinisterFilter) {
+      list = list
+        .map((s) => ({
+          ...s,
+          questions: s.questions.filter((q) => q.question.minister?.includes('ศึกษาธิการ')),
+        }))
+        .filter((s) => s.questions.length > 0);
+    }
     return list;
-  }, [schedules, selectedWeekFilter, agendaTypeFilter]);
+  }, [schedules, selectedWeekFilter, agendaTypeFilter, onlyEduMinisterFilter]);
 
   // 9. State & Handler for calculating all agendas across all submitted questions (คำนวณวาระทั้งหมด)
   const [isCalculatingAll, setIsCalculatingAll] = useState<boolean>(false);
@@ -686,10 +704,55 @@ export default function App() {
     }
   };
 
+  // Main scrollable content reference
+  const mainContentRef = useRef<HTMLElement>(null);
+
+  // Scroll-to-top floating button state and handler
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const mainEl = mainContentRef.current;
+
+    const checkScrollPosition = () => {
+      const scrollPos = mainEl ? mainEl.scrollTop : window.scrollY;
+      if (scrollPos > 280) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    if (mainEl) {
+      mainEl.addEventListener('scroll', checkScrollPosition, { passive: true });
+    }
+    window.addEventListener('scroll', checkScrollPosition, { passive: true });
+    checkScrollPosition();
+
+    return () => {
+      if (mainEl) {
+        mainEl.removeEventListener('scroll', checkScrollPosition);
+      }
+      window.removeEventListener('scroll', checkScrollPosition);
+    };
+  }, []);
+
+  const handleScrollToTop = () => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    }
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-[#f1f5f9] text-slate-900 font-['Sarabun',sans-serif] flex flex-col">
-      {/* Top Header matching Professional Polish theme */}
-      <header className="bg-[#1e293b] text-white border-b-4 border-[#0369a1] shadow-md z-30 shrink-0">
+    <div className="h-screen bg-[#f1f5f9] text-slate-900 font-['Sarabun',sans-serif] flex flex-col overflow-hidden">
+      {/* Top Header matching Professional Polish theme (ตรึงส่วนบนของเพจ) */}
+      <header className="bg-[#1e293b] text-white border-b-4 border-[#0369a1] shadow-md z-30 shrink-0 sticky top-0">
         <div className="px-6 py-3.5 flex flex-wrap justify-between items-center gap-4">
           {/* Logo & Title */}
           <div className="flex items-center gap-3.5">
@@ -878,11 +941,11 @@ export default function App() {
         </div>
       )}
 
-      {/* Main App Layout: Sidebar + Content Area */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      {/* Main App Layout: Pinned Sidebar + Scrollable Content Area */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
         
-        {/* Left Sidebar */}
-        <aside className="w-full lg:w-76 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 p-5 space-y-6 shrink-0 lg:overflow-y-auto">
+        {/* Left Sidebar (ตรึงด้านซ้ายของเพจ ไม่เลื่อนตามเนื้อหาหลัก) */}
+        <aside className="w-full lg:w-80 xl:w-84 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 p-5 space-y-6 shrink-0 overflow-y-auto max-h-[35vh] lg:max-h-full h-auto lg:h-full shadow-2xs">
           
           {/* Quick Date Control */}
           <div className="space-y-2">
@@ -1146,6 +1209,27 @@ export default function App() {
                   <span className="text-[10px] font-normal text-slate-500">เรื่อง/ท่าน</span>
                 </span>
               </div>
+              <button
+                type="button"
+                id="btn-sidebar-edu-filter"
+                onClick={() => setOnlyEduMinisterFilter((prev) => !prev)}
+                className={`p-2 rounded-lg border text-left transition-all cursor-pointer col-span-2 flex items-center justify-between ${
+                  onlyEduMinisterFilter
+                    ? 'bg-indigo-700 text-white border-indigo-700 shadow-2xs font-bold'
+                    : 'bg-indigo-50/80 hover:bg-indigo-100 border-indigo-200 text-indigo-950 font-medium'
+                }`}
+                title="คลิกเพื่อกรองเฉพาะกระทู้ถาม รัฐมนตรีว่าการกระทรวงศึกษาธิการ"
+              >
+                <span className="text-[11px] flex items-center gap-1.5">
+                  <GraduationCap className={`w-3.5 h-3.5 ${onlyEduMinisterFilter ? 'text-amber-300' : 'text-indigo-700'}`} />
+                  ถาม รมว.ศึกษาธิการ
+                </span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                  onlyEduMinisterFilter ? 'bg-white/20 text-white' : 'bg-indigo-600 text-white'
+                }`}>
+                  {eduQuestionsCount} เรื่อง
+                </span>
+              </button>
             </div>
 
             <button
@@ -1178,8 +1262,8 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Right Main Content */}
-        <main className="flex-1 p-6 space-y-6 overflow-y-auto">
+        {/* Right Main Content (เลื่อนดูเนื้อหาได้อย่างอิสระ) */}
+        <main ref={mainContentRef} className="flex-1 p-6 space-y-6 overflow-y-auto h-full">
           
           {/* Top Info Notice / Highlight Bar */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3">
@@ -1241,6 +1325,26 @@ export default function App() {
 
               <button
                 type="button"
+                id="btn-filter-edu-minister"
+                onClick={() => setOnlyEduMinisterFilter((prev) => !prev)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                  onlyEduMinisterFilter
+                    ? 'bg-indigo-700 text-white ring-2 ring-indigo-400'
+                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-200'
+                }`}
+                title="คลิกเพื่อกรองแสดงเฉพาะระเบียบวาระและกระทู้ที่ถาม รัฐมนตรีว่าการกระทรวงศึกษาธิการ"
+              >
+                <GraduationCap className={`w-3.5 h-3.5 ${onlyEduMinisterFilter ? 'text-amber-300' : 'text-indigo-700'}`} />
+                <span>เฉพาะ รมว.ศธ.</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  onlyEduMinisterFilter ? 'bg-white/20 text-white' : 'bg-indigo-200 text-indigo-900'
+                }`}>
+                  {eduQuestionsCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
                 id="btn-schedule-download-pdf"
                 onClick={() => handleDownloadFilteredPdf()}
                 disabled={isDownloadingPdf}
@@ -1290,30 +1394,85 @@ export default function App() {
             }}
           />
 
+          {/* Active Education Minister Filter Banner */}
+          {onlyEduMinisterFilter && (
+            <div className="bg-gradient-to-r from-indigo-50 via-sky-50 to-indigo-50 border border-indigo-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2.5 text-indigo-950 text-xs font-semibold">
+                <div className="w-8 h-8 rounded-lg bg-indigo-700 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <GraduationCap className="w-4 h-4 text-amber-300" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-indigo-950">
+                    กำลังแสดงเฉพาะกระทู้ถาม รัฐมนตรีว่าการกระทรวงศึกษาธิการ
+                  </div>
+                  <div className="text-[11px] text-indigo-800/80">
+                    พบทั้งหมด {eduQuestionsCount} เรื่อง ใน {displayedSchedules.length} สัปดาห์ระเบียบวาระ
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                id="btn-clear-edu-filter"
+                onClick={() => setOnlyEduMinisterFilter(false)}
+                className="px-3 py-1.5 bg-white hover:bg-indigo-50 text-indigo-900 border border-indigo-300 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 shadow-2xs flex items-center gap-1"
+              >
+                <X className="w-3.5 h-3.5 text-indigo-700" />
+                <span>แสดงทุกกระทรวง (ล้างตัวกรอง)</span>
+              </button>
+            </div>
+          )}
+
           {/* Section 1-4: Weekly Schedules & Cards (วันบรรจุกระทู้ทุกวันจันทร์ + การ์ดกระทู้ 3 เรื่อง) */}
           <div className="space-y-6">
-            {displayedSchedules.map((schedule, idx) => {
-              // Find the true global week index in master schedules list
-              const globalIndex = schedules.findIndex((s) => s.date === schedule.date);
-              const realWeekIndex = globalIndex !== -1 ? globalIndex : (schedule.weekNumber ? schedule.weekNumber - 1 : idx);
-              const realWeekNumber = realWeekIndex + 1;
-
-              return (
-                <WeeklySection
-                  key={schedule.date}
-                  schedule={{
-                    ...schedule,
-                    weekNumber: realWeekNumber,
+            {displayedSchedules.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl border border-slate-200 p-6 shadow-2xs">
+                <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+                  <GraduationCap className="w-6 h-6" />
+                </div>
+                <p className="text-slate-800 font-bold text-sm">
+                  {onlyEduMinisterFilter
+                    ? 'ไม่พบกระทู้ถาม รัฐมนตรีว่าการกระทรวงศึกษาธิการ ในเงื่อนไขที่เลือก'
+                    : 'ไม่พบระเบียบวาระการประชุมตามเงื่อนไขที่เลือก'}
+                </p>
+                <p className="text-slate-500 text-xs mt-1">
+                  ลองเลือกดูทุกสัปดาห์ หรือคลิกปุ่มด้านล่างเพื่อล้างตัวกรอง
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOnlyEduMinisterFilter(false);
+                    setSelectedWeekFilter('all');
+                    setAgendaTypeFilter('all');
                   }}
-                  weekIndex={realWeekIndex}
-                  onOpenPostponeModal={handleOpenPostponeModal}
-                  onDownloadWeekPdf={(date) => handleDownloadFilteredPdf(date)}
-                  onPrintWeek={(date) => handleOpenPrintModal(date)}
-                  onCancelWeek={(date) => handleToggleCancelMeeting(date)}
-                  isAdmin={userRole === 'admin'}
-                />
-              );
-            })}
+                  className="mt-3 px-3.5 py-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                >
+                  ล้างตัวกรองทั้งหมด
+                </button>
+              </div>
+            ) : (
+              displayedSchedules.map((schedule, idx) => {
+                // Find the true global week index in master schedules list
+                const globalIndex = schedules.findIndex((s) => s.date === schedule.date);
+                const realWeekIndex = globalIndex !== -1 ? globalIndex : (schedule.weekNumber ? schedule.weekNumber - 1 : idx);
+                const realWeekNumber = realWeekIndex + 1;
+
+                return (
+                  <WeeklySection
+                    key={schedule.date}
+                    schedule={{
+                      ...schedule,
+                      weekNumber: realWeekNumber,
+                    }}
+                    weekIndex={realWeekIndex}
+                    onOpenPostponeModal={handleOpenPostponeModal}
+                    onDownloadWeekPdf={(date) => handleDownloadFilteredPdf(date)}
+                    onPrintWeek={(date) => handleOpenPrintModal(date)}
+                    onCancelWeek={(date) => handleToggleCancelMeeting(date)}
+                    isAdmin={userRole === 'admin'}
+                  />
+                );
+              })
+            )}
           </div>
 
           {/* Remaining Questions Banner */}
@@ -1443,9 +1602,30 @@ export default function App() {
         }}
       />
 
+      {/* Floating Scroll-to-Top Button (มุมล่างขวาของหน้า) */}
+      <button
+        type="button"
+        id="btn-scroll-to-top"
+        onClick={handleScrollToTop}
+        aria-label="กลับขึ้นไปด้านบนสุดของหน้า"
+        title="กลับขึ้นไปด้านบนสุดของหน้า"
+        className={`fixed bottom-6 right-6 z-40 flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-full bg-[#1e293b] hover:bg-[#0f172a] text-white shadow-xl hover:shadow-2xl border border-slate-700/80 transition-all duration-300 transform cursor-pointer group active:scale-95 ${
+          showScrollTop
+            ? 'opacity-100 translate-y-0 pointer-events-auto'
+            : 'opacity-0 translate-y-4 pointer-events-none'
+        }`}
+      >
+        <div className="w-6 h-6 rounded-full bg-[#0369a1] group-hover:bg-[#0284c7] flex items-center justify-center transition-colors shadow-2xs">
+          <ArrowUp className="w-3.5 h-3.5 text-white transition-transform group-hover:-translate-y-0.5" />
+        </div>
+        <span className="text-xs font-semibold tracking-wide pr-0.5 hidden sm:inline-block">
+          ขึ้นบนสุด
+        </span>
+      </button>
+
       {/* Floating Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 max-w-md animate-in slide-in-from-bottom-5 duration-300">
+        <div className="fixed bottom-20 right-6 z-50 max-w-md animate-in slide-in-from-bottom-5 duration-300">
           <div
             className={`p-4 rounded-xl shadow-xl border flex items-start gap-3 text-xs ${
               toastMessage.type === 'success'

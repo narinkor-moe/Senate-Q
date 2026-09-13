@@ -236,6 +236,7 @@ export function generateReportHtml(
                   : '<span class="status-badge status-projected">คาดการณ์ตามลำดับ</span>';
                 
                 const isAnswered = item.question.isAnswered === true || item.question.status === 'completed' || item.question.status === 'answered' || (item.question.rawStatus && item.question.rawStatus.includes('ตอบแล้ว'));
+                const isEdu = item.question.minister?.includes('ศึกษาธิการ');
 
                 if (isAnswered) {
                   noteHtml = '<span class="status-badge status-answered">ตอบแล้วในที่ประชุม (เสร็จสิ้น)</span>';
@@ -253,13 +254,18 @@ export function generateReportHtml(
                 }
 
                 return `
-                  <tr>
-                    <td style="text-align: center; font-weight: 700; vertical-align: middle;">${item.slotNumber || slotIdx + 1}</td>
+                  <tr style="${isEdu ? 'background-color: #f5f7ff;' : ''}">
+                    <td style="text-align: center; font-weight: 700; vertical-align: middle; ${isEdu ? 'border-left: 4px solid #4338ca;' : ''}">${item.slotNumber || slotIdx + 1}</td>
                     <td>
-                      <div style="font-weight: 700; line-height: 1.45;">${escapeHtml(item.question.topic)}</div>
+                      <div style="font-weight: 700; line-height: 1.45;">
+                        ${isEdu ? '<span style="display: inline-block; background: #4338ca; color: #ffffff; padding: 1px 6px; border-radius: 4px; font-size: 8.5pt; font-weight: bold; margin-right: 5px;">ก.ศึกษาธิการ</span>' : ''}
+                        ${escapeHtml(item.question.topic)}
+                      </div>
                     </td>
                     <td style="font-weight: 500;">${escapeHtml(item.question.asker)}</td>
-                    <td style="color: #1e293b;">${escapeHtml(item.question.minister)}</td>
+                    <td style="color: #1e293b; font-weight: ${isEdu ? '700' : '500'};">
+                      ${isEdu ? '<span style="color: #4338ca; font-weight: bold;">🎓 </span>' : ''}${escapeHtml(item.question.minister)}
+                    </td>
                     <td>${noteHtml}</td>
                   </tr>
                 `;

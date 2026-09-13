@@ -1,7 +1,7 @@
 import React from 'react';
 import { WeeklySchedule, QuestionItem } from '../types';
 import { QuestionCard } from './QuestionCard';
-import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff, Landmark, Sparkles, FileCheck, FileDown } from 'lucide-react';
+import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff, Landmark, Sparkles, FileCheck, FileDown, GraduationCap } from 'lucide-react';
 
 interface WeeklySectionProps {
   schedule: WeeklySchedule;
@@ -24,6 +24,7 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
 }) => {
   const isOfficial = schedule.scheduleType === 'official';
   const isPostponedPresent = schedule.questions.some((q) => q.isPostponedNow || !!q.question.postponedDate);
+  const hasEduMinister = schedule.questions.some((q) => q.question.minister?.includes('ศึกษาธิการ'));
   const effectiveWeekNumber = schedule.weekNumber ?? (weekIndex + 1);
   const effectiveWeekIndex = effectiveWeekNumber - 1;
 
@@ -78,6 +79,16 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {hasEduMinister && (
+            <span
+              className="bg-indigo-50 text-indigo-900 border border-indigo-200 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+              title="ในสัปดาห์นี้มีกระทู้ถาม รัฐมนตรีว่าการกระทรวงศึกษาธิการ"
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-indigo-700" />
+              <span>มีกระทู้ถาม รมว.ศึกษาธิการ</span>
+            </span>
+          )}
+
           {schedule.questions.some((q) => q.question.isAnswered || (q.question.rawStatus && q.question.rawStatus.includes('ตอบแล้ว'))) && (
             <span className="bg-emerald-50 text-emerald-900 border border-emerald-300 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />

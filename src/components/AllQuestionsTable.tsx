@@ -25,6 +25,7 @@ import {
   FileX2,
   Calculator,
   Lock,
+  GraduationCap,
 } from 'lucide-react';
 
 export type QuestionStatusCategory =
@@ -570,6 +571,28 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
               <FileText className="w-3 h-3" />
               <span>หัวข้อกระทู้</span>
             </button>
+            <button
+              type="button"
+              id="scope-edu-btn"
+              onClick={() => {
+                if (searchTerm === 'ศึกษาธิการ') {
+                  setSearchTerm('');
+                  setSearchScope('all');
+                } else {
+                  setSearchTerm('ศึกษาธิการ');
+                  setSearchScope('all');
+                }
+              }}
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer inline-flex items-center gap-1 ${
+                searchTerm === 'ศึกษาธิการ'
+                  ? 'bg-indigo-700 text-white shadow-2xs font-bold'
+                  : 'text-indigo-900 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200'
+              }`}
+              title="ค้นหากระทู้ที่ถาม รัฐมนตรีว่าการกระทรวงศึกษาธิการ"
+            >
+              <GraduationCap className={`w-3 h-3 ${searchTerm === 'ศึกษาธิการ' ? 'text-amber-300' : 'text-indigo-600'}`} />
+              <span>รมว.ศธ.</span>
+            </button>
           </div>
 
           {/* Result Count Indicator */}
@@ -906,6 +929,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                 const isOverTop = dragOverId === q.id && dragPosition === 'top';
                 const isOverBottom = dragOverId === q.id && dragPosition === 'bottom';
                 const originalIndex = questions.findIndex((item) => item.id === q.id);
+                const isEdu = q.minister?.includes('ศึกษาธิการ');
 
                 return (
                   <tr
@@ -917,6 +941,8 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                     onDrop={(e) => handleDrop(e, q.id)}
                     onDragEnd={handleDragEnd}
                     className={`transition-all duration-150 select-none ${
+                      isEdu ? 'border-l-4 border-l-indigo-600' : ''
+                    } ${
                       isBeingDragged
                         ? 'opacity-40 bg-sky-50 scale-[0.99]'
                         : isOverTop
@@ -926,13 +952,15 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                         : statusInfo.category === 'withdrawn'
                         ? 'bg-rose-50/20 hover:bg-rose-50/40 text-slate-500'
                         : statusInfo.category === 'answered'
-                        ? 'bg-emerald-50/25 hover:bg-emerald-50/50'
+                        ? isEdu ? 'bg-indigo-50/25 hover:bg-indigo-50/40' : 'bg-emerald-50/25 hover:bg-emerald-50/50'
                         : statusInfo.category === 'postponed'
-                        ? 'bg-amber-50/30 hover:bg-amber-50/60'
+                        ? isEdu ? 'bg-amber-50/25 hover:bg-amber-50/50' : 'bg-amber-50/30 hover:bg-amber-50/60'
                         : statusInfo.category === 'official'
-                        ? 'bg-blue-50/25 hover:bg-blue-50/50'
+                        ? isEdu ? 'bg-indigo-50/30 hover:bg-indigo-50/50' : 'bg-blue-50/25 hover:bg-blue-50/50'
                         : statusInfo.category === 'projected'
-                        ? 'bg-purple-50/20 hover:bg-purple-50/40'
+                        ? isEdu ? 'bg-indigo-50/25 hover:bg-indigo-50/45' : 'bg-purple-50/20 hover:bg-purple-50/40'
+                        : isEdu
+                        ? 'bg-indigo-50/20 hover:bg-indigo-50/40'
                         : 'hover:bg-slate-50/90'
                     }`}
                   >
@@ -992,7 +1020,17 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                       </button>
                     </td>
                     <td className="px-6 py-3 text-slate-700 text-xs">
-                      {highlightMatch(q.minister, searchScope === 'all' ? searchTerm : '')}
+                      {isEdu ? (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-950 font-bold border border-indigo-200 shadow-2xs">
+                          <GraduationCap className="w-3.5 h-3.5 text-indigo-700 shrink-0" />
+                          <span>{highlightMatch(q.minister, searchScope === 'all' ? searchTerm : '')}</span>
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-700 text-white font-black tracking-wide uppercase">
+                            รมว.ศธ.
+                          </span>
+                        </div>
+                      ) : (
+                        highlightMatch(q.minister, searchScope === 'all' ? searchTerm : '')
+                      )}
                     </td>
                     <td className="px-6 py-3 text-center">
                       {statusInfo.category === 'answered' && (

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScheduledQuestion, QuestionItem } from '../types';
-import { User, Briefcase, Clock, RotateCcw, CornerDownRight, Calendar, Sparkles, FileSpreadsheet, CheckCircle2, Lock } from 'lucide-react';
+import { User, Briefcase, Clock, RotateCcw, CornerDownRight, Calendar, Sparkles, FileSpreadsheet, CheckCircle2, Lock, GraduationCap } from 'lucide-react';
 import { formatThaiShortDate, formatThaiDateWithDayOfWeek } from '../scheduler';
 
 interface QuestionCardProps {
@@ -16,22 +16,37 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 }) => {
   const { question, slotNumber, isPostponedFromPrevious, isPostponedNow } = scheduledItem;
   const isAnswered = question.isAnswered === true || question.status === 'completed' || question.status === 'answered' || (question.rawStatus && question.rawStatus.includes('ตอบแล้ว'));
+  const isEduMinister = question.minister?.includes('ศึกษาธิการ');
 
   return (
     <div
       id={`question-card-${question.id}`}
-      className={`relative flex flex-col justify-between bg-white rounded-xl transition-all duration-200 pt-6 px-5 pb-5 ${
+      className={`relative flex flex-col justify-between rounded-xl transition-all duration-200 pt-6 px-5 pb-5 ${
+        isEduMinister ? 'border-l-[6px] border-l-indigo-600 ring-1 ring-indigo-200/80' : ''
+      } ${
         isAnswered
-          ? 'border-2 border-emerald-600/70 bg-emerald-50/20 shadow-xs'
+          ? `border-2 border-emerald-600/70 ${isEduMinister ? 'bg-gradient-to-br from-indigo-50/40 via-emerald-50/20 to-white' : 'bg-emerald-50/20'} shadow-xs`
           : isPostponedNow
-          ? 'border-2 border-amber-400 bg-amber-50/40 shadow-sm'
+          ? `border-2 border-amber-400 ${isEduMinister ? 'bg-gradient-to-br from-indigo-50/30 via-amber-50/30 to-white' : 'bg-amber-50/40'} shadow-sm`
           : isPostponedFromPrevious
-          ? 'border-2 border-[#0369a1] shadow-md ring-1 ring-[#0369a1]/20 bg-sky-50/10'
-          : 'border border-slate-200 shadow-xs hover:shadow-md'
+          ? `border-2 border-[#0369a1] shadow-md ring-1 ring-[#0369a1]/20 ${isEduMinister ? 'bg-gradient-to-br from-indigo-50/40 via-sky-50/20 to-white' : 'bg-sky-50/10'}`
+          : isEduMinister
+          ? 'border border-indigo-200 bg-gradient-to-br from-indigo-50/35 via-white to-indigo-50/15 shadow-sm hover:shadow-md'
+          : 'border border-slate-200 bg-white shadow-xs hover:shadow-md'
       }`}
     >
       {/* Top Floating Badge Pill matching theme */}
       <div className="absolute -top-3 left-4 flex items-center gap-1.5 flex-wrap">
+        {isEduMinister && (
+          <span
+            className="inline-flex items-center gap-1 bg-indigo-700 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase shadow-sm tracking-wide"
+            title="กระทู้ถามถึงรัฐมนตรีว่าการกระทรวงศึกษาธิการ"
+          >
+            <GraduationCap className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+            <span>ก.ศึกษาธิการ</span>
+          </span>
+        )}
+
         {isAnswered ? (
           <span className="inline-flex items-center gap-1 bg-emerald-700 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase shadow-sm tracking-wide">
             <CheckCircle2 className="w-3 h-3" />
@@ -132,7 +147,19 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <Briefcase className="w-3.5 h-3.5 text-slate-400" />
             ถาม รมต.:
           </span>
-          <span className="font-semibold text-slate-700 leading-relaxed break-words">{question.minister}</span>
+          {isEduMinister ? (
+            <div className="flex-1">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-950 font-bold text-xs border border-indigo-200 shadow-2xs">
+                <GraduationCap className="w-4 h-4 text-indigo-700 shrink-0" />
+                <span className="leading-relaxed break-words">{question.minister}</span>
+                <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-indigo-700 text-white font-black tracking-wide uppercase">
+                  รมว.ศธ.
+                </span>
+              </div>
+            </div>
+          ) : (
+            <span className="font-semibold text-slate-700 leading-relaxed break-words">{question.minister}</span>
+          )}
         </div>
       </div>
 
