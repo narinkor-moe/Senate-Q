@@ -187,20 +187,27 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
               </div>
             </div>
 
-            {/* Metric 4: Askers with Postponed Questions */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+            {/* Metric 4: Askers with Postponed Questions & Total Postponements */}
+            <div className="bg-white p-4 rounded-xl border border-amber-200 bg-amber-50/20 shadow-2xs">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  มีกระทู้ขอเลื่อน
+                <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                  สถิติขอเลื่อนตอบ
                 </span>
                 <Clock className="w-4 h-4 text-amber-600" />
               </div>
               <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-black text-amber-600">{stats.askersWithPostponed}</span>
-                <span className="text-xs text-slate-500 font-medium">ท่าน</span>
+                <span className="text-2xl font-black text-amber-600">
+                  {stats.totalPostponedTimes || stats.totalPostponedQuestions || 0}
+                </span>
+                <span className="text-xs text-amber-800 font-bold">ครั้ง</span>
+                <span className="text-[11px] text-amber-900 font-semibold bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md ml-auto">
+                  {stats.totalPostponedQuestions || 0} เรื่อง
+                </span>
               </div>
-              <div className="mt-1 text-[11px] text-slate-500">
-                มีสิทธิ์ลำดับแรกในวันนัดตอบ
+              <div className="mt-1 text-[11px] text-amber-800">
+                {stats.askersWithPostponed > 0
+                  ? `จาก ส.ว. ${stats.askersWithPostponed} ท่าน (ได้สิทธิ์ลำดับแรกในวันนัดตอบ)`
+                  : 'ไม่มีกระทู้ขอเลื่อนตอบ'}
               </div>
             </div>
 
@@ -522,10 +529,14 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                           ) : null}
 
                           {/* Postponed */}
-                          {asker.postponedCount > 0 ? (
-                            <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold inline-flex items-center gap-1">
+                          {(asker.totalPostponeTimes > 0 || asker.postponedCount > 0) ? (
+                            <span
+                              className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-300 text-xs font-bold inline-flex items-center gap-1"
+                              title={`สถิติขอเลื่อนตอบรวม ${asker.totalPostponeTimes || asker.postponedCount} ครั้ง (จาก ${asker.postponedQuestionsCount || asker.postponedCount} เรื่อง)`}
+                            >
                               <Clock className="w-3 h-3 text-amber-600" />
-                              ขอเลื่อน {asker.postponedCount}
+                              เลื่อน {asker.totalPostponeTimes || asker.postponedCount} ครั้ง
+                              <span className="text-[10px] text-amber-700 font-medium">({asker.postponedQuestionsCount || asker.postponedCount} เรื่อง)</span>
                             </span>
                           ) : null}
 
@@ -618,8 +629,22 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                                       </span>
                                     </div>
 
-                                    {/* Status Badge */}
-                                    <div className="shrink-0">
+                                    {/* Status Badges Group */}
+                                    <div className="shrink-0 flex items-center gap-1.5 flex-wrap justify-end">
+                                      {item.postponeTimes > 0 && (
+                                        <span
+                                          className={`px-2 py-0.5 rounded text-[11px] font-bold inline-flex items-center gap-1 ${
+                                            item.postponeTimes >= 2
+                                              ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                                              : 'bg-amber-100 text-amber-900 border border-amber-300'
+                                          }`}
+                                          title={`กระทู้เรื่องนี้มีสถิติขอเลื่อนตอบ ${item.postponeTimes} ครั้ง`}
+                                        >
+                                          <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                                          <span>เลื่อน {item.postponeTimes} ครั้ง</span>
+                                        </span>
+                                      )}
+
                                       {isOff && (
                                         <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 text-[11px] font-bold border border-blue-200">
                                           วาระทางการ ({item.scheduleInfo?.thaiDate || 'ระเบียบวาระ'})

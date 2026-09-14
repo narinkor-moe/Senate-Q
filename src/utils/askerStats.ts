@@ -1,10 +1,11 @@
 import { QuestionItem, WeeklySchedule } from '../types';
-import { isQuestionAnswered, isQuestionWithdrawn } from '../scheduler';
+import { isQuestionAnswered, isQuestionWithdrawn, getQuestionPostponeCount } from '../scheduler';
 
 export interface AskerQuestionDetail {
   question: QuestionItem;
   statusCategory: 'official' | 'projected' | 'postponed' | 'answered' | 'withdrawn' | 'pending';
   statusLabel: string;
+  postponeTimes: number;
   scheduleInfo?: {
     thaiDate: string;
     weekIndex: number;
@@ -20,6 +21,8 @@ export interface AskerStatItem {
   officialCount: number;
   projectedCount: number;
   postponedCount: number;
+  totalPostponeTimes: number;
+  postponedQuestionsCount: number;
   answeredCount: number;
   withdrawnCount: number;
   pendingCount: number;
@@ -33,6 +36,8 @@ export interface OverallAskerStats {
   totalQuestions: number;
   avgQuestionsPerAsker: number;
   askersWithPostponed: number;
+  totalPostponedQuestions: number;
+  totalPostponedTimes: number;
   askersWithOfficial: number;
   askersWithProjected: number;
   askersWithAnswered: number;
@@ -121,6 +126,8 @@ export function computeAskerStats(
       officialCount: number;
       projectedCount: number;
       postponedCount: number;
+      totalPostponeTimes: number;
+      postponedQuestionsCount: number;
       answeredCount: number;
       withdrawnCount: number;
       pendingCount: number;
@@ -130,9 +137,18 @@ export function computeAskerStats(
 
   const overallMinistryMap = new Map<string, number>();
 
+  let overallTotalPostponedTimes = 0;
+  let overallTotalPostponedQuestions = 0;
+
   questions.forEach((q) => {
     const askerName = q.asker && q.asker.trim() ? q.asker.trim() : 'ไม่ระบุผู้ตั้งถาม';
     const ministerName = q.minister && q.minister.trim() ? q.minister.trim() : 'ไม่ระบุรัฐมนตรี';
+    const postponeTimes = getQuestionPostponeCount(q, postponedIds);
+
+    if (postponeTimes > 0) {
+      overallTotalPostponedQuestions++;
+      overallTotalPostponedTimes += postponeTimes;
+    }
 
     overallMinistryMap.set(ministerName, (overallMinistryMap.get(ministerName) || 0) + 1);
 
@@ -144,6 +160,8 @@ export function computeAskerStats(
         officialCount: 0,
         projectedCount: 0,
         postponedCount: 0,
+        totalPostponeTimes: 0,
+        postponedQuestionsCount: 0,
         answeredCount: 0,
         withdrawnCount: 0,
         pendingCount: 0,
@@ -154,6 +172,10 @@ export function computeAskerStats(
     const group = askerMap.get(askerName)!;
     group.questions.push(q);
     group.ministersMap.set(ministerName, (group.ministersMap.get(ministerName) || 0) + 1);
+    group.totalPostponeTimes += postponeTimes;
+    if (postponeTimes > 0) {
+      group.postponedQuestionsCount++;
+    }
 
     const status = getStatusInfo(q);
     const sched = scheduledMap.get(q.id);
@@ -169,6 +191,7 @@ export function computeAskerStats(
       question: q,
       statusCategory: status.category,
       statusLabel: status.label,
+      postponeTimes,
       scheduleInfo: sched ? {
         thaiDate: sched.thaiDate,
         weekIndex: sched.weekIndex,
@@ -197,6 +220,8 @@ export function computeAskerStats(
         officialCount: item.officialCount,
         projectedCount: item.projectedCount,
         postponedCount: item.postponedCount,
+        totalPostponeTimes: item.totalPostponeTimes,
+        postponedQuestionsCount: item.postponedQuestionsCount,
         answeredCount: item.answeredCount,
         withdrawnCount: item.withdrawnCount,
         pendingCount: item.pendingCount,
@@ -228,7 +253,7 @@ export function computeAskerStats(
   let totalWithdrawnQuestions = 0;
 
   sortedAskers.forEach((item) => {
-    if (item.postponedCount > 0) askersWithPostponed++;
+    if (item.postponedQuestionsCount > 0 || item.postponedCount > 0) askersWithPostponed++;
     if (item.officialCount > 0) askersWithOfficial++;
     if (item.projectedCount > 0) askersWithProjected++;
     if (item.answeredCount > 0) askersWithAnswered++;
@@ -250,6 +275,8 @@ export function computeAskerStats(
     totalQuestions,
     avgQuestionsPerAsker,
     askersWithPostponed,
+    totalPostponedQuestions: overallTotalPostponedQuestions,
+    totalPostponedTimes: overallTotalPostponedTimes,
     askersWithOfficial,
     askersWithProjected,
     askersWithAnswered,

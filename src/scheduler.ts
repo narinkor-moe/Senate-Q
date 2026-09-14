@@ -328,6 +328,31 @@ export function isQuestionWithdrawn(q: QuestionItem): boolean {
   return false;
 }
 
+/**
+ * Helper to compute the number of times a question has been postponed.
+ * ตรวจสอบสถิติจำนวนครั้งในการขอเลื่อนตอบของกระทู้ถาม
+ */
+export function getQuestionPostponeCount(
+  q: QuestionItem,
+  postponedIds?: Set<string>
+): number {
+  if (typeof q.postponeCount === 'number') {
+    return q.postponeCount;
+  }
+  if (Array.isArray(q.postponeHistory) && q.postponeHistory.length > 0) {
+    return q.postponeHistory.length;
+  }
+  const hasPostpone =
+    !!q.postponedDate ||
+    !!q.isPostponedInSheet ||
+    !!q.postponedSheetRaw ||
+    (postponedIds ? postponedIds.has(q.id) : false) ||
+    q.status === 'postponed' ||
+    (q.rawStatus ? q.rawStatus.includes('เลื่อน') : false);
+
+  return hasPostpone ? 1 : 0;
+}
+
 export function computeWeeklySchedules(
   allQuestions: QuestionItem[],
   postponedQuestionIds: Set<string>,

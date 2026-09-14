@@ -17,6 +17,8 @@ export interface QuestionItem {
   withdrawnDate?: string; // วันที่ขอถอน (ถ้ามี)
   withdrawnReason?: string; // เหตุผลการขอถอน (ถ้ามี)
   scheduledDate?: string; // วันที่บรรจุตามที่บันทึกไว้ใน Google Sheet
+  postponeCount?: number; // สถิติจำนวนครั้งที่ขอเลื่อนตอบ (เช่น 0, 1, 2 ครั้ง)
+  postponeHistory?: string[]; // ประวัติวันที่ขอเลื่อนตอบ
 }
 
 export interface ScheduledQuestion {

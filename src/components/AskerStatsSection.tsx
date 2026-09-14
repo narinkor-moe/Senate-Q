@@ -109,11 +109,11 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
               </div>
             </div>
 
-            <div className="p-3 rounded-lg bg-amber-50/50 border border-amber-200/60">
-              <span className="text-[11px] font-semibold text-amber-700 block">มีกระทู้ขอเลื่อนตอบ</span>
+            <div className="p-3 rounded-lg bg-amber-50/50 border border-amber-200/60" title={`สถิติขอเลื่อนตอบรวม ${stats.totalPostponeTimes} ครั้ง (${stats.totalPostponedQuestions} เรื่อง, ${stats.askersWithPostponed} ท่าน)`}>
+              <span className="text-[11px] font-semibold text-amber-700 block">สถิติขอเลื่อนตอบ</span>
               <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-xl font-bold text-amber-800">{stats.askersWithPostponed}</span>
-                <span className="text-xs text-amber-600">ท่าน</span>
+                <span className="text-xl font-bold text-amber-800">{stats.totalPostponeTimes}</span>
+                <span className="text-xs text-amber-600">ครั้ง ({stats.totalPostponedQuestions} เรื่อง)</span>
               </div>
             </div>
 

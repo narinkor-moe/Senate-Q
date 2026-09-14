@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { QuestionItem, WeeklySchedule } from '../types';
+import { getQuestionPostponeCount } from '../scheduler';
 import {
   Search,
   ArrowUpDown,
@@ -54,6 +55,8 @@ interface AllQuestionsTableProps {
   selectedAskerFilter?: string;
   onCalculateAllAgendas?: () => void;
   isAdmin?: boolean;
+  searchTerm?: string;
+  onSearchTermChange?: (term: string) => void;
 }
 
 const highlightMatch = (text: string, query: string) => {
@@ -79,7 +82,7 @@ const highlightMatch = (text: string, query: string) => {
 
 export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   questions,
-  postponedIds = new Set(),
+  postponedIds = new Set<string>(),
   schedules = [],
   onAddQuestion,
   onDeleteQuestion,
@@ -92,10 +95,29 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   selectedAskerFilter,
   onCalculateAllAgendas,
   isAdmin = true,
+  searchTerm: externalSearchTerm,
+  onSearchTermChange,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [internalSearchTerm, setInternalSearchTerm] = useState('');
+  const isControlled = externalSearchTerm !== undefined;
+  const searchTerm = isControlled ? externalSearchTerm : internalSearchTerm;
+
+  const setSearchTerm = useCallback(
+    (valueOrFn: string | ((prev: string) => string)) => {
+      const nextVal = typeof valueOrFn === 'function' ? valueOrFn(searchTerm) : valueOrFn;
+      if (onSearchTermChange) {
+        onSearchTermChange(nextVal);
+      }
+      if (!isControlled) {
+        setInternalSearchTerm(nextVal);
+      }
+    },
+    [searchTerm, onSearchTermChange, isControlled]
+  );
+
   const [searchScope, setSearchScope] = useState<SearchScope>('all');
   const [statusFilter, setStatusFilter] = useState<QuestionStatusCategory>('all');
+  const [sortByPostpone, setSortByPostpone] = useState<boolean>(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newTopic, setNewTopic] = useState('');
   const [newAsker, setNewAsker] = useState('');
@@ -112,7 +134,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
       setSearchTerm(selectedAskerFilter);
       setSearchScope('asker');
     }
-  }, [selectedAskerFilter]);
+  }, [selectedAskerFilter, setSearchTerm]);
 
   // Drag & Drop reordering state
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -215,8 +237,14 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
     let postponed = 0;
     let answered = 0;
     let withdrawn = 0;
+    let totalPostponeCount = 0;
+    let questionsWithPostpone = 0;
 
     questions.forEach((q) => {
+      const times = getQuestionPostponeCount(q, postponedIds);
+      totalPostponeCount += times;
+      if (times > 0) questionsWithPostpone++;
+
       const status = getQuestionStatus(q).category;
       if (status === 'withdrawn') withdrawn++;
       else if (status === 'answered') answered++;
@@ -235,6 +263,8 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
       postponed,
       answered,
       withdrawn,
+      totalPostponeCount,
+      questionsWithPostpone,
     };
   }, [questions, scheduledMap, postponedIds]);
 
@@ -264,7 +294,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   // Filter questions by search AND status filter
   const filteredQuestions = useMemo(() => {
     const qLower = searchTerm.trim().toLowerCase();
-    return questions.filter((q) => {
+    const filtered = questions.filter((q) => {
       // 1. Search filter
       if (qLower) {
         let matchesSearch = false;
@@ -291,7 +321,18 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
       }
       return qStatus === statusFilter;
     });
-  }, [questions, searchTerm, searchScope, statusFilter, scheduledMap, postponedIds]);
+
+    if (sortByPostpone) {
+      return [...filtered].sort((a, b) => {
+        const countA = getQuestionPostponeCount(a, postponedIds);
+        const countB = getQuestionPostponeCount(b, postponedIds);
+        if (countB !== countA) return countB - countA;
+        return a.submittedOrder - b.submittedOrder;
+      });
+    }
+
+    return filtered;
+  }, [questions, searchTerm, searchScope, statusFilter, scheduledMap, postponedIds, sortByPostpone]);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -854,12 +895,26 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
             ล้างตัวกรองสถานะ
           </button>
         )}
+
+        {sortByPostpone && (
+          <div className="flex items-center gap-2 px-2.5 py-1 bg-amber-50 border border-amber-300 rounded-lg text-xs font-semibold text-amber-900">
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <span>เรียงตาม: จำนวนครั้งที่เลื่อน (มากไปน้อย)</span>
+            <button
+              type="button"
+              onClick={() => setSortByPostpone(false)}
+              className="text-amber-800 hover:text-amber-950 underline font-bold ml-1 cursor-pointer"
+            >
+              รีเซ็ตกลับเป็นลำดับที่ยื่น
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Table (Rule 5: ลำดับ, กระทู้ถามเรื่อง, ผู้ตั้งถาม, ถามรัฐมนตรี, สถานะ, จัดการ) */}
+      {/* Table */}
       <div className="overflow-x-auto">
         <table id="questions-data-table" className="w-full text-left" onDragLeave={handleDragLeave}>
-          <thead className="sticky top-0 bg-white border-b border-slate-200">
+          <thead className="sticky top-0 bg-white border-b border-slate-200 z-10 shadow-2xs">
             <tr className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               <th className="px-4 py-3 w-36">
                 <span className="flex items-center gap-1.5">
@@ -870,6 +925,21 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
               <th className="px-6 py-3 min-w-[300px]">กระทู้ถามเรื่อง</th>
               <th className="px-6 py-3 min-w-[170px]">ผู้ตั้งถาม</th>
               <th className="px-6 py-3 min-w-[200px]">ถามรัฐมนตรี</th>
+              <th className="px-4 py-3 text-center w-36 whitespace-nowrap">
+                <button
+                  type="button"
+                  id="btn-sort-postpone"
+                  onClick={() => setSortByPostpone((prev) => !prev)}
+                  className={`inline-flex items-center justify-center gap-1 hover:text-[#0369a1] transition-colors cursor-pointer w-full group ${
+                    sortByPostpone ? 'text-[#0369a1] font-black' : ''
+                  }`}
+                  title="คลิกเพื่อเรียงลำดับตามจำนวนครั้งที่เลื่อนตอบ"
+                >
+                  <Clock className="w-3.5 h-3.5 text-amber-500 group-hover:scale-110 transition-transform" />
+                  <span>จำนวนครั้งที่เลื่อน</span>
+                  <ArrowUpDown className={`w-3 h-3 ${sortByPostpone ? 'text-[#0369a1]' : 'text-slate-400'}`} />
+                </button>
+              </th>
               <th className="px-6 py-3 text-center w-36">สถานะ</th>
               <th className="px-4 py-3 text-center w-24">ปรับลำดับ / ลบ</th>
             </tr>
@@ -877,7 +947,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
           <tbody className="text-sm divide-y divide-slate-100">
             {filteredQuestions.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-slate-500 text-xs">
+                <td colSpan={7} className="px-6 py-12 text-center text-slate-500 text-xs">
                   <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
                     <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-1">
                       <Search className="w-5 h-5" />
@@ -930,6 +1000,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                 const isOverBottom = dragOverId === q.id && dragPosition === 'bottom';
                 const originalIndex = questions.findIndex((item) => item.id === q.id);
                 const isEdu = q.minister?.includes('ศึกษาธิการ');
+                const postponeTimes = getQuestionPostponeCount(q, postponedIds);
 
                 return (
                   <tr
@@ -1032,6 +1103,38 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                         highlightMatch(q.minister, searchScope === 'all' ? searchTerm : '')
                       )}
                     </td>
+
+                    {/* จำนวนครั้งที่เลื่อน */}
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                      {postponeTimes > 0 ? (
+                        <div className="inline-flex flex-col items-center">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                              postponeTimes >= 2
+                                ? 'bg-rose-100 text-rose-900 border border-rose-300 shadow-2xs'
+                                : 'bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs'
+                            }`}
+                            title={`กระทู้เรื่องนี้มีประวัติขอเลื่อนตอบ ${postponeTimes} ครั้ง`}
+                          >
+                            <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                            <span>{postponeTimes} ครั้ง</span>
+                          </span>
+                          {q.postponedDate && (
+                            <span
+                              className="text-[10px] text-amber-800 font-medium mt-0.5 max-w-[120px] truncate block"
+                              title={`ระบุวันเลื่อนตอบ: ${q.postponedSheetRaw || q.postponedDate}`}
+                            >
+                              {q.postponedSheetRaw || q.postponedDate}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-xs font-normal" title="ยังไม่เคยขอเลื่อนตอบ (0 ครั้ง)">
+                          -
+                        </span>
+                      )}
+                    </td>
+
                     <td className="px-6 py-3 text-center">
                       {statusInfo.category === 'answered' && (
                         <div className="inline-flex flex-col items-center">

@@ -62,6 +62,7 @@ import {
   FileDown,
   GraduationCap,
   ArrowUp,
+  Search,
 } from 'lucide-react';
 
 const STORAGE_KEY_HOLIDAYS = 'senate_official_holidays';
@@ -554,6 +555,38 @@ export default function App() {
   const [showAskerStatsSection, setShowAskerStatsSection] = useState(true);
   const [activeAskerFilter, setActiveAskerFilter] = useState<string>('');
 
+  // Top header text search input query to filter questions in AllQuestionsTable
+  const [headerSearchQuery, setHeaderSearchQuery] = useState<string>('');
+
+  // Matched questions count for header search badge
+  const matchedHeaderQuestionsCount = useMemo(() => {
+    if (!headerSearchQuery.trim()) return questions.length;
+    const qLower = headerSearchQuery.trim().toLowerCase();
+    return questions.filter(
+      (q) =>
+        q.topic.toLowerCase().includes(qLower) ||
+        q.asker.toLowerCase().includes(qLower) ||
+        q.minister.toLowerCase().includes(qLower) ||
+        String(q.submittedOrder).includes(qLower)
+    ).length;
+  }, [questions, headerSearchQuery]);
+
+  // Synchronized search change handler
+  const handleHeaderSearchChange = (term: string) => {
+    setHeaderSearchQuery(term);
+    if (activeAskerFilter && term !== activeAskerFilter) {
+      setActiveAskerFilter('');
+    }
+  };
+
+  // Jump smoothly to the AllQuestionsTable container
+  const handleJumpToQuestionsTable = () => {
+    const el = document.getElementById('all-questions-table-container');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   // Compute comprehensive asker statistics from current questions, schedules, and postponements
   const askerStats = useMemo(() => {
     return computeAskerStats(questions, schedules, postponedIds);
@@ -562,10 +595,8 @@ export default function App() {
   // Handle clicking on an asker (from stats card or modal) to filter the table
   const handleFilterByAsker = (askerName: string) => {
     setActiveAskerFilter(askerName);
-    const el = document.getElementById('all-questions-table-container');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
+    setHeaderSearchQuery(askerName);
+    handleJumpToQuestionsTable();
   };
 
   // Add new question handler
@@ -766,6 +797,57 @@ export default function App() {
               <p className="text-slate-400 text-xs mt-0.5">
                 กลุ่มการเมือง สำนักงานรัฐมนตรี กระทรวงศึกษาธิการ
               </p>
+            </div>
+          </div>
+
+          {/* Search Input Field inside Top Header (ค้นหาตามชื่อผู้ตั้งถาม หรือคำสำคัญ เพื่อกรองตาราง) */}
+          <div className="flex-1 min-w-[240px] max-w-sm xl:max-w-md mx-1 order-last md:order-none">
+            <div className="relative flex items-center">
+              <Search className="absolute left-3 w-4 h-4 text-sky-400 pointer-events-none shrink-0" />
+              <input
+                id="header-search-questions-input"
+                type="text"
+                aria-label="ค้นหากระทู้ถามตามชื่อผู้ตั้งถาม หรือคำสำคัญในหัวข้อ"
+                placeholder="ค้นหากระทู้ (ชื่อผู้ตั้งถาม, คำสำคัญ)..."
+                value={headerSearchQuery}
+                onChange={(e) => handleHeaderSearchChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleJumpToQuestionsTable();
+                  } else if (e.key === 'Escape') {
+                    handleHeaderSearchChange('');
+                  }
+                }}
+                className="w-full text-xs font-medium pl-9 pr-24 py-2 bg-slate-900/90 text-white placeholder:text-slate-400 border border-slate-700 hover:border-slate-500 rounded-lg shadow-inner focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25 transition-all"
+                title="ค้นหากระทู้ถามตามชื่อผู้ตั้งถาม หรือคำสำคัญในหัวข้อ เพื่อกรองตารางรายการกระทู้ทั้งหมดทันที (กด Enter เพื่อเลื่อนไปยังตาราง)"
+              />
+              <div className="absolute right-2 flex items-center gap-1.5">
+                {headerSearchQuery.trim() ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleJumpToQuestionsTable}
+                      className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-600 hover:bg-sky-500 text-white transition-colors cursor-pointer shadow-2xs"
+                      title="พบรายการที่ตรงกัน คลิกเพื่อเลื่อนดูในตารางกระทู้ถามทั้งหมด"
+                    >
+                      {matchedHeaderQuestionsCount} เรื่อง
+                    </button>
+                    <button
+                      type="button"
+                      id="btn-header-clear-search"
+                      onClick={() => handleHeaderSearchChange('')}
+                      className="p-1 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+                      title="ล้างคำค้นหา (Esc)"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-[10px] text-slate-500 pr-1 hidden sm:inline select-none font-mono">
+                    ↵ ดูในตาราง
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1194,9 +1276,15 @@ export default function App() {
                 <div className="text-base font-bold text-sky-700">{askerStats.totalUniqueAskers}</div>
                 <div className="text-[10px] text-slate-500">ผู้ตั้งถาม (ท่าน)</div>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-slate-200">
-                <div className="text-sm font-bold text-amber-600">{postponedIds.size}</div>
-                <div className="text-[10px] text-slate-500">ขอเลื่อนตอบ (เรื่อง)</div>
+              <div
+                className="bg-white p-2 rounded-lg border border-slate-200"
+                title={`สถิติขอเลื่อนตอบรวม ${askerStats.totalPostponeTimes} ครั้ง (จำนวน ${askerStats.totalPostponedQuestions} เรื่อง)`}
+              >
+                <div className="text-sm font-bold text-amber-600 flex items-center justify-center gap-1">
+                  <span>{askerStats.totalPostponeTimes}</span>
+                  <span className="text-[10px] font-normal text-slate-500">ครั้ง</span>
+                </div>
+                <div className="text-[10px] text-slate-500">เลื่อนตอบ ({askerStats.totalPostponedQuestions} เรื่อง)</div>
               </div>
               <div className="bg-white p-2 rounded-lg border border-rose-200 bg-rose-50/40">
                 <div className="text-sm font-bold text-rose-600">{askerStats.totalWithdrawnQuestions}</div>
@@ -1538,6 +1626,8 @@ export default function App() {
               selectedAskerFilter={activeAskerFilter}
               onCalculateAllAgendas={handleCalculateAllAgendas}
               isAdmin={userRole === 'admin'}
+              searchTerm={headerSearchQuery}
+              onSearchTermChange={handleHeaderSearchChange}
             />
           </div>
 
