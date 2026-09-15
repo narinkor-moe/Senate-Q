@@ -1332,20 +1332,33 @@ export default function App() {
           </div>
 
           {/* Rules Card matching theme */}
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2.5">
             <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider block flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-amber-700" />
               กฎเกณฑ์การจัดระเบียบวาระ
             </span>
-            <ul className="text-xs text-amber-900/90 space-y-1.5 list-disc list-inside leading-relaxed">
-              <li>วันเริ่มต้นวาระการประชุม: <strong>วันจันทร์ที่ 31 สิงหาคม 2569</strong></li>
-              <li>จัดครั้งละ <strong>3 เรื่อง</strong> ทุกวันจันทร์ (ยกเว้นวันหยุดนักขัตฤกษ์ และวันงดประชุม)</li>
-              <li>กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็น <strong>ลำดับแรก</strong> ในวันที่ขอเลื่อนไปตอบ (เรียงตามลำดับที่ยื่น)</li>
-              <li><strong>กระทู้ถามในสัปดาห์แรกของวันเริ่มต้นวาระ:</strong> หากเลื่อนวันตอบ ไม่ต้องจัดลำดับกระทู้ถามตามลำดับที่ยื่นขึ้นมาแทนของกระทู้ถามสัปดาห์แรก แต่ให้คงชื่อเรื่องแสดงไว้ และแสดงสถานะเป็นเลื่อนวันตอบ</li>
-              <li>สำหรับสัปดาห์อื่นๆ สามารถจัด <strong>เกิน 3 กระทู้ได้</strong> หากมีการเลื่อนกระทู้ถามมาตอบในวันดังกล่าว</li>
-              <li>กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ <strong>ชื่อผู้ตั้งถามห้ามซ้ำกัน</strong> และให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ</li>
-              <li>จัดตามลำดับปกติในวันเดียวกัน <strong>ห้ามผู้ตั้งถามซ้ำกัน</strong></li>
-              <li>เรียงตาม <strong>ลำดับที่ยื่น</strong> อย่างเคร่งครัด</li>
+            <ul className="text-xs text-amber-900/90 space-y-2 list-none leading-relaxed">
+              <li className="flex items-start gap-2">
+                <span className="font-bold text-amber-800 shrink-0">1.</span>
+                <span><strong>กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็น ลำดับแรก</strong> ในวันที่ขอเลื่อนไปตอบ และจัดกระทู้ถามลำดับถัดไปที่เพิ่มใหม่อีก <strong>3 กระทู้ถาม</strong> ตามลำดับที่ยื่น</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-bold text-amber-800 shrink-0">2.</span>
+                <span><strong>ให้จัดระเบียบกระทู้ที่ขอเลื่อนก่อน</strong> เรียงตามลำดับที่ยื่น และตามด้วยกระทู้ที่จัดลำดับใหม่ อีก <strong>3 กระทู้</strong> เรียงตามลำดับที่ยื่น</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-bold text-amber-800 shrink-0">3.</span>
+                <div className="space-y-1">
+                  <span><strong>เงื่อนไขอื่นคงไว้ตามเดิม:</strong></span>
+                  <ul className="list-disc list-inside space-y-1 text-[11px] text-amber-900/85 pl-1">
+                    <li>วันเริ่มต้นวาระการประชุม: <strong>วันจันทร์ที่ 31 สิงหาคม 2569</strong></li>
+                    <li>จัดทุกวันจันทร์ (ยกเว้นวันหยุดนักขัตฤกษ์ และวันงดประชุม)</li>
+                    <li>กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ <strong>ชื่อผู้ตั้งถามห้ามซ้ำกัน</strong> และให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ</li>
+                    <li>จัดตามลำดับปกติในวันเดียวกัน <strong>ห้ามผู้ตั้งถามซ้ำกัน</strong></li>
+                    <li>เรียงตาม <strong>ลำดับที่ยื่น</strong> อย่างเคร่งครัด</li>
+                  </ul>
+                </div>
+              </li>
             </ul>
           </div>
         </aside>

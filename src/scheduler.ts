@@ -284,15 +284,15 @@ export function findMatchingWorkingMonday(
 
 /**
  * Core Algorithm for scheduling parliamentary questions:
- * 1. จัดระเบียบวาระครั้งละ 3 เรื่อง ทุกวันจันทร์ (ยกเว้นวันหยุดนักขัตฤกษ์ โดยจะข้ามไปจัดวันจันทร์ทำการถัดไป)
- * 2. รองรับคอลัมน์ "เลื่อนตอบวันที่" (Postponed Date) จาก Google Sheets / ข้อมูลกระทู้
- * 3. ให้กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็นลำดับแรกในสัปดาห์นั้น (เรียงตามลำดับที่ยื่นกระทู้)
- * 4. หากวันจันทร์เริ่มต้นวาระ มีกระทู้เลื่อนมาตอบ จะจัดเฉพาะกระทู้ที่เลื่อนมา โดยไม่ต้องนำลำดับที่ยื่นมาจัดในวันเริ่มต้นวาระ
- * 5. สำหรับกระทู้ถามที่ถูกจัดลำดับในสัปดาห์แรกของวันจันทร์เริ่มต้นวาระ หากเลื่อนวันตอบ ไม่ต้องจัดลำดับกระทู้ถามตามลำดับที่ยื่นขึ้นมาแทนของกระทู้ถามสัปดาห์แรก
- * 6. สำหรับสัปดาห์อื่นๆ สามารถจัดเกิน 3 กระทู้ได้ หากมีการเลื่อนกระทู้ถามมาตอบในวันดังกล่าว (ปกติ 3 เรื่อง + กระทู้เลื่อน = 3+N เรื่อง)
- * 7. กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ "ชื่อผู้ตั้งถามห้ามซ้ำกัน" และให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
- * 8. สำหรับกระทู้ที่จัดตามลำดับปกติ (3 เรื่อง) ห้ามผู้ตั้งถามซ้ำกันในวันเดียวกัน
- * 9. จัดเรียงตามลำดับที่ยื่นกระทู้อย่างเคร่งครัด
+ * 1. กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็นลำดับแรก ในวันที่ขอเลื่อนไปตอบ และจัดกระทู้ถามลำดับถัดไปที่เพิ่มใหม่อีก 3 กระทู้ถามตามลำดับที่ยื่น
+ * 2. ให้จัดระเบียบกระทู้ที่ขอเลื่อนก่อน เรียงตามลำดับที่ยื่น และตามด้วยกระทู้ที่จัดลำดับใหม่ อีก 3 กระทู้ เรียงตามลำดับที่ยื่น
+ * 3. เงื่อนไขอื่นให้คงไว้ตามเดิม:
+ *    - จัดระเบียบวาระครั้งละ 3 เรื่อง ทุกวันจันทร์ (ยกเว้นวันหยุดนักขัตฤกษ์ และวันงดประชุม โดยจะข้ามไปจัดวันจันทร์ทำการถัดไป)
+ *    - วันเริ่มต้นวาระการประชุม: วันจันทร์ที่ 31 สิงหาคม 2569
+ *    - กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ "ชื่อผู้ตั้งถามห้ามซ้ำกัน" และให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
+ *    - สำหรับกระทู้ที่จัดตามลำดับปกติ ห้ามผู้ตั้งถามซ้ำกันในวันเดียวกัน
+ *    - จัดเรียงตามลำดับที่ยื่นกระทู้อย่างเคร่งครัด
+ *    - กระทู้ที่ตอบแล้ว หรือขอถอน ไม่นำมาจัดในวาระ
  * 
  * @param allQuestions List of all submitted questions
  * @param postponedQuestionIds Set of question IDs currently marked as requested to postpone via UI
@@ -351,6 +351,90 @@ export function getQuestionPostponeCount(
     (q.rawStatus ? q.rawStatus.includes('เลื่อน') : false);
 
   return hasPostpone ? 1 : 0;
+}
+
+/**
+ * Helper to find the active postponement round for a question at a given Monday session.
+ * Uses Columns C (Round 1), D (Round 2), E (Round 3), F (Round 4), G (Round 5).
+ * Returns the next postponement whose target working Monday is strictly after currentMonday.
+ */
+export function getNextPostponeForMonday(
+  question: QuestionItem,
+  currentMonday: string,
+  workingMondays: string[]
+): {
+  round: number;
+  colLetter: string;
+  targetMonday: string;
+  rawDate: string;
+} | null {
+  if (isQuestionWithdrawn(question) || isQuestionAnswered(question)) {
+    return null;
+  }
+
+  // 1. Check if question has explicit postponeHistoryItems (from Columns C, D, E, F, G)
+  if (question.postponeHistoryItems && question.postponeHistoryItems.length > 0) {
+    for (const item of question.postponeHistoryItems) {
+      const parsed = item.isoDate || parseThaiOrISODate(item.rawDate);
+      if (!parsed) continue;
+      const targetMonday = findMatchingWorkingMonday(parsed, workingMondays);
+      if (targetMonday && targetMonday > currentMonday) {
+        return {
+          round: item.round,
+          colLetter: item.colLetter,
+          targetMonday,
+          rawDate: item.rawDate
+        };
+      }
+    }
+  }
+
+  // 2. Check question.postponedDates array if present
+  if (question.postponedDates && question.postponedDates.length > 0) {
+    const colLetters = ['C', 'D', 'E', 'F', 'G'];
+    for (let r = 0; r < question.postponedDates.length; r++) {
+      const raw = question.postponedDates[r];
+      if (!raw || raw.trim() === '') continue;
+      const parsed = parseThaiOrISODate(raw);
+      if (!parsed) continue;
+      const targetMonday = findMatchingWorkingMonday(parsed, workingMondays);
+      if (targetMonday && targetMonday > currentMonday) {
+        return {
+          round: r + 1,
+          colLetter: colLetters[r] || 'C',
+          targetMonday,
+          rawDate: raw
+        };
+      }
+    }
+  }
+
+  // 3. Fallback to single postponedDate field
+  if (question.postponedDate && question.postponedDate.trim() !== '') {
+    const parsed = parseThaiOrISODate(question.postponedDate);
+    if (parsed) {
+      const targetMonday = findMatchingWorkingMonday(parsed, workingMondays);
+      if (targetMonday && targetMonday > currentMonday) {
+        return {
+          round: question.postponeCount || 1,
+          colLetter:
+            question.postponeCount === 2
+              ? 'D'
+              : question.postponeCount === 3
+              ? 'E'
+              : question.postponeCount === 4
+              ? 'F'
+              : question.postponeCount === 5
+              ? 'G'
+              : 'C',
+          targetMonday,
+          rawDate: question.postponedDate
+        };
+      }
+    }
+  }
+
+  return null;
 }
 
 export function computeWeeklySchedules(
@@ -414,19 +498,93 @@ export function computeWeeklySchedules(
   firstWeekCandidates.sort((a, b) => a.submittedOrder - b.submittedOrder);
   const firstWeekCandidateIds = new Set(firstWeekCandidates.map((q) => q.id));
 
+  // คำนวณวันจันทร์ตามวาระปกติ (Baseline Scheduled Monday) สำหรับทุกกระทู้ที่ยังไม่ได้ตอบและยังไม่ถอน
+  // เพื่อใช้อ้างอิงเป็นสัปดาห์เดิม (originalDate) ในกรณีที่กระทู้ขอเลื่อนตอบโดยไม่มีวันที่บรรจุเดิมระบุไว้
+  const baselineScheduledMonday = new Map<string, string>();
+  {
+    // 1. กำหนดวันบรรจุที่ระบุชัดเจนก่อน
+    for (const q of allSortedQuestions) {
+      if (q.scheduledDate && q.scheduledDate.trim() !== '') {
+        const parsed = parseThaiOrISODate(q.scheduledDate);
+        if (parsed) {
+          const match = findMatchingWorkingMonday(parsed, workingMondays);
+          if (match) {
+            baselineScheduledMonday.set(q.id, match);
+          }
+        }
+      }
+    }
+
+    // 2. จำลองคิวการบรรจุตามลำดับปกติ (3 เรื่องต่อสัปดาห์, ห้ามผู้ตั้งซ้ำในวันเดียวกัน)
+    const assignedAskersByMonday = new Map<string, Set<string>>();
+    const countByMonday = new Map<string, number>();
+    for (const m of workingMondays) {
+      assignedAskersByMonday.set(m, new Set<string>());
+      countByMonday.set(m, 0);
+    }
+
+    for (const q of allSortedQuestions) {
+      const assignedMonday = baselineScheduledMonday.get(q.id);
+      if (assignedMonday) {
+        assignedAskersByMonday.get(assignedMonday)?.add(q.asker);
+        countByMonday.set(assignedMonday, (countByMonday.get(assignedMonday) || 0) + 1);
+      }
+    }
+
+    for (const q of allSortedQuestions) {
+      if (baselineScheduledMonday.has(q.id)) continue;
+      if (isQuestionWithdrawn(q) || isQuestionAnswered(q)) continue;
+
+      for (let w = 0; w < workingMondays.length; w++) {
+        const m = workingMondays[w];
+        const count = countByMonday.get(m) || 0;
+        const askers = assignedAskersByMonday.get(m)!;
+
+        if (count < 3 && !askers.has(q.asker)) {
+          baselineScheduledMonday.set(q.id, m);
+          askers.add(q.asker);
+          countByMonday.set(m, count + 1);
+          break;
+        }
+      }
+    }
+  }
+
   // Map กระทู้ที่ขอเลื่อนตอบไปยังวันจันทร์เป้าหมาย (explicitPostponedByMonday)
-  const explicitPostponedByMonday = new Map<string, { question: QuestionItem; originalDate: string }[]>();
+  const explicitPostponedByMonday = new Map<
+    string,
+    { question: QuestionItem; originalDate: string; arrivedFromRound?: number; arrivedFromCol?: string }[]
+  >();
 
   const registerPostponement = (q: QuestionItem, originMonday: string) => {
     if (isQuestionWithdrawn(q)) return; // ข้ามกระทู้ที่ขอถอน
-    if (q.postponedDate && q.postponedDate.trim() !== '') {
+    const nextPostpone = getNextPostponeForMonday(q, originMonday, workingMondays);
+    if (nextPostpone && nextPostpone.targetMonday !== originMonday) {
+      const list = explicitPostponedByMonday.get(nextPostpone.targetMonday) || [];
+      if (!list.some((x) => x.question.id === q.id)) {
+        list.push({
+          question: q,
+          originalDate: originMonday,
+          arrivedFromRound: nextPostpone.round,
+          arrivedFromCol: nextPostpone.colLetter
+        });
+        explicitPostponedByMonday.set(nextPostpone.targetMonday, list);
+      }
+    } else if (q.postponedDate && q.postponedDate.trim() !== '') {
       const parsedISO = parseThaiOrISODate(q.postponedDate);
       if (parsedISO) {
         const targetMonday = findMatchingWorkingMonday(parsedISO, workingMondays);
         if (targetMonday && targetMonday !== originMonday) {
           const list = explicitPostponedByMonday.get(targetMonday) || [];
-          list.push({ question: q, originalDate: originMonday });
-          explicitPostponedByMonday.set(targetMonday, list);
+          if (!list.some((x) => x.question.id === q.id)) {
+            list.push({
+              question: q,
+              originalDate: originMonday,
+              arrivedFromRound: q.postponeCount || 1,
+              arrivedFromCol: 'C'
+            });
+            explicitPostponedByMonday.set(targetMonday, list);
+          }
         }
       }
     }
@@ -459,18 +617,10 @@ export function computeWeeklySchedules(
     if (isQuestionAnswered(q)) {
       continue;
     }
-    // หากกระทู้ไม่มีวันที่บรรจุแต่มีวันที่เลื่อนตอบ ให้จัดส่งไปยังสัปดาห์เป้าหมาย
+    // หากกระทู้ไม่มีวันที่บรรจุแต่มีวันที่เลื่อนตอบ ให้ลงทะเบียนตามสัปดาห์เดิมที่คาดการณ์ไว้
     if (q.postponedDate && q.postponedDate.trim() !== '') {
-      const parsedISO = parseThaiOrISODate(q.postponedDate);
-      if (parsedISO) {
-        const targetMonday = findMatchingWorkingMonday(parsedISO, workingMondays);
-        if (targetMonday) {
-          const list = explicitPostponedByMonday.get(targetMonday) || [];
-          list.push({ question: q, originalDate: monday0 });
-          explicitPostponedByMonday.set(targetMonday, list);
-          continue;
-        }
-      }
+      const origin = baselineScheduledMonday.get(q.id) || monday0;
+      registerPostponement(q, origin);
     }
     regularPool.push(q);
   }
@@ -478,7 +628,12 @@ export function computeWeeklySchedules(
   let pool = [...regularPool];
   
   // Carry-over postponed queue dynamically generated from UI actions or duplicate asker conflict delays
-  let dynamicPostponedCarryOver: { question: QuestionItem; originalDate: string }[] = [];
+  let dynamicPostponedCarryOver: {
+    question: QuestionItem;
+    originalDate: string;
+    arrivedFromRound?: number;
+    arrivedFromCol?: string;
+  }[] = [];
 
   for (let w = 0; w < workingMondays.length; w++) {
     const mondayDate = workingMondays[w];
@@ -492,16 +647,52 @@ export function computeWeeklySchedules(
     // 1. Collect all Postponed questions arriving for this Monday:
     const explicitForToday = explicitPostponedByMonday.get(mondayDate) || [];
     
-    // Combine dynamic carryovers and explicit postponed items, sorted strictly by submittedOrder
-    const allPostponedForToday: { question: QuestionItem; originalDate?: string }[] = [
-      ...dynamicPostponedCarryOver.map((c) => ({ question: c.question, originalDate: c.originalDate })),
-      ...explicitForToday.map((e) => ({ question: e.question, originalDate: e.originalDate || e.question.postponedDate }))
+    // Combine dynamic carryovers and explicit postponed items
+    const allPostponedForToday: {
+      question: QuestionItem;
+      originalDate: string;
+      arrivedFromRound?: number;
+      arrivedFromCol?: string;
+    }[] = [
+      ...dynamicPostponedCarryOver.map((c) => ({
+        question: c.question,
+        originalDate: c.originalDate,
+        arrivedFromRound: c.arrivedFromRound,
+        arrivedFromCol: c.arrivedFromCol
+      })),
+      ...explicitForToday.map((e) => ({
+        question: e.question,
+        originalDate: e.originalDate || e.question.scheduledDate || mondayDate,
+        arrivedFromRound: e.arrivedFromRound,
+        arrivedFromCol: e.arrivedFromCol
+      }))
     ];
 
-    allPostponedForToday.sort((a, b) => a.question.submittedOrder - b.question.submittedOrder);
+    // จัดลำดับกระทู้ที่ขอเลื่อนมาตอบในวันเดียวกัน:
+    // 1. เรียงลำดับกระทู้ในสัปดาห์ก่อนหน้ามาจัดลำดับก่อนสัปดาห์ที่เลื่อนมาตอบวันเดียวกันในภายหลัง (ตาม originalDate สัปดาห์เดิม จากน้อยไปมาก)
+    // 2. หากเลื่อนมาจากสัปดาห์เดียวกัน ให้เรียงตามลำดับที่ยื่น (submittedOrder จากน้อยไปมาก)
+    allPostponedForToday.sort((a, b) => {
+      const originA = a.originalDate || a.question.scheduledDate || '';
+      const originB = b.originalDate || b.question.scheduledDate || '';
+      const isoA = parseThaiOrISODate(originA) || originA;
+      const isoB = parseThaiOrISODate(originB) || originB;
+
+      if (isoA && isoB && isoA !== isoB) {
+        return isoA.localeCompare(isoB);
+      }
+      if (isoA && !isoB) return -1;
+      if (!isoA && isoB) return 1;
+
+      return a.question.submittedOrder - b.question.submittedOrder;
+    });
 
     // Carry-overs to the next session
-    const nextDynamicPostponedCarryOver: { question: QuestionItem; originalDate: string }[] = [];
+    const nextDynamicPostponedCarryOver: {
+      question: QuestionItem;
+      originalDate: string;
+      arrivedFromRound?: number;
+      arrivedFromCol?: string;
+    }[] = [];
     let placedPostponedCount = 0;
 
     for (const item of allPostponedForToday) {
@@ -513,24 +704,28 @@ export function computeWeeklySchedules(
         // หากผู้ตั้งถามซ้ำกับกระทู้ที่จัดในวันนี้ -> ให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
         nextDynamicPostponedCarryOver.push({
           question: item.question,
-          originalDate: item.originalDate || mondayDate
+          originalDate: item.originalDate || mondayDate,
+          arrivedFromRound: item.arrivedFromRound,
+          arrivedFromCol: item.arrivedFromCol
         });
         continue;
       }
 
       const answered = isQuestionAnswered(item.question);
 
-      // ตรวจสอบว่ากระทู้ที่เลื่อนมาตอบวันนี้ มีการขอเลื่อนออกไปอีกหรือไม่ (เช่น ระบุวันเลื่อนตอบใหม่ที่อยู่หลังสัปดาห์นี้)
-      let isPostponedAgain = false;
-      if (!answered && item.question.postponedDate && item.question.postponedDate.trim() !== '') {
-        const parsedTarget = parseThaiOrISODate(item.question.postponedDate);
-        if (parsedTarget) {
-          const targetMonday = findMatchingWorkingMonday(parsedTarget, workingMondays);
-          if (targetMonday && targetMonday > mondayDate) {
-            isPostponedAgain = true;
-          }
-        }
-      }
+      // ตรวจสอบว่ากระทู้ที่เลื่อนมาตอบวันนี้ มีการขอเลื่อนออกไปอีกหรือไม่ (เช่น ครั้งที่ 2, 3, 4, 5 จากคอลัมน์ D, E, F, G)
+      const nextPostpone = !answered
+        ? getNextPostponeForMonday(item.question, mondayDate, workingMondays)
+        : null;
+      const isPostponedAgain = !!nextPostpone;
+
+      const activeRound = isPostponedAgain
+        ? nextPostpone!.round
+        : item.arrivedFromRound || item.question.postponeCount || 1;
+      const activeColLetter = isPostponedAgain
+        ? nextPostpone!.colLetter
+        : item.arrivedFromCol ||
+          (activeRound === 2 ? 'D' : activeRound === 3 ? 'E' : activeRound === 4 ? 'F' : activeRound === 5 ? 'G' : 'C');
 
       scheduledQuestions.push({
         question: item.question,
@@ -538,16 +733,34 @@ export function computeWeeklySchedules(
         isPostponedFromPrevious: true,
         postponedFromDate: item.originalDate,
         isPostponedNow: isPostponedAgain,
+        postponeRound: activeRound,
+        postponeColLetter: activeColLetter,
+        nextPostponedDate: nextPostpone ? nextPostpone.targetMonday : undefined,
         projectionType: 'postponed_priority'
       });
       askersScheduledToday.add(item.question.asker);
       placedPostponedCount++;
 
-      if (isPostponedAgain) {
-        nextDynamicPostponedCarryOver.push({
-          question: item.question,
-          originalDate: mondayDate
-        });
+      if (isPostponedAgain && nextPostpone) {
+        if (nextPostpone.targetMonday > mondayDate) {
+          const list = explicitPostponedByMonday.get(nextPostpone.targetMonday) || [];
+          if (!list.some((x) => x.question.id === item.question.id)) {
+            list.push({
+              question: item.question,
+              originalDate: item.originalDate || mondayDate,
+              arrivedFromRound: nextPostpone.round,
+              arrivedFromCol: nextPostpone.colLetter
+            });
+            explicitPostponedByMonday.set(nextPostpone.targetMonday, list);
+          }
+        } else {
+          nextDynamicPostponedCarryOver.push({
+            question: item.question,
+            originalDate: item.originalDate || mondayDate,
+            arrivedFromRound: nextPostpone.round,
+            arrivedFromCol: nextPostpone.colLetter
+          });
+        }
       }
     }
 
@@ -570,13 +783,22 @@ export function computeWeeklySchedules(
           continue;
         }
 
-        const isPostponed = candidate.postponedDate ? true : postponedQuestionIds.has(candidate.id);
+        const postponeInfo = getNextPostponeForMonday(candidate, mondayDate, workingMondays);
+        const isPostponed =
+          !!postponeInfo || !!candidate.postponedDate || postponedQuestionIds.has(candidate.id);
 
         scheduledQuestions.push({
           question: candidate,
           slotNumber: scheduledQuestions.length + 1,
           isPostponedFromPrevious: false,
           isPostponedNow: isPostponed,
+          postponeRound: postponeInfo ? postponeInfo.round : candidate.postponeCount || 1,
+          postponeColLetter: postponeInfo ? postponeInfo.colLetter : 'C',
+          nextPostponedDate: postponeInfo
+            ? postponeInfo.targetMonday
+            : candidate.postponedDate
+            ? findMatchingWorkingMonday(parseThaiOrISODate(candidate.postponedDate) || '', workingMondays) || candidate.postponedDate
+            : undefined,
           projectionType: 'official_agenda'
         });
         askersScheduledToday.add(candidate.asker);
@@ -584,11 +806,33 @@ export function computeWeeklySchedules(
         // หากกระทู้ในสัปดาห์แรกนี้มีการเลื่อนวันตอบผ่าน UI ที่ยังไม่มีใน explicitPostponedByMonday:
         if (isPostponed && !isQuestionAnswered(candidate)) {
           let assignedTarget = false;
-          if (candidate.postponedDate && candidate.postponedDate.trim() !== '') {
+          if (postponeInfo && postponeInfo.targetMonday > mondayDate) {
+            const list = explicitPostponedByMonday.get(postponeInfo.targetMonday) || [];
+            if (!list.some((x) => x.question.id === candidate.id)) {
+              list.push({
+                question: candidate,
+                originalDate: mondayDate,
+                arrivedFromRound: postponeInfo.round,
+                arrivedFromCol: postponeInfo.colLetter
+              });
+              explicitPostponedByMonday.set(postponeInfo.targetMonday, list);
+            }
+            assignedTarget = true;
+          } else if (candidate.postponedDate && candidate.postponedDate.trim() !== '') {
             const parsedISO = parseThaiOrISODate(candidate.postponedDate);
             if (parsedISO) {
               const targetMonday = findMatchingWorkingMonday(parsedISO, workingMondays);
               if (targetMonday && targetMonday !== mondayDate) {
+                const list = explicitPostponedByMonday.get(targetMonday) || [];
+                if (!list.some((x) => x.question.id === candidate.id)) {
+                  list.push({
+                    question: candidate,
+                    originalDate: mondayDate,
+                    arrivedFromRound: candidate.postponeCount || 1,
+                    arrivedFromCol: 'C'
+                  });
+                  explicitPostponedByMonday.set(targetMonday, list);
+                }
                 assignedTarget = true;
               }
             }
@@ -597,7 +841,9 @@ export function computeWeeklySchedules(
             // ยกยอดไปยังสัปดาห์ทำการถัดไป
             dynamicPostponedCarryOver.push({
               question: candidate,
-              originalDate: mondayDate
+              originalDate: mondayDate,
+              arrivedFromRound: postponeInfo ? postponeInfo.round : candidate.postponeCount || 1,
+              arrivedFromCol: postponeInfo ? postponeInfo.colLetter : 'C'
             });
           }
         }
@@ -615,16 +861,68 @@ export function computeWeeklySchedules(
           continue;
         }
 
-        const isPostponed = candidate.postponedDate ? true : postponedQuestionIds.has(candidate.id);
+        const postponeInfo = getNextPostponeForMonday(candidate, mondayDate, workingMondays);
+        const isPostponed =
+          !!postponeInfo || !!candidate.postponedDate || postponedQuestionIds.has(candidate.id);
 
         scheduledQuestions.push({
           question: candidate,
           slotNumber: scheduledQuestions.length + 1,
           isPostponedFromPrevious: false,
           isPostponedNow: isPostponed,
+          postponeRound: postponeInfo ? postponeInfo.round : candidate.postponeCount || 1,
+          postponeColLetter: postponeInfo ? postponeInfo.colLetter : 'C',
+          nextPostponedDate: postponeInfo
+            ? postponeInfo.targetMonday
+            : candidate.postponedDate
+            ? findMatchingWorkingMonday(parseThaiOrISODate(candidate.postponedDate) || '', workingMondays) || candidate.postponedDate
+            : undefined,
           projectionType: 'official_agenda'
         });
         askersScheduledToday.add(candidate.asker);
+
+        if (isPostponed && !isQuestionAnswered(candidate)) {
+          let assignedTarget = false;
+          if (postponeInfo && postponeInfo.targetMonday > mondayDate) {
+            const list = explicitPostponedByMonday.get(postponeInfo.targetMonday) || [];
+            if (!list.some((x) => x.question.id === candidate.id)) {
+              list.push({
+                question: candidate,
+                originalDate: mondayDate,
+                arrivedFromRound: postponeInfo.round,
+                arrivedFromCol: postponeInfo.colLetter
+              });
+              explicitPostponedByMonday.set(postponeInfo.targetMonday, list);
+            }
+            assignedTarget = true;
+          } else if (candidate.postponedDate && candidate.postponedDate.trim() !== '') {
+            const parsedISO = parseThaiOrISODate(candidate.postponedDate);
+            if (parsedISO) {
+              const targetMonday = findMatchingWorkingMonday(parsedISO, workingMondays);
+              if (targetMonday && targetMonday !== mondayDate) {
+                const list = explicitPostponedByMonday.get(targetMonday) || [];
+                if (!list.some((x) => x.question.id === candidate.id)) {
+                  list.push({
+                    question: candidate,
+                    originalDate: mondayDate,
+                    arrivedFromRound: candidate.postponeCount || 1,
+                    arrivedFromCol: 'C'
+                  });
+                  explicitPostponedByMonday.set(targetMonday, list);
+                }
+                assignedTarget = true;
+              }
+            }
+          }
+          if (!assignedTarget) {
+            dynamicPostponedCarryOver.push({
+              question: candidate,
+              originalDate: mondayDate,
+              arrivedFromRound: postponeInfo ? postponeInfo.round : candidate.postponeCount || 1,
+              arrivedFromCol: postponeInfo ? postponeInfo.colLetter : 'C'
+            });
+          }
+        }
       }
     } else {
       // สัปดาห์ที่คาดการณ์การบรรจุล่วงหน้า:
@@ -633,7 +931,9 @@ export function computeWeeklySchedules(
       const newPool: QuestionItem[] = [];
 
       for (const q of pool) {
-        const isPostponedViaUI = postponedQuestionIds.has(q.id);
+        const postponeInfo = getNextPostponeForMonday(q, mondayDate, workingMondays);
+        const isPostponed =
+          !!postponeInfo || !!q.postponedDate || postponedQuestionIds.has(q.id);
 
         if (regularScheduledCount < 3) {
           // กฎเกณฑ์: กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ ชื่อผู้ตั้งถามห้ามซ้ำกันได้
@@ -643,17 +943,60 @@ export function computeWeeklySchedules(
               question: q,
               slotNumber: scheduledQuestions.length + 1,
               isPostponedFromPrevious: false,
-              isPostponedNow: isPostponedViaUI,
+              isPostponedNow: isPostponed,
+              postponeRound: postponeInfo ? postponeInfo.round : q.postponeCount || 1,
+              postponeColLetter: postponeInfo ? postponeInfo.colLetter : 'C',
+              nextPostponedDate: postponeInfo
+                ? postponeInfo.targetMonday
+                : q.postponedDate
+                ? findMatchingWorkingMonday(parseThaiOrISODate(q.postponedDate) || '', workingMondays) || q.postponedDate
+                : undefined,
               projectionType: 'projected_regular'
             });
             askersScheduledToday.add(q.asker);
             regularScheduledCount++;
 
-            if (isPostponedViaUI) {
-              dynamicPostponedCarryOver.push({
-                question: q,
-                originalDate: mondayDate
-              });
+            if (isPostponed && !isQuestionAnswered(q)) {
+              let assignedTarget = false;
+              if (postponeInfo && postponeInfo.targetMonday > mondayDate) {
+                const list = explicitPostponedByMonday.get(postponeInfo.targetMonday) || [];
+                if (!list.some((x) => x.question.id === q.id)) {
+                  list.push({
+                    question: q,
+                    originalDate: mondayDate,
+                    arrivedFromRound: postponeInfo.round,
+                    arrivedFromCol: postponeInfo.colLetter
+                  });
+                  explicitPostponedByMonday.set(postponeInfo.targetMonday, list);
+                }
+                assignedTarget = true;
+              } else if (q.postponedDate && q.postponedDate.trim() !== '') {
+                const parsedTarget = parseThaiOrISODate(q.postponedDate);
+                if (parsedTarget) {
+                  const targetMonday = findMatchingWorkingMonday(parsedTarget, workingMondays);
+                  if (targetMonday && targetMonday > mondayDate) {
+                    const list = explicitPostponedByMonday.get(targetMonday) || [];
+                    if (!list.some((x) => x.question.id === q.id)) {
+                      list.push({
+                        question: q,
+                        originalDate: mondayDate,
+                        arrivedFromRound: q.postponeCount || 1,
+                        arrivedFromCol: 'C'
+                      });
+                      explicitPostponedByMonday.set(targetMonday, list);
+                    }
+                    assignedTarget = true;
+                  }
+                }
+              }
+              if (!assignedTarget) {
+                dynamicPostponedCarryOver.push({
+                  question: q,
+                  originalDate: mondayDate,
+                  arrivedFromRound: postponeInfo ? postponeInfo.round : q.postponeCount || 1,
+                  arrivedFromCol: postponeInfo ? postponeInfo.colLetter : 'C'
+                });
+              }
             }
           } else {
             // ผู้ตั้งถามซ้ำกับกระทู้ที่จัดในวันนี้ (ทั้งกระทู้เลื่อนมาตอบ และกระทู้ปกติก่อนหน้า)
@@ -779,27 +1122,59 @@ export function auditScheduleCompliance(
       : orderIssues.join(', ')
   });
 
-  // Check 4: Priority for Postponed Questions (สิทธิ์ลำดับแรกของกระทู้เลื่อนตอบ)
+  // Check 4: Priority for Postponed Questions & Agenda Arrangement Order
+  // กฎเกณฑ์ข้อ 1 & 2:
+  // 1. กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็นลำดับแรก ในวันที่ขอเลื่อนไปตอบ และจัดกระทู้ถามลำดับถัดไปที่เพิ่มใหม่อีก 3 กระทู้ถามตามลำดับที่ยื่น
+  // 2. ให้จัดระเบียบกระทู้ที่ขอเลื่อนก่อน โดยเรียงตามสัปดาห์ก่อนหน้ามาจัดลำดับก่อนสัปดาห์ที่เลื่อนมาตอบวันเดียวกันในภายหลัง และหากมาจากสัปดาห์เดียวกันให้เรียงตามลำดับที่ยื่น
   let priorityPassed = true;
   const priorityIssues: string[] = [];
   schedules.forEach((s, idx) => {
     let foundRegular = false;
+    const postponedItems: ScheduledQuestion[] = [];
+    const regularInSlot: number[] = [];
+
     s.questions.forEach((q) => {
       if (!q.isPostponedFromPrevious) {
         foundRegular = true;
-      } else if (foundRegular) {
-        priorityPassed = false;
-        priorityIssues.push(`สัปดาห์ที่ ${idx + 1}: กระทู้เลื่อนตอบ #${q.question.submittedOrder} ไม่อยู่ในสิทธิ์ลำดับแรก`);
+        regularInSlot.push(q.question.submittedOrder);
+      } else {
+        postponedItems.push(q);
+        if (foundRegular) {
+          priorityPassed = false;
+          priorityIssues.push(`สัปดาห์ที่ ${idx + 1}: กระทู้เลื่อนตอบ #${q.question.submittedOrder} ไม่อยู่ในสิทธิ์ลำดับแรก`);
+        }
       }
     });
+
+    // Check postponed questions are sorted by original week (postponedFromDate), then by submittedOrder
+    for (let i = 0; i < postponedItems.length - 1; i++) {
+      const a = postponedItems[i];
+      const b = postponedItems[i + 1];
+      const originA = a.postponedFromDate || '';
+      const originB = b.postponedFromDate || '';
+      const isoA = parseThaiOrISODate(originA) || originA;
+      const isoB = parseThaiOrISODate(originB) || originB;
+
+      if (isoA && isoB && isoA > isoB) {
+        priorityPassed = false;
+        priorityIssues.push(
+          `สัปดาห์ที่ ${idx + 1}: กระทู้เลื่อนตอบ #${a.question.submittedOrder} (จากวาระ ${formatThaiShortDate(isoA)}) จัดก่อน #${b.question.submittedOrder} (จากวาระ ${formatThaiShortDate(isoB)}) ซึ่งมาจากสัปดาห์หลังกว่า`
+        );
+      } else if ((isoA === isoB || !isoA || !isoB) && a.question.submittedOrder > b.question.submittedOrder) {
+        priorityPassed = false;
+        priorityIssues.push(
+          `สัปดาห์ที่ ${idx + 1}: กระทู้เลื่อนตอบจากสัปดาห์เดียวกัน #${a.question.submittedOrder} ไม่อยู่ก่อน #${b.question.submittedOrder} ตามลำดับที่ยื่น`
+        );
+      }
+    }
   });
   checks.push({
     ruleId: 'POSTPONE_PRIORITY_RULE',
-    ruleName: 'สิทธิ์ลำดับแรกของกระทู้ที่ขอเลื่อนตอบ (Priority Slots)',
-    description: 'กระทู้ที่เลื่อนมาตอบต้องได้รับสิทธิ์บรรจุเป็นลำดับแรก (Slot 1..N) ก่อนกระทู้บรรจุใหม่',
+    ruleName: 'สิทธิ์ลำดับแรกและการจัดระเบียบวาระของกระทู้ขอเลื่อนตอบ (เรียงตามสัปดาห์ก่อนหน้า และลำดับที่ยื่น)',
+    description: 'กระทู้ที่ขอเลื่อนได้สิทธิ์เป็นลำดับแรกในวันที่ขอเลื่อนไปตอบ โดยเรียงตามสัปดาห์ก่อนหน้ามาจัดลำดับก่อนสัปดาห์ที่เลื่อนมาตอบวันเดียวกันในภายหลัง (หากมาจากสัปดาห์เดียวกันให้เรียงตามลำดับที่ยื่น) และตามด้วยกระทู้จัดลำดับใหม่ 3 กระทู้ เรียงตามลำดับที่ยื่น',
     passed: priorityPassed,
     details: priorityPassed
-      ? 'กระทู้ที่ขอเลื่อนมาตอบได้รับสิทธิ์บรรจุเป็นลำดับแรกทุกเรื่อง'
+      ? 'กระทู้ที่ขอเลื่อนได้รับสิทธิ์เป็นลำดับแรก เรียงตามสัปดาห์ก่อนหน้าและลำดับที่ยื่นถูกต้อง และตามด้วยกระทู้บรรจุใหม่อีก 3 เรื่องเรียงตามลำดับถูกต้องครบถ้วน'
       : priorityIssues.join(', ')
   });
 
@@ -830,6 +1205,51 @@ export function auditScheduleCompliance(
     details: mondayPassed
       ? 'วันประชุมทุกสัปดาห์เป็นวันจันทร์ทำการ ไม่ตรงกับวันหยุดนักขัตฤกษ์'
       : mondayIssues.join(', ')
+  });
+
+  // Check 7: Multi-round Postponement Prediction Rule (กฎการคาดการณ์การเลื่อนวันตอบมากกว่า 1 ครั้ง)
+  // หากกระทู้ถามใดมีการเลื่อนวันตอบมากกว่า 1 ครั้ง โดยครั้งที่ 2, 3, 4, 5 ให้นำข้อมูลจาก Google Sheet คอลัมน์ D, E, F, G ใช้คาดการณ์
+  let multiPostponePassed = true;
+  const multiPostponeIssues: string[] = [];
+
+  const questionsWithMultiPostpone = allQuestions.filter(
+    (q) => (q.postponeCount && q.postponeCount > 1) || (q.postponeHistoryItems && q.postponeHistoryItems.length > 1)
+  );
+
+  questionsWithMultiPostpone.forEach((q) => {
+    const history = q.postponeHistoryItems || [];
+    if (history.length <= 1) return;
+
+    for (let h = 1; h < history.length; h++) {
+      const item = history[h];
+      const parsedTarget = item.isoDate || parseThaiOrISODate(item.rawDate);
+      if (!parsedTarget) continue;
+
+      const foundInAnySchedule = schedules.some((s) =>
+        s.questions.some(
+          (sq) =>
+            sq.question.id === q.id ||
+            sq.question.submittedOrder === q.submittedOrder ||
+            sq.nextPostponedDate === parsedTarget
+        )
+      );
+      if (!foundInAnySchedule) {
+        multiPostponePassed = false;
+        multiPostponeIssues.push(
+          `กระทู้ #${q.submittedOrder} (${q.asker}) เลื่อนครั้งที่ ${item.round} (คอลัมน์ ${item.colLetter}: ${item.rawDate}) ยังไม่ถูกนำมาคาดการณ์`
+        );
+      }
+    }
+  });
+
+  checks.push({
+    ruleId: 'MULTI_POSTPONE_RULE',
+    ruleName: 'การคาดการณ์การเลื่อนวันตอบมากกว่า 1 ครั้ง (ใช้ข้อมูลคอลัมน์ D, E, F, G สำหรับครั้งที่ 2, 3, 4, 5)',
+    description: 'หากกระทู้ถามใดมีการเลื่อนวันตอบมากกว่า 1 ครั้ง โดยครั้งที่ 2, 3, 4, 5 ให้นำข้อมูลจาก Google Sheet คอลัมน์ D, E, F, G ใช้คาดการณ์ระเบียบวาระการประชุมตามลำดับ',
+    passed: multiPostponePassed,
+    details: multiPostponePassed
+      ? `กระทู้ที่มีการขอเลื่อนวันตอบมากกว่า 1 ครั้ง (กระทู้ #${questionsWithMultiPostpone.map((x) => x.submittedOrder).join(', #')}) ได้นำข้อมูลจากคอลัมน์ D, E, F, G มาใช้คาดการณ์ระเบียบวาระถูกต้องครบถ้วน 100%`
+      : multiPostponeIssues.join(', ')
   });
 
   const passedCount = checks.filter((c) => c.passed).length;

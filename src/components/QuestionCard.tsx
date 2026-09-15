@@ -100,8 +100,25 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] bg-amber-100 text-amber-900 px-2.5 py-1 rounded-md font-bold border border-amber-300 flex items-center gap-1.5 shadow-2xs">
               <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-              <span>สถานะ: เลื่อนวันตอบ</span>
-              {question.postponedDate ? (
+              <span>
+                สถานะ: เลื่อนวันตอบ
+                {scheduledItem.postponeRound && scheduledItem.postponeRound > 1 ? (
+                  <span className="ml-1.5 text-amber-950 font-extrabold bg-amber-200 px-1.5 py-0.5 rounded border border-amber-400 text-[10px]">
+                    ครั้งที่ {scheduledItem.postponeRound} (คอลัมน์ {scheduledItem.postponeColLetter || (scheduledItem.postponeRound === 2 ? 'D' : scheduledItem.postponeRound === 3 ? 'E' : scheduledItem.postponeRound === 4 ? 'F' : 'G')})
+                  </span>
+                ) : (
+                  scheduledItem.postponeColLetter && (
+                    <span className="ml-1.5 text-amber-950 font-semibold bg-amber-200/80 px-1.5 py-0.5 rounded text-[10px]">
+                      ครั้งที่ 1 (คอลัมน์ {scheduledItem.postponeColLetter})
+                    </span>
+                  )
+                )}
+              </span>
+              {scheduledItem.nextPostponedDate ? (
+                <span className="font-normal text-amber-900">
+                  (คงชื่อเรื่องไว้ในวาระนี้ &bull; ขอเลื่อนไปตอบ: {formatThaiDateWithDayOfWeek(scheduledItem.nextPostponedDate)})
+                </span>
+              ) : question.postponedDate ? (
                 <span className="font-normal text-amber-900">
                   (คงชื่อเรื่องไว้ในวาระนี้ &bull; ขอเลื่อนไปตอบ: {formatThaiDateWithDayOfWeek(question.postponedDate)})
                 </span>
@@ -119,6 +136,17 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <span className="text-[11px] bg-sky-100 text-[#0369a1] px-2.5 py-1 rounded-md font-bold border border-sky-200 flex items-center gap-1.5 shadow-2xs">
               <Sparkles className="w-3.5 h-3.5 text-[#0369a1] shrink-0" />
               <span>กระทู้ขอเลื่อนมาตอบในวาระนี้</span>
+              {scheduledItem.postponeRound && scheduledItem.postponeRound > 1 ? (
+                <span className="text-sky-950 font-bold bg-sky-200/80 px-1.5 py-0.5 rounded border border-sky-300 text-[10px]">
+                  (เลื่อนครั้งที่ {scheduledItem.postponeRound} จากคอลัมน์ {scheduledItem.postponeColLetter})
+                </span>
+              ) : (
+                scheduledItem.postponeColLetter && (
+                  <span className="text-sky-950 font-medium bg-sky-200/60 px-1.5 py-0.5 rounded text-[10px]">
+                    (คอลัมน์ {scheduledItem.postponeColLetter})
+                  </span>
+                )
+              )}
               {scheduledItem.postponedFromDate && (
                 <span className="font-normal text-sky-800">
                   (เลื่อนมาจากวาระ: {formatThaiShortDate(scheduledItem.postponedFromDate)})
@@ -128,6 +156,26 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 สิทธิ์ตอบลำดับแรก
               </span>
             </span>
+          </div>
+        )}
+
+        {/* Multi-round Postponement History Trail */}
+        {question.postponeHistoryItems && question.postponeHistoryItems.length > 1 && (
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 border border-slate-200/80 rounded-md px-2.5 py-1 flex-wrap">
+            <span className="font-bold text-slate-700">ประวัติการเลื่อน (Google Sheet):</span>
+            {question.postponeHistoryItems.map((hist, hIdx) => (
+              <span
+                key={hIdx}
+                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${
+                  scheduledItem.postponeRound === hist.round
+                    ? 'bg-amber-200 text-amber-950 font-extrabold border border-amber-300'
+                    : 'bg-white text-slate-600 border border-slate-200'
+                }`}
+              >
+                <span>ครั้งที่ {hist.round} (Col {hist.colLetter}):</span>
+                <span className="font-semibold">{hist.rawDate}</span>
+              </span>
+            ))}
           </div>
         )}
       </div>

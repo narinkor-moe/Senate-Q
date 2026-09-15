@@ -63,7 +63,7 @@ export const RuleComplianceBanner: React.FC<RuleComplianceBannerProps> = ({
               </span>
             </div>
             <p className="text-slate-300 text-xs mt-0.5">
-              ตรวจสอบข้อบังคับการประชุมวุฒิสภา: จำกัด 3 เรื่อง/สัปดาห์ • ห้ามผู้ตั้งซ้ำในวันเดียวกัน • กระทู้เลื่อนตอบได้สิทธิ์ลำดับแรก • คาดการณ์ล่วงหน้าแม่นยำ
+              ตรวจสอบข้อบังคับการประชุมวุฒิสภา: กระทู้ขอเลื่อนได้สิทธิ์ลำดับแรกเรียงตามลำดับที่ยื่น + จัดใหม่อีก 3 กระทู้ • ห้ามผู้ตั้งซ้ำในวันเดียวกัน
             </p>
           </div>
         </div>
@@ -86,7 +86,7 @@ export const RuleComplianceBanner: React.FC<RuleComplianceBannerProps> = ({
             onClick={() => setIsExpanded(!isExpanded)}
             className="px-3 py-1.5 rounded-lg bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
-            <span>{isExpanded ? 'ซ่อนรายละเอียดกฎเกณฑ์' : 'ดูผลการตรวจ 6 กฎเกณฑ์'}</span>
+            <span>{isExpanded ? 'ซ่อนรายละเอียดกฎเกณฑ์' : `ดูผลการตรวจ ${audit.checks.length} กฎเกณฑ์`}</span>
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         </div>
@@ -188,7 +188,7 @@ export const RuleComplianceBanner: React.FC<RuleComplianceBannerProps> = ({
         <div className="p-5 bg-slate-50/50 space-y-3 border-t border-slate-100 animate-in fade-in duration-200">
           <div className="flex items-center justify-between pb-1">
             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-              ผลการตรวจรับรอง 6 กฎเกณฑ์การจัดระเบียบวาระกระทู้ถาม (Senate Standing Order Verification)
+              ผลการตรวจรับรอง {audit.checks.length} กฎเกณฑ์การจัดระเบียบวาระกระทู้ถาม (Senate Standing Order Verification)
             </h3>
             <span className="text-xs text-slate-500 font-medium">
               สอดคล้องกับข้อบังคับการประชุมวุฒิสภา
@@ -241,8 +241,8 @@ export const RuleComplianceBanner: React.FC<RuleComplianceBannerProps> = ({
           <div className="p-3 bg-blue-50/80 rounded-lg border border-blue-200 text-xs text-blue-900 flex items-start gap-2">
             <HelpCircle className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">หลักเกณฑ์การคงชื่อเรื่องและเลื่อนตอบ: </span>
-              กระทู้ถามในสัปดาห์ที่ 1 ที่ขอเลื่อนตอบ ระบบจะคงชื่อเรื่องไว้ในระเบียบวาระสัปดาห์ที่ 1 และนำไปจัดในระเบียบวาระในสัปดาห์เป้าหมาย (วันที่ 7 ก.ย., 14 ก.ย., 21 ก.ย. 2569) โดยได้รับสิทธิ์ตอบเป็นลำดับแรก พร้อมทั้งจัดสรรกระทู้ใหม่ตามลำดับคิวโดยไม่ให้ผู้ตั้งกระทู้ซ้ำกันในวันประชุมเดียวกัน
+              <span className="font-bold">กฎเกณฑ์การจัดระเบียบวาระ: </span>
+              1. กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็นลำดับแรกในวันที่ขอเลื่อนไปตอบ และจัดกระทู้ถามลำดับถัดไปที่เพิ่มใหม่อีก 3 กระทู้ถามตามลำดับที่ยื่น 2. ให้จัดระเบียบกระทู้ที่ขอเลื่อนก่อน เรียงตามลำดับที่ยื่น และตามด้วยกระทู้ที่จัดลำดับใหม่ อีก 3 กระทู้ เรียงตามลำดับที่ยื่น 3. เงื่อนไขอื่นคงไว้ตามเดิม (จัดทุกวันจันทร์, ชื่อผู้ตั้งถามห้ามซ้ำในวันเดียวกัน, เรียงตามลำดับที่ยื่นอย่างเคร่งครัด)
             </div>
           </div>
         </div>

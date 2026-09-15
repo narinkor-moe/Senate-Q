@@ -1,6 +1,6 @@
 // Google Identity Services (GSI) and Google Sheets API integration helper
 import { parseThaiOrISODate, formatThaiShortDate } from './scheduler';
-import { QuestionItem } from './types';
+import { QuestionItem, PostponeHistoryItem } from './types';
 
 declare global {
   interface Window {
@@ -352,8 +352,12 @@ export async function fetchPostponeMapFromSheet(
   // Find header row and columns
   let headerIndex = -1;
   let colOrder = 0; // Col A
-  let colPostponed = 2; // Col C
-  let colStatus = 6; // Col G
+  let colPostponed1 = 2; // Col C
+  let colPostponed2 = 3; // Col D
+  let colPostponed3 = 4; // Col E
+  let colPostponed4 = 5; // Col F
+  let colPostponed5 = 6; // Col G
+  let colStatus = 10; // Col K
 
   for (let r = 0; r < Math.min(rows.length, 5); r++) {
     const row = rows[r];
@@ -361,20 +365,30 @@ export async function fetchPostponeMapFromSheet(
     const strRow = row.map((c) => String(c || '').trim().toLowerCase());
 
     const oIdx = strRow.findIndex((c) => c.includes('ลำดับ'));
-    const pIdx = strRow.findIndex((c) => c.includes('เลื่อนตอบ') || c.includes('เลื่อน') || c.includes('ขอเลื่อน'));
+    const p1Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('1') || c.includes('๑')));
+    const p2Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('2') || c.includes('๒')));
+    const p3Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('3') || c.includes('๓')));
+    const p4Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('4') || c.includes('๔')));
+    const p5Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('5') || c.includes('๕')));
+    const genericPIdx = strRow.findIndex((c) => c.includes('เลื่อนตอบ') || c.includes('เลื่อน') || c.includes('ขอเลื่อน'));
     const stIdx = strRow.findIndex((c) => c.includes('สถานะ') || c.includes('status'));
 
-    if (pIdx !== -1 || oIdx !== -1) {
+    if (genericPIdx !== -1 || oIdx !== -1) {
       headerIndex = r;
       if (oIdx !== -1) colOrder = oIdx;
-      if (pIdx !== -1) colPostponed = pIdx;
+      if (p1Idx !== -1) colPostponed1 = p1Idx;
+      else if (genericPIdx !== -1) colPostponed1 = genericPIdx;
+      if (p2Idx !== -1) colPostponed2 = p2Idx;
+      if (p3Idx !== -1) colPostponed3 = p3Idx;
+      if (p4Idx !== -1) colPostponed4 = p4Idx;
+      if (p5Idx !== -1) colPostponed5 = p5Idx;
       if (stIdx !== -1) colStatus = stIdx;
       break;
     }
   }
 
   const startRowIdx = headerIndex !== -1 ? headerIndex + 1 : 1;
-  const colLetter = String.fromCharCode(65 + colPostponed); // e.g. 'C'
+  const colLetter = String.fromCharCode(65 + colPostponed1); // e.g. 'C'
 
   for (let i = startRowIdx; i < rows.length; i++) {
     const row = rows[i];
@@ -385,7 +399,7 @@ export async function fetchPostponeMapFromSheet(
     const orderNum = parseInt(rawOrder, 10);
     if (isNaN(orderNum) || orderNum <= 0) continue;
 
-    const rawPostponed = colPostponed < row.length ? String(row[colPostponed] || '').trim() : '';
+    const rawPostponed = colPostponed1 < row.length ? String(row[colPostponed1] || '').trim() : '';
     const rawStatus = colStatus !== -1 && colStatus < row.length ? String(row[colStatus] || '').trim() : '';
     const isAnswered = rawStatus.includes('ตอบแล้ว') || rawStatus.toLowerCase() === 'answered';
     const isWithdrawn = rawStatus.includes('ถอน') || rawStatus.toLowerCase().includes('withdrawn');
@@ -498,12 +512,14 @@ export async function updateSheetCell(
 
 /**
  * Save or clear the postponement date in Google Sheet for a given question's submittedOrder
+ * Support specifying postponeRound (1 = Col C, 2 = Col D, 3 = Col E, 4 = Col F, 5 = Col G)
  */
 export async function savePostponeDateToSheet(
   submittedOrder: number,
   newDateISOOrThai: string | undefined,
   spreadsheetId: string = DEFAULT_SHEET_ID,
-  sheetName: string = DEFAULT_SHEET_NAME
+  sheetName: string = DEFAULT_SHEET_NAME,
+  postponeRound: number = 1
 ): Promise<{
   success: boolean;
   cellRange: string;
@@ -512,14 +528,14 @@ export async function savePostponeDateToSheet(
 }> {
   // First, find the exact row number for this submittedOrder
   let targetRowNumber = -1;
-  let targetColLetter = 'C';
+  const roundLetters = ['C', 'D', 'E', 'F', 'G'];
+  let targetColLetter = roundLetters[Math.max(0, Math.min(postponeRound - 1, 4))] || 'C';
 
   try {
     const sheetMap = await fetchPostponeMapFromSheet(spreadsheetId, sheetName);
     const existing = sheetMap.get(submittedOrder);
     if (existing) {
       targetRowNumber = existing.sheetRowNumber;
-      targetColLetter = existing.colLetter;
     }
   } catch (err) {
     console.warn('Could not fetch sheet map, calculating default row based on order:', err);
@@ -528,7 +544,6 @@ export async function savePostponeDateToSheet(
   // Fallback formula: Row 1 is Header, Row 2 is Order 1, Row 3 is Order 2, etc.
   if (targetRowNumber <= 0) {
     targetRowNumber = submittedOrder + 1;
-    targetColLetter = 'C';
   }
 
   const cellRange = formatSheetRange(sheetName, `${targetColLetter}${targetRowNumber}`);
@@ -551,13 +566,17 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
   if (!rows || rows.length === 0) return [];
 
   let headerIndex = -1;
-  let colOrder = -1;
-  let colTopic = -1;
-  let colAsker = -1;
-  let colMinister = -1;
-  let colPostponed = -1;
-  let colScheduled = -1;
-  let colStatus = -1;
+  let colOrder = 0;
+  let colScheduled = 1;
+  let colPostponed1 = 2; // Col C
+  let colPostponed2 = 3; // Col D
+  let colPostponed3 = 4; // Col E
+  let colPostponed4 = 5; // Col F
+  let colPostponed5 = 6; // Col G
+  let colTopic = 7;
+  let colAsker = 8;
+  let colMinister = 9;
+  let colStatus = 10;
 
   // 1. Try to detect header row
   for (let r = 0; r < Math.min(rows.length, 5); r++) {
@@ -569,19 +588,31 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
     const tIdx = strRow.findIndex((c) => c.includes('กระทู้') || c.includes('เรื่อง'));
     const aIdx = strRow.findIndex((c) => c.includes('ผู้ตั้ง') || c.includes('ผู้ถาม'));
     const mIdx = strRow.findIndex((c) => c.includes('รัฐมนตรี') || c.includes('รมต.'));
-    const pIdx = strRow.findIndex((c) => c.includes('เลื่อนตอบ') || c.includes('เลื่อน') || c.includes('ขอเลื่อน'));
     const sIdx = strRow.findIndex((c) => c.includes('วันที่บรรจุ') || c.includes('บรรจุ'));
     const stIdx = strRow.findIndex((c) => c.includes('สถานะ') || c.includes('status'));
 
+    const p1Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('1') || c.includes('๑')));
+    const p2Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('2') || c.includes('๒')));
+    const p3Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('3') || c.includes('๓')));
+    const p4Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('4') || c.includes('๔')));
+    const p5Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('5') || c.includes('๕')));
+    const genericPIdx = strRow.findIndex((c) => c.includes('เลื่อนตอบ') || c.includes('เลื่อน') || c.includes('ขอเลื่อน'));
+
     if (tIdx !== -1 || aIdx !== -1) {
       headerIndex = r;
-      colOrder = oIdx !== -1 ? oIdx : 0;
-      colScheduled = sIdx !== -1 ? sIdx : 1;
-      colPostponed = pIdx !== -1 ? pIdx : 2;
-      colTopic = tIdx !== -1 ? tIdx : 3;
-      colAsker = aIdx !== -1 ? aIdx : 4;
-      colMinister = mIdx !== -1 ? mIdx : 5;
-      colStatus = stIdx !== -1 ? stIdx : 6;
+      if (oIdx !== -1) colOrder = oIdx;
+      if (sIdx !== -1) colScheduled = sIdx;
+      if (tIdx !== -1) colTopic = tIdx;
+      if (aIdx !== -1) colAsker = aIdx;
+      if (mIdx !== -1) colMinister = mIdx;
+      if (stIdx !== -1) colStatus = stIdx;
+
+      if (p1Idx !== -1) colPostponed1 = p1Idx;
+      else if (genericPIdx !== -1) colPostponed1 = genericPIdx;
+      if (p2Idx !== -1) colPostponed2 = p2Idx;
+      if (p3Idx !== -1) colPostponed3 = p3Idx;
+      if (p4Idx !== -1) colPostponed4 = p4Idx;
+      if (p5Idx !== -1) colPostponed5 = p5Idx;
       break;
     }
   }
@@ -598,41 +629,60 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
 
     let rawOrder = '';
     let scheduledVal = '';
-    let postponedVal = '';
     let topicVal = '';
     let askerVal = '';
     let ministerVal = '';
     let statusVal = '';
 
+    const postponeRoundsRaw: { round: number; colLetter: string; raw: string }[] = [];
+    const roundColIndices = [
+      { round: 1, colLetter: 'C', idx: colPostponed1 },
+      { round: 2, colLetter: 'D', idx: colPostponed2 },
+      { round: 3, colLetter: 'E', idx: colPostponed3 },
+      { round: 4, colLetter: 'F', idx: colPostponed4 },
+      { round: 5, colLetter: 'G', idx: colPostponed5 },
+    ];
+
     if (headerIndex !== -1) {
       rawOrder = colOrder !== -1 && row[colOrder] !== undefined ? String(row[colOrder]).trim() : '';
       scheduledVal = colScheduled !== -1 && row[colScheduled] !== undefined ? String(row[colScheduled]).trim() : '';
-      postponedVal = colPostponed !== -1 && row[colPostponed] !== undefined ? String(row[colPostponed]).trim() : '';
       topicVal = colTopic !== -1 && row[colTopic] !== undefined ? String(row[colTopic]).trim() : '';
       askerVal = colAsker !== -1 && row[colAsker] !== undefined ? String(row[colAsker]).trim() : '';
       ministerVal = colMinister !== -1 && row[colMinister] !== undefined ? String(row[colMinister]).trim() : '';
       statusVal = colStatus !== -1 && row[colStatus] !== undefined ? String(row[colStatus]).trim() : '';
+
+      roundColIndices.forEach(({ round, colLetter, idx }) => {
+        const val = idx !== -1 && row[idx] !== undefined ? String(row[idx]).trim() : '';
+        postponeRoundsRaw.push({ round, colLetter, raw: val });
+      });
     } else {
-      if (row.length >= 7) {
+      if (row.length >= 11) {
+        // Standard full layout: [Order, Scheduled, Postpone1, Postpone2, Postpone3, Postpone4, Postpone5, Topic, Asker, Minister, Status]
         rawOrder = String(row[0] || '').trim();
         scheduledVal = String(row[1] || '').trim();
-        postponedVal = String(row[2] || '').trim();
+        postponeRoundsRaw.push({ round: 1, colLetter: 'C', raw: String(row[2] || '').trim() });
+        postponeRoundsRaw.push({ round: 2, colLetter: 'D', raw: String(row[3] || '').trim() });
+        postponeRoundsRaw.push({ round: 3, colLetter: 'E', raw: String(row[4] || '').trim() });
+        postponeRoundsRaw.push({ round: 4, colLetter: 'F', raw: String(row[5] || '').trim() });
+        postponeRoundsRaw.push({ round: 5, colLetter: 'G', raw: String(row[6] || '').trim() });
+        topicVal = String(row[7] || '').trim();
+        askerVal = String(row[8] || '').trim();
+        ministerVal = String(row[9] || '').trim();
+        statusVal = String(row[10] || '').trim();
+      } else if (row.length >= 7) {
+        rawOrder = String(row[0] || '').trim();
+        scheduledVal = String(row[1] || '').trim();
+        postponeRoundsRaw.push({ round: 1, colLetter: 'C', raw: String(row[2] || '').trim() });
         topicVal = String(row[3] || '').trim();
         askerVal = String(row[4] || '').trim();
         ministerVal = String(row[5] || '').trim();
         statusVal = String(row[6] || '').trim();
-      } else if (row.length >= 6) {
-        rawOrder = String(row[0] || '').trim();
-        postponedVal = String(row[2] || '').trim();
-        topicVal = String(row[3] || '').trim();
-        askerVal = String(row[4] || '').trim();
-        ministerVal = String(row[5] || '').trim();
       } else if (row.length === 5) {
         rawOrder = String(row[0] || '').trim();
         topicVal = String(row[1] || '').trim();
         askerVal = String(row[2] || '').trim();
         ministerVal = String(row[3] || '').trim();
-        postponedVal = String(row[4] || '').trim();
+        postponeRoundsRaw.push({ round: 1, colLetter: 'C', raw: String(row[4] || '').trim() });
       } else {
         rawOrder = String(row[0] || '').trim();
         topicVal = String(row[1] || '').trim();
@@ -675,11 +725,31 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
     nextAutoOrder = Math.max(nextAutoOrder, orderVal + 1);
 
     if (topicVal) {
-      let cleanPostponedDate: string | undefined = undefined;
-      if (postponedVal && postponedVal.trim().length > 0) {
-        const parsedISO = parseThaiOrISODate(postponedVal);
-        cleanPostponedDate = parsedISO || postponedVal.trim();
-      }
+      // Build postpone history items and sequence
+      const postponeHistoryItems: PostponeHistoryItem[] = [];
+      const postponedDates: string[] = [];
+      const postponeHistory: string[] = [];
+
+      postponeRoundsRaw.forEach((item) => {
+        if (item.raw && item.raw.trim().length > 0) {
+          const parsedISO = parseThaiOrISODate(item.raw);
+          const thaiFormatted = parsedISO ? formatThaiShortDate(parsedISO, false) : item.raw;
+          postponeHistoryItems.push({
+            round: item.round,
+            colLetter: item.colLetter,
+            rawDate: item.raw.trim(),
+            isoDate: parsedISO || undefined,
+            thaiFormatted
+          });
+          postponedDates.push(parsedISO || item.raw.trim());
+          postponeHistory.push(item.raw.trim());
+        }
+      });
+
+      // Active/latest postpone date is the latest non-empty date in the history
+      const latestPostponeItem = postponeHistoryItems[postponeHistoryItems.length - 1];
+      const cleanPostponedDate = latestPostponeItem ? (latestPostponeItem.isoDate || latestPostponeItem.rawDate) : undefined;
+      const postponedSheetRaw = postponeHistoryItems.map((h) => `ครั้งที่ ${h.round} (${h.colLetter}): ${h.rawDate}`).join(' | ');
 
       // Check if status is "ตอบแล้ว" or "ขอถอน"
       const isAnswered = statusVal.includes('ตอบแล้ว') || statusVal.toLowerCase() === 'answered';
@@ -701,8 +771,12 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
         minister: ministerVal || 'ไม่ระบุรัฐมนตรี',
         scheduledDate: scheduledVal || undefined,
         postponedDate: cleanPostponedDate,
-        postponedSheetRaw: postponedVal.trim() || undefined,
-        isPostponedInSheet: !!cleanPostponedDate,
+        postponedSheetRaw: postponedSheetRaw || undefined,
+        postponedDates: postponedDates.length > 0 ? postponedDates : undefined,
+        postponeHistoryItems: postponeHistoryItems.length > 0 ? postponeHistoryItems : undefined,
+        postponeCount: postponeHistoryItems.length,
+        postponeHistory: postponeHistory.length > 0 ? postponeHistory : undefined,
+        isPostponedInSheet: postponeHistoryItems.length > 0,
         sheetRowIndex: i + 1,
         status: qStatus,
         rawStatus: statusVal.trim() || undefined,

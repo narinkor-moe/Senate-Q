@@ -38,10 +38,13 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "การกำกับดูแลการขนส่ง การใช้ประโยชน์ และความรับผิดชอบต่อผลกระทบของกากอุตสาหกรรมจากโรงไฟฟ้าหงสา สปป.ลาว ที่ขนส่งเข้ามาในประเทศไทย",
     "asker": "นายมังกร ศรีเจริญกูล",
     "minister": "รัฐมนตรีว่าการกระทรวงอุตสาหกรรม",
-    "isPostponedInSheet": false,
+    "scheduledDate": "14/09/2026",
+    "postponedDate": "2026-09-21",
+    "postponedSheetRaw": "21/09/2026",
+    "isPostponedInSheet": true,
     "sheetRowIndex": 4,
-    "status": "pending",
-    "rawStatus": "รอการบรรจุ",
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
     "isAnswered": false
   },
   {

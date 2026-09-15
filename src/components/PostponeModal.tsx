@@ -177,24 +177,43 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
         </div>
 
         {/* Google Sheet Verification Banner */}
-        {question.isPostponedInSheet || question.postponedSheetRaw ? (
+        {question.isPostponedInSheet || question.postponedSheetRaw || (question.postponeHistoryItems && question.postponeHistoryItems.length > 0) ? (
           <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-950">
             <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-            <div className="flex-1 space-y-0.5">
+            <div className="flex-1 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-emerald-900">
-                  ตรวจพบวันเลื่อนตอบใน Google Sheet แล้ว
+                  ตรวจพบประวัติการขอเลื่อนตอบใน Google Sheet
                 </span>
                 <span className="text-[10px] bg-emerald-200/80 text-emerald-900 px-1.5 py-0.2 rounded font-bold border border-emerald-300">
-                  {targetCellName}
+                  {question.postponeHistoryItems && question.postponeHistoryItems.length > 1
+                    ? `เลื่อนรวม ${question.postponeHistoryItems.length} ครั้ง (Cols C-${question.postponeHistoryItems[question.postponeHistoryItems.length - 1].colLetter})`
+                    : targetCellName}
                 </span>
               </div>
-              <p className="text-emerald-800 text-[11px]">
-                ค่าปัจจุบันในคอลัมน์ "เลื่อนตอบวันที่":{' '}
-                <strong className="text-emerald-950 underline font-mono text-xs">
-                  {question.postponedSheetRaw || question.postponedDate}
-                </strong>
-              </p>
+              
+              {question.postponeHistoryItems && question.postponeHistoryItems.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                  {question.postponeHistoryItems.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between bg-white/80 p-1.5 rounded border border-emerald-200/60 text-[11px]"
+                    >
+                      <span className="font-bold text-emerald-900">
+                        ครั้งที่ {item.round} (Col {item.colLetter}):
+                      </span>
+                      <span className="font-mono text-emerald-950 font-semibold">{item.rawDate}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-emerald-800 text-[11px]">
+                  ค่าปัจจุบันในคอลัมน์ C:{' '}
+                  <strong className="text-emerald-950 underline font-mono text-xs">
+                    {question.postponedSheetRaw || question.postponedDate}
+                  </strong>
+                </p>
+              )}
             </div>
           </div>
         ) : (
@@ -362,9 +381,9 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
               สิทธิ์และเกณฑ์การจัดลำดับเมื่อขอเลื่อนวันตอบ:
             </div>
             <ul className="list-disc list-inside space-y-0.5 text-sky-800 leading-relaxed pl-0.5">
-              <li>ได้สิทธิ์เป็น <strong>ลำดับแรก (Prioritized Slot)</strong> ในวันที่ขอเลื่อนไปตอบ</li>
-              <li>สามารถจัด <strong>เกิน 3 กระทู้ได้</strong> ในวันดังกล่าว</li>
-              <li><strong>ชื่อผู้ตั้งถามห้ามซ้ำกัน</strong> กับกระทู้อื่นในวันนั้น</li>
+              <li>กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็น <strong>ลำดับแรก</strong> ในวันที่ขอเลื่อนไปตอบ (เรียงตามลำดับที่ยื่น)</li>
+              <li>จัดกระทู้ถามลำดับถัดไปที่เพิ่มใหม่อีก <strong>3 กระทู้ถาม</strong> ตามลำดับที่ยื่น</li>
+              <li><strong>ชื่อผู้ตั้งถามห้ามซ้ำกัน</strong> กับกระทู้อื่นในวันประชุมเดียวกัน</li>
             </ul>
           </div>
 
