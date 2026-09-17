@@ -71,7 +71,7 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
   if (!isOpen || !question) return null;
 
   const targetSheetRow = question.sheetRowIndex || question.submittedOrder + 1;
-  const targetCellName = `Data!C${targetSheetRow}`;
+  const targetCellName = `Data!D${targetSheetRow}`;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,7 +208,7 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
                 </div>
               ) : (
                 <p className="text-emerald-800 text-[11px]">
-                  ค่าปัจจุบันในคอลัมน์ C:{' '}
+                  ค่าปัจจุบันในคอลัมน์ D:{' '}
                   <strong className="text-emerald-950 underline font-mono text-xs">
                     {question.postponedSheetRaw || question.postponedDate}
                   </strong>

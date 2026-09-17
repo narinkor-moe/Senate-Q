@@ -12,8 +12,6 @@ import {
   Clock,
   Sparkles,
   FileX2,
-  CheckCheck,
-  HelpCircle,
 } from 'lucide-react';
 
 interface AskerStatsSectionProps {
@@ -86,43 +84,20 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
       {!isCollapsed && (
         <div className="p-4 space-y-4">
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200/80">
               <span className="text-[11px] font-semibold text-slate-500 block">ผู้ตั้งถามทั้งหมด</span>
               <div className="mt-1 flex items-baseline gap-1.5">
                 <span className="text-xl font-bold text-slate-800">{stats.totalUniqueAskers}</span>
                 <span className="text-xs text-slate-500">ท่าน</span>
               </div>
-              <div className="text-[10px] text-slate-400 mt-0.5">
-                ทั้งหมด {stats.totalQuestions} กระทู้
-              </div>
             </div>
 
-            <div className="p-3 rounded-lg bg-amber-50/70 border border-amber-300/80" title={`กระทู้ที่รอการตอบจากรัฐมนตรีรวม ${stats.totalPendingAnswerQuestions} เรื่อง (${stats.pendingAnswerPercentage}%) จาก ส.ว. ${stats.askersWithPendingAnswer} ท่าน`}>
-              <span className="text-[11px] font-bold text-amber-900 flex items-center justify-between">
-                <span>กระทู้รอตอบ</span>
-                <span className="text-[10px] font-semibold text-amber-700 bg-amber-100/80 px-1 rounded">{stats.pendingAnswerPercentage}%</span>
-              </span>
+            <div className="p-3 rounded-lg bg-emerald-50/50 border border-emerald-200/60">
+              <span className="text-[11px] font-semibold text-emerald-700 block">เฉลี่ยต่อท่าน</span>
               <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-amber-700">{stats.totalPendingAnswerQuestions}</span>
-                <span className="text-xs text-amber-800 font-semibold">เรื่อง</span>
-              </div>
-              <div className="text-[10px] text-amber-800/80 mt-0.5">
-                จาก ส.ว. {stats.askersWithPendingAnswer} ท่าน
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-300/80" title={`กระทู้ที่ตอบแล้วรวม ${stats.totalAnsweredQuestions} เรื่อง (${stats.answeredPercentage}%) จาก ส.ว. ${stats.askersWithAnswered} ท่าน`}>
-              <span className="text-[11px] font-bold text-emerald-900 flex items-center justify-between">
-                <span>ตอบแล้ว</span>
-                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100/80 px-1 rounded">{stats.answeredPercentage}%</span>
-              </span>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-emerald-700">{stats.totalAnsweredQuestions}</span>
-                <span className="text-xs text-emerald-800 font-semibold">เรื่อง</span>
-              </div>
-              <div className="text-[10px] text-emerald-800/80 mt-0.5">
-                {stats.askersWithAnswered > 0 ? `จาก ส.ว. ${stats.askersWithAnswered} ท่าน` : 'ยังไม่มีการตอบ'}
+                <span className="text-xl font-bold text-emerald-800">{stats.avgQuestionsPerAsker}</span>
+                <span className="text-xs text-emerald-600">เรื่อง</span>
               </div>
             </div>
 
@@ -132,9 +107,6 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
                 <span className="text-xl font-bold text-blue-800">{stats.askersWithOfficial}</span>
                 <span className="text-xs text-blue-600">ท่าน</span>
               </div>
-              <div className="text-[10px] text-blue-500 mt-0.5">
-                เฉลี่ย {stats.avgQuestionsPerAsker} เรื่อง/ท่าน
-              </div>
             </div>
 
             <div className="p-3 rounded-lg bg-amber-50/50 border border-amber-200/60" title={`สถิติขอเลื่อนตอบรวม ${stats.totalPostponeTimes} ครั้ง (${stats.totalPostponedQuestions} เรื่อง, ${stats.askersWithPostponed} ท่าน)`}>
@@ -142,9 +114,6 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
               <div className="mt-1 flex items-baseline gap-1.5">
                 <span className="text-xl font-bold text-amber-800">{stats.totalPostponeTimes}</span>
                 <span className="text-xs text-amber-600">ครั้ง ({stats.totalPostponedQuestions} เรื่อง)</span>
-              </div>
-              <div className="text-[10px] text-amber-600 mt-0.5">
-                จาก ส.ว. {stats.askersWithPostponed} ท่าน
               </div>
             </div>
 
@@ -155,9 +124,6 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
                 <span className="text-xs text-rose-600">
                   เรื่อง {stats.askersWithWithdrawn > 0 ? `(${stats.askersWithWithdrawn} ท่าน)` : ''}
                 </span>
-              </div>
-              <div className="text-[10px] text-rose-500 mt-0.5">
-                ไม่นำมาจัดในวาระ
               </div>
             </div>
           </div>
@@ -204,32 +170,16 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
                         </span>
                         <span className="truncate">{asker.asker}</span>
                       </div>
-                      <div className={`text-[10px] mt-0.5 flex items-center gap-1.5 flex-wrap ${
+                      <div className={`text-[10px] mt-0.5 flex items-center gap-1.5 ${
                         isSelected ? 'text-sky-100' : 'text-slate-500'
                       }`}>
                         <span>{asker.totalQuestions} กระทู้</span>
                         <span>•</span>
-                        {asker.answeredCount > 0 && (
-                          <span className={isSelected ? 'text-emerald-200 font-semibold' : 'text-emerald-700 font-semibold'}>
-                            ตอบแล้ว {asker.answeredCount}
-                          </span>
-                        )}
-                        {asker.answeredCount > 0 && asker.pendingAnswerCount > 0 && <span>•</span>}
-                        {asker.pendingAnswerCount > 0 && (
-                          <span className={isSelected ? 'text-amber-200' : 'text-amber-800'}>
-                            รอตอบ {asker.pendingAnswerCount}
-                          </span>
-                        )}
+                        <span>{asker.percentageOfTotal}%</span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      {asker.answeredCount > 0 && (
-                        <span
-                          className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-300' : 'bg-emerald-600'}`}
-                          title={`ตอบแล้ว: ${asker.answeredCount} เรื่อง`}
-                        />
-                      )}
                       {asker.officialCount > 0 && (
                         <span
                           className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-600'}`}

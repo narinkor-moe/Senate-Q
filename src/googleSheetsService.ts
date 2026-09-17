@@ -75,8 +75,8 @@ export interface GoogleUserSession {
 export interface SheetPostponeInfo {
   submittedOrder: number;
   sheetRowNumber: number; // 1-based row number in Google Sheet (e.g., Row 2 for Order 1)
-  colLetter: string; // Column letter (e.g. "C")
-  cellRange: string; // Range string (e.g. "Data!C2")
+  colLetter: string; // Column letter (e.g. "D")
+  cellRange: string; // Range string (e.g. "Data!D2")
   rawDate: string; // Raw string from cell (e.g. "21 ก.ย. 26")
   parsedISO: string | null; // Parsed ISO YYYY-MM-DD (e.g. "2026-09-21")
   hasDate: boolean; // True if column "เลื่อนตอบวันที่" has a non-empty date
@@ -342,7 +342,7 @@ export async function fetchPostponeMapFromSheet(
   spreadsheetId: string = DEFAULT_SHEET_ID,
   sheetName: string = DEFAULT_SHEET_NAME
 ): Promise<Map<number, SheetPostponeInfo>> {
-  const rows = await fetchSheetRows(spreadsheetId, { sheetName, range: 'A1:G100' });
+  const rows = await fetchSheetRows(spreadsheetId, { sheetName, range: 'A1:Z500' });
   const resultMap = new Map<number, SheetPostponeInfo>();
 
   if (!rows || rows.length === 0) {
@@ -352,12 +352,12 @@ export async function fetchPostponeMapFromSheet(
   // Find header row and columns
   let headerIndex = -1;
   let colOrder = 0; // Col A
-  let colPostponed1 = 2; // Col C
-  let colPostponed2 = 3; // Col D
-  let colPostponed3 = 4; // Col E
-  let colPostponed4 = 5; // Col F
-  let colPostponed5 = 6; // Col G
-  let colStatus = 10; // Col K
+  let colPostponed1 = 3; // Col D (เลื่อนตอบ ครั้งที่ 1)
+  let colPostponed2 = 4; // Col E (เลื่อนตอบ ครั้งที่ 2)
+  let colPostponed3 = 5; // Col F (เลื่อนตอบ ครั้งที่ 3)
+  let colPostponed4 = 6; // Col G (เลื่อนตอบ ครั้งที่ 4)
+  let colPostponed5 = 7; // Col H (เลื่อนตอบ ครั้งที่ 5)
+  let colStatus = 11; // Col L
 
   for (let r = 0; r < Math.min(rows.length, 5); r++) {
     const row = rows[r];
@@ -388,7 +388,7 @@ export async function fetchPostponeMapFromSheet(
   }
 
   const startRowIdx = headerIndex !== -1 ? headerIndex + 1 : 1;
-  const colLetter = String.fromCharCode(65 + colPostponed1); // e.g. 'C'
+  const colLetter = String.fromCharCode(65 + colPostponed1); // e.g. 'D'
 
   for (let i = startRowIdx; i < rows.length; i++) {
     const row = rows[i];
@@ -512,7 +512,7 @@ export async function updateSheetCell(
 
 /**
  * Save or clear the postponement date in Google Sheet for a given question's submittedOrder
- * Support specifying postponeRound (1 = Col C, 2 = Col D, 3 = Col E, 4 = Col F, 5 = Col G)
+ * Support specifying postponeRound (1 = Col D, 2 = Col E, 3 = Col F, 4 = Col G, 5 = Col H)
  */
 export async function savePostponeDateToSheet(
   submittedOrder: number,
@@ -528,8 +528,8 @@ export async function savePostponeDateToSheet(
 }> {
   // First, find the exact row number for this submittedOrder
   let targetRowNumber = -1;
-  const roundLetters = ['C', 'D', 'E', 'F', 'G'];
-  let targetColLetter = roundLetters[Math.max(0, Math.min(postponeRound - 1, 4))] || 'C';
+  const roundLetters = ['D', 'E', 'F', 'G', 'H'];
+  let targetColLetter = roundLetters[Math.max(0, Math.min(postponeRound - 1, 4))] || 'D';
 
   try {
     const sheetMap = await fetchPostponeMapFromSheet(spreadsheetId, sheetName);
@@ -568,15 +568,15 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
   let headerIndex = -1;
   let colOrder = 0;
   let colScheduled = 1;
-  let colPostponed1 = 2; // Col C
-  let colPostponed2 = 3; // Col D
-  let colPostponed3 = 4; // Col E
-  let colPostponed4 = 5; // Col F
-  let colPostponed5 = 6; // Col G
-  let colTopic = 7;
-  let colAsker = 8;
-  let colMinister = 9;
-  let colStatus = 10;
+  let colPostponed1 = 3; // Col D (เลื่อนตอบ ครั้งที่ 1)
+  let colPostponed2 = 4; // Col E (เลื่อนตอบ ครั้งที่ 2)
+  let colPostponed3 = 5; // Col F (เลื่อนตอบ ครั้งที่ 3)
+  let colPostponed4 = 6; // Col G (เลื่อนตอบ ครั้งที่ 4)
+  let colPostponed5 = 7; // Col H (เลื่อนตอบ ครั้งที่ 5)
+  let colTopic = 8;
+  let colAsker = 9;
+  let colMinister = 10;
+  let colStatus = 11;
 
   // 1. Try to detect header row
   for (let r = 0; r < Math.min(rows.length, 5); r++) {
@@ -636,11 +636,11 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
 
     const postponeRoundsRaw: { round: number; colLetter: string; raw: string }[] = [];
     const roundColIndices = [
-      { round: 1, colLetter: 'C', idx: colPostponed1 },
-      { round: 2, colLetter: 'D', idx: colPostponed2 },
-      { round: 3, colLetter: 'E', idx: colPostponed3 },
-      { round: 4, colLetter: 'F', idx: colPostponed4 },
-      { round: 5, colLetter: 'G', idx: colPostponed5 },
+      { round: 1, colLetter: 'D', idx: colPostponed1 },
+      { round: 2, colLetter: 'E', idx: colPostponed2 },
+      { round: 3, colLetter: 'F', idx: colPostponed3 },
+      { round: 4, colLetter: 'G', idx: colPostponed4 },
+      { round: 5, colLetter: 'H', idx: colPostponed5 },
     ];
 
     if (headerIndex !== -1) {
@@ -656,15 +656,28 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
         postponeRoundsRaw.push({ round, colLetter, raw: val });
       });
     } else {
-      if (row.length >= 11) {
-        // Standard full layout: [Order, Scheduled, Postpone1, Postpone2, Postpone3, Postpone4, Postpone5, Topic, Asker, Minister, Status]
+      if (row.length >= 12) {
+        // Full layout: [Order (0), Scheduled (1), FirstAgenda (2), Postpone1 (3 - Col D), Postpone2 (4 - Col E), Postpone3 (5 - Col F), Postpone4 (6 - Col G), Postpone5 (7 - Col H), Topic (8), Asker (9), Minister (10), Status (11)]
         rawOrder = String(row[0] || '').trim();
         scheduledVal = String(row[1] || '').trim();
-        postponeRoundsRaw.push({ round: 1, colLetter: 'C', raw: String(row[2] || '').trim() });
-        postponeRoundsRaw.push({ round: 2, colLetter: 'D', raw: String(row[3] || '').trim() });
-        postponeRoundsRaw.push({ round: 3, colLetter: 'E', raw: String(row[4] || '').trim() });
-        postponeRoundsRaw.push({ round: 4, colLetter: 'F', raw: String(row[5] || '').trim() });
-        postponeRoundsRaw.push({ round: 5, colLetter: 'G', raw: String(row[6] || '').trim() });
+        postponeRoundsRaw.push({ round: 1, colLetter: 'D', raw: String(row[3] || '').trim() });
+        postponeRoundsRaw.push({ round: 2, colLetter: 'E', raw: String(row[4] || '').trim() });
+        postponeRoundsRaw.push({ round: 3, colLetter: 'F', raw: String(row[5] || '').trim() });
+        postponeRoundsRaw.push({ round: 4, colLetter: 'G', raw: String(row[6] || '').trim() });
+        postponeRoundsRaw.push({ round: 5, colLetter: 'H', raw: String(row[7] || '').trim() });
+        topicVal = String(row[8] || '').trim();
+        askerVal = String(row[9] || '').trim();
+        ministerVal = String(row[10] || '').trim();
+        statusVal = String(row[11] || '').trim();
+      } else if (row.length >= 11) {
+        // Standard full layout: [Order, Scheduled, Postpone1 (Col D), Postpone2 (Col E), Postpone3 (Col F), Postpone4 (Col G), Postpone5 (Col H), Topic, Asker, Minister, Status]
+        rawOrder = String(row[0] || '').trim();
+        scheduledVal = String(row[1] || '').trim();
+        postponeRoundsRaw.push({ round: 1, colLetter: 'D', raw: String(row[2] || '').trim() });
+        postponeRoundsRaw.push({ round: 2, colLetter: 'E', raw: String(row[3] || '').trim() });
+        postponeRoundsRaw.push({ round: 3, colLetter: 'F', raw: String(row[4] || '').trim() });
+        postponeRoundsRaw.push({ round: 4, colLetter: 'G', raw: String(row[5] || '').trim() });
+        postponeRoundsRaw.push({ round: 5, colLetter: 'H', raw: String(row[6] || '').trim() });
         topicVal = String(row[7] || '').trim();
         askerVal = String(row[8] || '').trim();
         ministerVal = String(row[9] || '').trim();
@@ -672,7 +685,7 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
       } else if (row.length >= 7) {
         rawOrder = String(row[0] || '').trim();
         scheduledVal = String(row[1] || '').trim();
-        postponeRoundsRaw.push({ round: 1, colLetter: 'C', raw: String(row[2] || '').trim() });
+        postponeRoundsRaw.push({ round: 1, colLetter: 'D', raw: String(row[2] || '').trim() });
         topicVal = String(row[3] || '').trim();
         askerVal = String(row[4] || '').trim();
         ministerVal = String(row[5] || '').trim();
@@ -682,7 +695,7 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
         topicVal = String(row[1] || '').trim();
         askerVal = String(row[2] || '').trim();
         ministerVal = String(row[3] || '').trim();
-        postponeRoundsRaw.push({ round: 1, colLetter: 'C', raw: String(row[4] || '').trim() });
+        postponeRoundsRaw.push({ round: 1, colLetter: 'D', raw: String(row[4] || '').trim() });
       } else {
         rawOrder = String(row[0] || '').trim();
         topicVal = String(row[1] || '').trim();

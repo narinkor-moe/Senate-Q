@@ -1,6 +1,6 @@
 export interface PostponeHistoryItem {
   round: number; // ครั้งที่ 1, 2, 3, 4, 5
-  colLetter: string; // 'C' (ครั้งที่ 1), 'D' (ครั้งที่ 2), 'E' (ครั้งที่ 3), 'F' (ครั้งที่ 4), 'G' (ครั้งที่ 5)
+  colLetter: string; // 'D' (ครั้งที่ 1), 'E' (ครั้งที่ 2), 'F' (ครั้งที่ 3), 'G' (ครั้งที่ 4), 'H' (ครั้งที่ 5)
   rawDate: string; // ข้อความเดิมจาก Google Sheet เช่น "14/09/2026", "28/9/2026"
   isoDate?: string; // วันที่ในรูปแบบ ISO เช่น "2026-09-14", "2026-09-28"
   thaiFormatted?: string; // วันที่ภาษาไทย เช่น "14 ก.ย. 2569"
@@ -15,10 +15,10 @@ export interface QuestionItem {
   submittingDate?: string; // วันที่ยื่น (optional)
   postponedDate?: string; // เลื่อนตอบวันที่ (เช่น 2026-09-14 หรือ 14 ก.ย. 2569)
   postponedSheetRaw?: string; // ข้อความเดิมจากคอลัมน์ "เลื่อนตอบวันที่" ใน Sheet เช่น "21 ก.ย. 26"
-  postponedDates?: string[]; // รายการวันที่ขอเลื่อนตอบตามลำดับรอบ [ครั้งที่ 1 (C), ครั้งที่ 2 (D), ครั้งที่ 3 (E), ครั้งที่ 4 (F), ครั้งที่ 5 (G)]
+  postponedDates?: string[]; // รายการวันที่ขอเลื่อนตอบตามลำดับรอบ [ครั้งที่ 1 (D), ครั้งที่ 2 (E), ครั้งที่ 3 (F), ครั้งที่ 4 (G), ครั้งที่ 5 (H)]
   postponeHistoryItems?: PostponeHistoryItem[]; // รายการประวัติการเลื่อนตอบแต่ละรอบพร้อมคอลัมน์
   isPostponedInSheet?: boolean; // ตรวจพบวันเลื่อนตอบใน Google Sheet หรือไม่
-  sheetRowIndex?: number; // ลำดับแถวใน Google Sheet เช่น แถวที่ 2 (Data!C2)
+  sheetRowIndex?: number; // ลำดับแถวใน Google Sheet เช่น แถวที่ 2 (Data!D2)
   notes?: string; // หมายเหตุ
   status?: 'pending' | 'scheduled' | 'postponed' | 'completed' | 'answered' | 'withdrawn';
   rawStatus?: string; // สถานะตามคอลัมน์ใน Google Sheet เช่น "ตอบแล้ว", "เลื่อนตอบ", "รอการบรรจุ", "ขอถอน", "ถอนกระทู้"
@@ -38,8 +38,8 @@ export interface ScheduledQuestion {
   postponedFromDate?: string; // วันที่/สัปดาห์เดิมที่เลื่อนมา
   isPostponedNow?: boolean; // ในสัปดาห์นี้ขอเลื่อนตอบต่อหรือไม่
   postponeRound?: number; // รอบการเลื่อนตอบ (1, 2, 3, 4, 5)
-  nextPostponedDate?: string; // วันที่เลื่อนต่อไปในรอบนี้ (เช่น จากคอลัมน์ D, E, F, G)
-  postponeColLetter?: string; // ตัวอักษรคอลัมน์ใน Google Sheet เช่น 'C', 'D', 'E', 'F', 'G'
+  nextPostponedDate?: string; // วันที่เลื่อนต่อไปในรอบนี้ (เช่น จากคอลัมน์ E, F, G, H)
+  postponeColLetter?: string; // ตัวอักษรคอลัมน์ใน Google Sheet เช่น 'D', 'E', 'F', 'G', 'H'
   projectionType?: 'official_agenda' | 'postponed_priority' | 'projected_regular'; // ประเภทการบรรจุ
 }
 

@@ -82,11 +82,11 @@ export interface PostponeAnalytics {
 }
 
 const ROUND_COLUMNS: { round: number; colLetter: string; name: string }[] = [
-  { round: 1, colLetter: 'C', name: 'ครั้งที่ 1 (คอลัมน์ C)' },
-  { round: 2, colLetter: 'D', name: 'ครั้งที่ 2 (คอลัมน์ D)' },
-  { round: 3, colLetter: 'E', name: 'ครั้งที่ 3 (คอลัมน์ E)' },
-  { round: 4, colLetter: 'F', name: 'ครั้งที่ 4 (คอลัมน์ F)' },
-  { round: 5, colLetter: 'G', name: 'ครั้งที่ 5 (คอลัมน์ G)' },
+  { round: 1, colLetter: 'D', name: 'ครั้งที่ 1 (คอลัมน์ D)' },
+  { round: 2, colLetter: 'E', name: 'ครั้งที่ 2 (คอลัมน์ E)' },
+  { round: 3, colLetter: 'F', name: 'ครั้งที่ 3 (คอลัมน์ F)' },
+  { round: 4, colLetter: 'G', name: 'ครั้งที่ 4 (คอลัมน์ G)' },
+  { round: 5, colLetter: 'H', name: 'ครั้งที่ 5 (คอลัมน์ H)' },
 ];
 
 /**
@@ -104,7 +104,7 @@ export function getQuestionPostponeHistoryItems(
   // If array of postponedDates exists
   if (Array.isArray(q.postponedDates) && q.postponedDates.length > 0) {
     return q.postponedDates.map((raw, idx) => {
-      const colLetter = ROUND_COLUMNS[idx]?.colLetter || String.fromCharCode(67 + idx);
+      const colLetter = ROUND_COLUMNS[idx]?.colLetter || String.fromCharCode(68 + idx);
       const iso = parseThaiOrISODate(raw) || undefined;
       return {
         round: idx + 1,
@@ -123,7 +123,7 @@ export function getQuestionPostponeHistoryItems(
     return [
       {
         round: 1,
-        colLetter: 'C',
+        colLetter: 'D',
         rawDate: raw || (iso ? formatThaiShortDate(iso) : 'ระบุขอเลื่อน'),
         isoDate: iso,
         thaiFormatted: iso ? formatThaiShortDate(iso) : raw || 'ระบุขอเลื่อน',

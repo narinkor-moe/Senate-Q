@@ -83,36 +83,26 @@ export function generateReportHtml(
         <h3 class="section-title">รายงานสถิติผู้ตั้งกระทู้ถาม (วุฒิสภา) - รวมสมาชิกวุฒิสภา ${askerStats.totalUniqueAskers} ท่าน (${totalQuestions} กระทู้)</h3>
         
         <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 130px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; text-align: center;">
+          <div style="flex: 1; min-width: 140px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; text-align: center;">
             <div style="font-size: 11px; color: #64748b; font-weight: bold;">ผู้ตั้งถามทั้งหมด</div>
             <div style="font-size: 20px; font-weight: bold; color: #0f172a; margin-top: 2px;">${askerStats.totalUniqueAskers} ท่าน</div>
-            <div style="font-size: 10px; color: #94a3b8;">ทั้งหมด ${totalQuestions} เรื่อง</div>
           </div>
-          <div style="flex: 1; min-width: 130px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px; text-align: center;">
-            <div style="font-size: 11px; color: #92400e; font-weight: bold;">กระทู้รอตอบ</div>
-            <div style="font-size: 20px; font-weight: bold; color: #b45309; margin-top: 2px;">${askerStats.totalPendingAnswerQuestions} เรื่อง</div>
-            <div style="font-size: 10px; color: #b45309;">${askerStats.pendingAnswerPercentage}% (ส.ว. ${askerStats.askersWithPendingAnswer} ท่าน)</div>
+          <div style="flex: 1; min-width: 140px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; font-weight: bold;">เฉลี่ยกระทู้ต่อท่าน</div>
+            <div style="font-size: 20px; font-weight: bold; color: #047857; margin-top: 2px;">${askerStats.avgQuestionsPerAsker} เรื่อง</div>
           </div>
-          <div style="flex: 1; min-width: 130px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 10px; text-align: center;">
-            <div style="font-size: 11px; color: #065f46; font-weight: bold;">กระทู้ตอบแล้ว</div>
-            <div style="font-size: 20px; font-weight: bold; color: #047857; margin-top: 2px;">${askerStats.totalAnsweredQuestions} เรื่อง</div>
-            <div style="font-size: 10px; color: #047857;">${askerStats.answeredPercentage}% (ส.ว. ${askerStats.askersWithAnswered} ท่าน)</div>
-          </div>
-          <div style="flex: 1; min-width: 130px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; text-align: center;">
+          <div style="flex: 1; min-width: 140px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; text-align: center;">
             <div style="font-size: 11px; color: #64748b; font-weight: bold;">มีวาระทางการแล้ว</div>
             <div style="font-size: 20px; font-weight: bold; color: #1d4ed8; margin-top: 2px;">${askerStats.askersWithOfficial} ท่าน</div>
-            <div style="font-size: 10px; color: #64748b;">เฉลี่ย ${askerStats.avgQuestionsPerAsker} เรื่อง/ท่าน</div>
           </div>
-          <div style="flex: 1; min-width: 130px; background: #fefce8; border: 1px solid #fef08a; border-radius: 6px; padding: 10px; text-align: center;">
-            <div style="font-size: 11px; color: #854d0e; font-weight: bold;">สถิติขอเลื่อนตอบ</div>
-            <div style="font-size: 20px; font-weight: bold; color: #a16207; margin-top: 2px;">${askerStats.totalPostponedTimes} ครั้ง</div>
-            <div style="font-size: 10px; color: #a16207;">${askerStats.totalPostponedQuestions} เรื่อง (${askerStats.askersWithPostponed} ท่าน)</div>
+          <div style="flex: 1; min-width: 140px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 11px; color: #64748b; font-weight: bold;">มีกระทู้ขอเลื่อนตอบ</div>
+            <div style="font-size: 20px; font-weight: bold; color: #b45309; margin-top: 2px;">${askerStats.askersWithPostponed} ท่าน</div>
           </div>
-          ${askerStats.totalWithdrawnQuestions > 0 ? `
-          <div style="flex: 1; min-width: 130px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; padding: 10px; text-align: center;">
-            <div style="font-size: 11px; color: #9f1239; font-weight: bold;">ขอถอนกระทู้</div>
-            <div style="font-size: 20px; font-weight: bold; color: #e11d48; margin-top: 2px;">${askerStats.totalWithdrawnQuestions} เรื่อง</div>
-            <div style="font-size: 10px; color: #e11d48;">จาก ส.ว. ${askerStats.askersWithWithdrawn} ท่าน</div>
+          ${askerStats.askersWithWithdrawn > 0 ? `
+          <div style="flex: 1; min-width: 140px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; padding: 10px; text-align: center;">
+            <div style="font-size: 11px; color: #9f1239; font-weight: bold;">มีกระทู้ขอถอน</div>
+            <div style="font-size: 20px; font-weight: bold; color: #e11d48; margin-top: 2px;">${askerStats.askersWithWithdrawn} ท่าน</div>
           </div>
           ` : ''}
         </div>
@@ -120,17 +110,17 @@ export function generateReportHtml(
         <table class="report-table">
           <thead>
             <tr>
-              <th style="width: 45px; text-align: center;">ลำดับ</th>
+              <th style="width: 55px; text-align: center;">ลำดับที่</th>
               <th>ชื่อผู้ตั้งกระทู้ถาม (สมาชิกวุฒิสภา)</th>
-              <th style="width: 75px; text-align: center;">รวมยื่น</th>
-              <th style="width: 75px; text-align: center;">รอตอบ</th>
-              <th style="width: 75px; text-align: center;">ตอบแล้ว</th>
-              <th style="width: 85px; text-align: center;">วาระทางการ</th>
-              <th style="width: 75px; text-align: center;">คาดการณ์</th>
+              <th style="width: 90px; text-align: center;">รวมยื่น</th>
+              <th style="width: 95px; text-align: center;">วาระทางการ</th>
+              <th style="width: 85px; text-align: center;">คาดการณ์</th>
               <th style="width: 85px; text-align: center;">ขอเลื่อน</th>
-              <th style="width: 70px; text-align: center;">ขอถอน</th>
+              <th style="width: 80px; text-align: center;">ตอบแล้ว</th>
+              <th style="width: 80px; text-align: center;">ขอถอน</th>
+              <th style="width: 75px; text-align: center;">รอคิว</th>
               <th style="${isLandscape ? 'width: 220px;' : 'width: 160px;'}">กระทรวงหลักที่ตั้งถาม</th>
-              <th style="width: 65px; text-align: center;">สัดส่วน</th>
+              <th style="width: 70px; text-align: center;">สัดส่วน</th>
             </tr>
           </thead>
           <tbody>
@@ -139,12 +129,12 @@ export function generateReportHtml(
                 <td style="text-align: center; font-weight: bold;">${a.rank}</td>
                 <td><strong>${escapeHtml(a.asker)}</strong></td>
                 <td style="text-align: center; font-weight: bold; color: #0369a1;">${a.totalQuestions}</td>
-                <td style="text-align: center; font-weight: bold; color: #b45309;">${a.pendingAnswerCount || '-'}</td>
-                <td style="text-align: center; font-weight: bold; color: #047857;">${a.answeredCount || '-'}</td>
-                <td style="text-align: center; color: #1d4ed8;">${a.officialCount || '-'}</td>
+                <td style="text-align: center; font-weight: bold; color: #1d4ed8;">${a.officialCount || '-'}</td>
                 <td style="text-align: center; color: #7e22ce;">${a.projectedCount || '-'}</td>
-                <td style="text-align: center; color: #b45309;">${(a.totalPostponeTimes || a.postponedCount) ? `${a.totalPostponeTimes || a.postponedCount} ครั้ง` : '-'}</td>
-                <td style="text-align: center; color: #e11d48;">${a.withdrawnCount || '-'}</td>
+                <td style="text-align: center; color: #b45309; font-weight: bold;">${a.postponedCount || '-'}</td>
+                <td style="text-align: center; color: #047857;">${a.answeredCount || '-'}</td>
+                <td style="text-align: center; color: #e11d48; font-weight: bold;">${a.withdrawnCount || '-'}</td>
+                <td style="text-align: center; color: #64748b;">${a.pendingCount || '-'}</td>
                 <td>${escapeHtml(a.topMinisters.slice(0, 2).map((m) => `${m.minister} (${m.count})`).join(', ') || '-')}</td>
                 <td style="text-align: center;">${a.percentageOfTotal}%</td>
               </tr>

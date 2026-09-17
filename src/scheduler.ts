@@ -372,7 +372,7 @@ export function getNextPostponeForMonday(
     return null;
   }
 
-  // 1. Check if question has explicit postponeHistoryItems (from Columns C, D, E, F, G)
+  // 1. Check if question has explicit postponeHistoryItems (from Columns D, E, F, G, H)
   if (question.postponeHistoryItems && question.postponeHistoryItems.length > 0) {
     for (const item of question.postponeHistoryItems) {
       const parsed = item.isoDate || parseThaiOrISODate(item.rawDate);
@@ -391,7 +391,7 @@ export function getNextPostponeForMonday(
 
   // 2. Check question.postponedDates array if present
   if (question.postponedDates && question.postponedDates.length > 0) {
-    const colLetters = ['C', 'D', 'E', 'F', 'G'];
+    const colLetters = ['D', 'E', 'F', 'G', 'H'];
     for (let r = 0; r < question.postponedDates.length; r++) {
       const raw = question.postponedDates[r];
       if (!raw || raw.trim() === '') continue;
@@ -401,7 +401,7 @@ export function getNextPostponeForMonday(
       if (targetMonday && targetMonday > currentMonday) {
         return {
           round: r + 1,
-          colLetter: colLetters[r] || 'C',
+          colLetter: colLetters[r] || 'D',
           targetMonday,
           rawDate: raw
         };
@@ -419,14 +419,14 @@ export function getNextPostponeForMonday(
           round: question.postponeCount || 1,
           colLetter:
             question.postponeCount === 2
-              ? 'D'
-              : question.postponeCount === 3
               ? 'E'
-              : question.postponeCount === 4
+              : question.postponeCount === 3
               ? 'F'
-              : question.postponeCount === 5
+              : question.postponeCount === 4
               ? 'G'
-              : 'C',
+              : question.postponeCount === 5
+              ? 'H'
+              : 'D',
           targetMonday,
           rawDate: question.postponedDate
         };
@@ -581,7 +581,7 @@ export function computeWeeklySchedules(
               question: q,
               originalDate: originMonday,
               arrivedFromRound: q.postponeCount || 1,
-              arrivedFromCol: 'C'
+              arrivedFromCol: 'D'
             });
             explicitPostponedByMonday.set(targetMonday, list);
           }
@@ -713,7 +713,7 @@ export function computeWeeklySchedules(
 
       const answered = isQuestionAnswered(item.question);
 
-      // ตรวจสอบว่ากระทู้ที่เลื่อนมาตอบวันนี้ มีการขอเลื่อนออกไปอีกหรือไม่ (เช่น ครั้งที่ 2, 3, 4, 5 จากคอลัมน์ D, E, F, G)
+      // ตรวจสอบว่ากระทู้ที่เลื่อนมาตอบวันนี้ มีการขอเลื่อนออกไปอีกหรือไม่ (เช่น ครั้งที่ 2, 3, 4, 5 จากคอลัมน์ E, F, G, H)
       const nextPostpone = !answered
         ? getNextPostponeForMonday(item.question, mondayDate, workingMondays)
         : null;
@@ -725,7 +725,7 @@ export function computeWeeklySchedules(
       const activeColLetter = isPostponedAgain
         ? nextPostpone!.colLetter
         : item.arrivedFromCol ||
-          (activeRound === 2 ? 'D' : activeRound === 3 ? 'E' : activeRound === 4 ? 'F' : activeRound === 5 ? 'G' : 'C');
+          (activeRound === 2 ? 'E' : activeRound === 3 ? 'F' : activeRound === 4 ? 'G' : activeRound === 5 ? 'H' : 'D');
 
       scheduledQuestions.push({
         question: item.question,
@@ -793,7 +793,7 @@ export function computeWeeklySchedules(
           isPostponedFromPrevious: false,
           isPostponedNow: isPostponed,
           postponeRound: postponeInfo ? postponeInfo.round : candidate.postponeCount || 1,
-          postponeColLetter: postponeInfo ? postponeInfo.colLetter : 'C',
+          postponeColLetter: postponeInfo ? postponeInfo.colLetter : 'D',
           nextPostponedDate: postponeInfo
             ? postponeInfo.targetMonday
             : candidate.postponedDate
@@ -829,7 +829,7 @@ export function computeWeeklySchedules(
                     question: candidate,
                     originalDate: mondayDate,
                     arrivedFromRound: candidate.postponeCount || 1,
-                    arrivedFromCol: 'C'
+                    arrivedFromCol: 'D'
                   });
                   explicitPostponedByMonday.set(targetMonday, list);
                 }
@@ -843,7 +843,7 @@ export function computeWeeklySchedules(
               question: candidate,
               originalDate: mondayDate,
               arrivedFromRound: postponeInfo ? postponeInfo.round : candidate.postponeCount || 1,
-              arrivedFromCol: postponeInfo ? postponeInfo.colLetter : 'C'
+              arrivedFromCol: postponeInfo ? postponeInfo.colLetter : 'D'
             });
           }
         }
@@ -871,7 +871,7 @@ export function computeWeeklySchedules(
           isPostponedFromPrevious: false,
           isPostponedNow: isPostponed,
           postponeRound: postponeInfo ? postponeInfo.round : candidate.postponeCount || 1,
-          postponeColLetter: postponeInfo ? postponeInfo.colLetter : 'C',
+          postponeColLetter: postponeInfo ? postponeInfo.colLetter : 'D',
           nextPostponedDate: postponeInfo
             ? postponeInfo.targetMonday
             : candidate.postponedDate
@@ -906,7 +906,7 @@ export function computeWeeklySchedules(
                     question: candidate,
                     originalDate: mondayDate,
                     arrivedFromRound: candidate.postponeCount || 1,
-                    arrivedFromCol: 'C'
+                    arrivedFromCol: 'D'
                   });
                   explicitPostponedByMonday.set(targetMonday, list);
                 }
@@ -919,7 +919,7 @@ export function computeWeeklySchedules(
               question: candidate,
               originalDate: mondayDate,
               arrivedFromRound: postponeInfo ? postponeInfo.round : candidate.postponeCount || 1,
-              arrivedFromCol: postponeInfo ? postponeInfo.colLetter : 'C'
+              arrivedFromCol: postponeInfo ? postponeInfo.colLetter : 'D'
             });
           }
         }
@@ -945,7 +945,7 @@ export function computeWeeklySchedules(
               isPostponedFromPrevious: false,
               isPostponedNow: isPostponed,
               postponeRound: postponeInfo ? postponeInfo.round : q.postponeCount || 1,
-              postponeColLetter: postponeInfo ? postponeInfo.colLetter : 'C',
+              postponeColLetter: postponeInfo ? postponeInfo.colLetter : 'D',
               nextPostponedDate: postponeInfo
                 ? postponeInfo.targetMonday
                 : q.postponedDate
@@ -981,7 +981,7 @@ export function computeWeeklySchedules(
                         question: q,
                         originalDate: mondayDate,
                         arrivedFromRound: q.postponeCount || 1,
-                        arrivedFromCol: 'C'
+                        arrivedFromCol: 'D'
                       });
                       explicitPostponedByMonday.set(targetMonday, list);
                     }
@@ -994,7 +994,7 @@ export function computeWeeklySchedules(
                   question: q,
                   originalDate: mondayDate,
                   arrivedFromRound: postponeInfo ? postponeInfo.round : q.postponeCount || 1,
-                  arrivedFromCol: postponeInfo ? postponeInfo.colLetter : 'C'
+                  arrivedFromCol: postponeInfo ? postponeInfo.colLetter : 'D'
                 });
               }
             }
@@ -1208,7 +1208,7 @@ export function auditScheduleCompliance(
   });
 
   // Check 7: Multi-round Postponement Prediction Rule (กฎการคาดการณ์การเลื่อนวันตอบมากกว่า 1 ครั้ง)
-  // หากกระทู้ถามใดมีการเลื่อนวันตอบมากกว่า 1 ครั้ง โดยครั้งที่ 2, 3, 4, 5 ให้นำข้อมูลจาก Google Sheet คอลัมน์ D, E, F, G ใช้คาดการณ์
+  // หากกระทู้ถามใดมีการเลื่อนวันตอบมากกว่า 1 ครั้ง โดยครั้งที่ 2, 3, 4, 5 ให้นำข้อมูลจาก Google Sheet คอลัมน์ E, F, G, H ใช้คาดการณ์
   let multiPostponePassed = true;
   const multiPostponeIssues: string[] = [];
 
@@ -1244,11 +1244,11 @@ export function auditScheduleCompliance(
 
   checks.push({
     ruleId: 'MULTI_POSTPONE_RULE',
-    ruleName: 'การคาดการณ์การเลื่อนวันตอบมากกว่า 1 ครั้ง (ใช้ข้อมูลคอลัมน์ D, E, F, G สำหรับครั้งที่ 2, 3, 4, 5)',
-    description: 'หากกระทู้ถามใดมีการเลื่อนวันตอบมากกว่า 1 ครั้ง โดยครั้งที่ 2, 3, 4, 5 ให้นำข้อมูลจาก Google Sheet คอลัมน์ D, E, F, G ใช้คาดการณ์ระเบียบวาระการประชุมตามลำดับ',
+    ruleName: 'การคาดการณ์การเลื่อนวันตอบมากกว่า 1 ครั้ง (ใช้ข้อมูลคอลัมน์ E, F, G, H สำหรับครั้งที่ 2, 3, 4, 5)',
+    description: 'หากกระทู้ถามใดมีการเลื่อนวันตอบมากกว่า 1 ครั้ง โดยครั้งที่ 2, 3, 4, 5 ให้นำข้อมูลจาก Google Sheet คอลัมน์ E, F, G, H ใช้คาดการณ์ระเบียบวาระการประชุมตามลำดับ',
     passed: multiPostponePassed,
     details: multiPostponePassed
-      ? `กระทู้ที่มีการขอเลื่อนวันตอบมากกว่า 1 ครั้ง (กระทู้ #${questionsWithMultiPostpone.map((x) => x.submittedOrder).join(', #')}) ได้นำข้อมูลจากคอลัมน์ D, E, F, G มาใช้คาดการณ์ระเบียบวาระถูกต้องครบถ้วน 100%`
+      ? `กระทู้ที่มีการขอเลื่อนวันตอบมากกว่า 1 ครั้ง (กระทู้ #${questionsWithMultiPostpone.map((x) => x.submittedOrder).join(', #')}) ได้นำข้อมูลจากคอลัมน์ E, F, G, H มาใช้คาดการณ์ระเบียบวาระถูกต้องครบถ้วน 100%`
       : multiPostponeIssues.join(', ')
   });
 

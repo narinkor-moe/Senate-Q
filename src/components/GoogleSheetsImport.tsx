@@ -8,8 +8,8 @@ import {
   DEFAULT_SHEET_ID,
   DEFAULT_SHEET_NAME,
 } from '../googleSheetsService';
-import { QuestionItem } from '../types';
-import { parseThaiOrISODate } from '../scheduler';
+import { QuestionItem, PostponeHistoryItem } from '../types';
+import { parseThaiOrISODate, formatThaiShortDate } from '../scheduler';
 import {
   FileSpreadsheet,
   Download,
@@ -277,6 +277,17 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
           qStatus = 'postponed';
         }
 
+        const postponeHistoryItems: PostponeHistoryItem[] = [];
+        if (cleanPostponedDate) {
+          postponeHistoryItems.push({
+            round: 1,
+            colLetter: 'D',
+            rawDate: postponedVal.trim(),
+            isoDate: cleanPostponedDate.length === 10 ? cleanPostponedDate : undefined,
+            thaiFormatted: formatThaiShortDate(cleanPostponedDate)
+          });
+        }
+
         parsedItems.push({
           id: `sheet-q-${orderVal}-${Date.now()}-${i}`,
           submittedOrder: orderVal,
@@ -286,6 +297,8 @@ export const GoogleSheetsImport: React.FC<GoogleSheetsImportProps> = ({
           scheduledDate: scheduledVal || undefined,
           postponedDate: cleanPostponedDate,
           postponedSheetRaw: postponedVal.trim() || undefined,
+          postponeHistoryItems: postponeHistoryItems.length > 0 ? postponeHistoryItems : undefined,
+          postponeCount: postponeHistoryItems.length,
           isPostponedInSheet: !!cleanPostponedDate,
           sheetRowIndex: i + 1,
           status: qStatus,

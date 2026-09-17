@@ -26,6 +26,17 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "scheduledDate": "31/08/2026",
     "postponedDate": "2026-09-07",
     "postponedSheetRaw": "07/09/2026",
+    "postponedDates": ["07/09/2026"],
+    "postponeHistoryItems": [
+      {
+        "round": 1,
+        "colLetter": "D",
+        "rawDate": "07/09/2026",
+        "isoDate": "2026-09-07",
+        "thaiFormatted": "7 ก.ย. 2569"
+      }
+    ],
+    "postponeCount": 1,
     "isPostponedInSheet": true,
     "sheetRowIndex": 3,
     "status": "completed",
