@@ -26,6 +26,7 @@ export interface AskerStatItem {
   answeredCount: number;
   withdrawnCount: number;
   pendingCount: number;
+  pendingAnswerCount: number;
   percentageOfTotal: number;
   topMinisters: { minister: string; count: number }[];
   questionDetails: AskerQuestionDetail[];
@@ -34,6 +35,11 @@ export interface AskerStatItem {
 export interface OverallAskerStats {
   totalUniqueAskers: number;
   totalQuestions: number;
+  totalAnsweredQuestions: number;
+  totalPendingAnswerQuestions: number;
+  totalActiveQuestions: number;
+  answeredPercentage: number;
+  pendingAnswerPercentage: number;
   avgQuestionsPerAsker: number;
   askersWithPostponed: number;
   totalPostponedQuestions: number;
@@ -41,6 +47,7 @@ export interface OverallAskerStats {
   askersWithOfficial: number;
   askersWithProjected: number;
   askersWithAnswered: number;
+  askersWithPendingAnswer: number;
   askersWithWithdrawn: number;
   totalWithdrawnQuestions: number;
   allAskers: AskerStatItem[];
@@ -212,6 +219,7 @@ export function computeAskerStats(
         .map(([minister, count]) => ({ minister, count }));
 
       const percentageOfTotal = totalQuestions > 0 ? (item.questions.length / totalQuestions) * 100 : 0;
+      const pendingAnswerCount = Math.max(0, item.questions.length - item.answeredCount - item.withdrawnCount);
 
       return {
         asker: item.asker,
@@ -225,6 +233,7 @@ export function computeAskerStats(
         answeredCount: item.answeredCount,
         withdrawnCount: item.withdrawnCount,
         pendingCount: item.pendingCount,
+        pendingAnswerCount,
         percentageOfTotal: Number(percentageOfTotal.toFixed(1)),
         topMinisters,
         questionDetails: item.details.sort((a, b) => a.question.submittedOrder - b.question.submittedOrder),
@@ -249,17 +258,35 @@ export function computeAskerStats(
   let askersWithOfficial = 0;
   let askersWithProjected = 0;
   let askersWithAnswered = 0;
+  let askersWithPendingAnswer = 0;
   let askersWithWithdrawn = 0;
   let totalWithdrawnQuestions = 0;
+  let totalAnsweredQuestions = 0;
+  let totalPendingAnswerQuestions = 0;
+
+  // Direct calculation across all questions for consistency
+  questions.forEach((q) => {
+    if (isQuestionWithdrawn(q)) {
+      totalWithdrawnQuestions++;
+    } else if (isQuestionAnswered(q)) {
+      totalAnsweredQuestions++;
+    } else {
+      totalPendingAnswerQuestions++;
+    }
+  });
 
   sortedAskers.forEach((item) => {
     if (item.postponedQuestionsCount > 0 || item.postponedCount > 0) askersWithPostponed++;
     if (item.officialCount > 0) askersWithOfficial++;
     if (item.projectedCount > 0) askersWithProjected++;
     if (item.answeredCount > 0) askersWithAnswered++;
+    if (item.pendingAnswerCount > 0) askersWithPendingAnswer++;
     if (item.withdrawnCount > 0) askersWithWithdrawn++;
-    totalWithdrawnQuestions += item.withdrawnCount;
   });
+
+  const totalActiveQuestions = Math.max(0, totalQuestions - totalWithdrawnQuestions);
+  const answeredPercentage = totalQuestions > 0 ? Number(((totalAnsweredQuestions / totalQuestions) * 100).toFixed(1)) : 0;
+  const pendingAnswerPercentage = totalQuestions > 0 ? Number(((totalPendingAnswerQuestions / totalQuestions) * 100).toFixed(1)) : 0;
 
   // Ministry distribution
   const ministryDistribution = Array.from(overallMinistryMap.entries())
@@ -273,6 +300,11 @@ export function computeAskerStats(
   return {
     totalUniqueAskers,
     totalQuestions,
+    totalAnsweredQuestions,
+    totalPendingAnswerQuestions,
+    totalActiveQuestions,
+    answeredPercentage,
+    pendingAnswerPercentage,
     avgQuestionsPerAsker,
     askersWithPostponed,
     totalPostponedQuestions: overallTotalPostponedQuestions,
@@ -280,6 +312,7 @@ export function computeAskerStats(
     askersWithOfficial,
     askersWithProjected,
     askersWithAnswered,
+    askersWithPendingAnswer,
     askersWithWithdrawn,
     totalWithdrawnQuestions,
     allAskers: sortedAskers,

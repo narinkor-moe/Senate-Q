@@ -21,6 +21,8 @@ import {
   ArrowUpDown,
   ExternalLink,
   FileX2,
+  CheckCheck,
+  HelpCircle,
 } from 'lucide-react';
 
 interface AskerStatsModalProps {
@@ -43,8 +45,10 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
   onOpenPrintReport,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'questions' | 'name' | 'postponed'>('questions');
-  const [filterType, setFilterType] = useState<'all' | 'has_official' | 'has_postponed' | 'has_projected' | 'has_withdrawn'>('all');
+  const [sortBy, setSortBy] = useState<'questions' | 'name' | 'postponed' | 'pending' | 'answered'>('questions');
+  const [filterType, setFilterType] = useState<
+    'all' | 'has_pending_answer' | 'has_answered' | 'has_official' | 'has_projected' | 'has_postponed' | 'has_withdrawn'
+  >('all');
   const [expandedAsker, setExpandedAsker] = useState<string | null>(null);
 
   // Compute stats
@@ -66,9 +70,13 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
     if (filterType === 'has_official') {
       list = list.filter((a) => a.officialCount > 0);
     } else if (filterType === 'has_postponed') {
-      list = list.filter((a) => a.postponedCount > 0);
+      list = list.filter((a) => a.postponedCount > 0 || a.totalPostponeTimes > 0);
     } else if (filterType === 'has_projected') {
       list = list.filter((a) => a.projectedCount > 0);
+    } else if (filterType === 'has_answered') {
+      list = list.filter((a) => a.answeredCount > 0);
+    } else if (filterType === 'has_pending_answer') {
+      list = list.filter((a) => a.pendingAnswerCount > 0);
     } else if (filterType === 'has_withdrawn') {
       list = list.filter((a) => a.withdrawnCount > 0);
     }
@@ -78,8 +86,16 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
       if (sortBy === 'questions') {
         return b.totalQuestions - a.totalQuestions;
       }
+      if (sortBy === 'pending') {
+        return b.pendingAnswerCount - a.pendingAnswerCount || b.totalQuestions - a.totalQuestions;
+      }
+      if (sortBy === 'answered') {
+        return b.answeredCount - a.answeredCount || b.totalQuestions - a.totalQuestions;
+      }
       if (sortBy === 'postponed') {
-        return b.postponedCount - a.postponedCount || b.totalQuestions - a.totalQuestions;
+        const aPostpones = a.totalPostponeTimes || a.postponedCount;
+        const bPostpones = b.totalPostponeTimes || b.postponedCount;
+        return bPostpones - aPostpones || b.totalQuestions - a.totalQuestions;
       }
       return a.asker.localeCompare(b.asker, 'th');
     });
@@ -134,7 +150,7 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
         {/* Modal Body */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1 bg-[#f8fafc]">
           {/* Key Metric Overview Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
             {/* Metric 1: Total Askers */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
@@ -152,16 +168,54 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
               </div>
             </div>
 
-            {/* Metric 2: Avg Questions */}
+            {/* Metric 2: Pending Answer */}
+            <div className="bg-white p-4 rounded-xl border border-amber-300 bg-amber-50/30 shadow-2xs" title={`กระทู้ที่รอการตอบจากรัฐมนตรีรวม ${stats.totalPendingAnswerQuestions} เรื่อง (${stats.pendingAnswerPercentage}%)`}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                  กระทู้ที่รอตอบ
+                </span>
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                  {stats.pendingAnswerPercentage}%
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-black text-amber-600">{stats.totalPendingAnswerQuestions}</span>
+                <span className="text-xs text-amber-800 font-medium">เรื่อง</span>
+              </div>
+              <div className="mt-1 text-[11px] text-amber-800">
+                จาก ส.ว. {stats.askersWithPendingAnswer} ท่าน
+              </div>
+            </div>
+
+            {/* Metric 3: Answered */}
+            <div className="bg-white p-4 rounded-xl border border-emerald-300 bg-emerald-50/30 shadow-2xs" title={`กระทู้ที่ตอบแล้วรวม ${stats.totalAnsweredQuestions} เรื่อง (${stats.answeredPercentage}%)`}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                  กระทู้ที่ตอบแล้ว
+                </span>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                  {stats.answeredPercentage}%
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-black text-emerald-600">{stats.totalAnsweredQuestions}</span>
+                <span className="text-xs text-emerald-800 font-medium">เรื่อง</span>
+              </div>
+              <div className="mt-1 text-[11px] text-emerald-800">
+                {stats.askersWithAnswered > 0 ? `จาก ส.ว. ${stats.askersWithAnswered} ท่าน` : 'ยังไม่มีการตอบ'}
+              </div>
+            </div>
+
+            {/* Metric 4: Avg Questions */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   เฉลี่ยต่อท่าน
                 </span>
-                <Award className="w-4 h-4 text-emerald-600" />
+                <Award className="w-4 h-4 text-sky-600" />
               </div>
               <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-black text-emerald-700">{stats.avgQuestionsPerAsker}</span>
+                <span className="text-2xl font-black text-sky-800">{stats.avgQuestionsPerAsker}</span>
                 <span className="text-xs text-slate-500 font-medium">เรื่อง/ท่าน</span>
               </div>
               <div className="mt-1 text-[11px] text-slate-500">
@@ -169,25 +223,7 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
               </div>
             </div>
 
-            {/* Metric 3: Top Asker */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  ยื่นกระทู้มากที่สุด
-                </span>
-                <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 text-[10px] font-bold">
-                  อันดับ 1
-                </span>
-              </div>
-              <div className="mt-2 truncate font-bold text-slate-800 text-sm" title={stats.topAskers[0]?.asker}>
-                {stats.topAskers[0]?.asker || '-'}
-              </div>
-              <div className="mt-1 text-[11px] text-amber-700 font-semibold">
-                {stats.topAskers[0]?.totalQuestions || 0} เรื่อง ({stats.topAskers[0]?.percentageOfTotal || 0}% ของทั้งหมด)
-              </div>
-            </div>
-
-            {/* Metric 4: Askers with Postponed Questions & Total Postponements */}
+            {/* Metric 5: Askers with Postponed Questions & Total Postponements */}
             <div className="bg-white p-4 rounded-xl border border-amber-200 bg-amber-50/20 shadow-2xs">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
@@ -200,18 +236,18 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                   {stats.totalPostponedTimes || stats.totalPostponedQuestions || 0}
                 </span>
                 <span className="text-xs text-amber-800 font-bold">ครั้ง</span>
-                <span className="text-[11px] text-amber-900 font-semibold bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md ml-auto">
+                <span className="text-[11px] text-amber-900 font-semibold bg-amber-100/90 border border-amber-300 px-1.5 py-0.5 rounded-md ml-auto">
                   {stats.totalPostponedQuestions || 0} เรื่อง
                 </span>
               </div>
-              <div className="mt-1 text-[11px] text-amber-800">
+              <div className="mt-1 text-[11px] text-amber-800 truncate">
                 {stats.askersWithPostponed > 0
-                  ? `จาก ส.ว. ${stats.askersWithPostponed} ท่าน (ได้สิทธิ์ลำดับแรกในวันนัดตอบ)`
+                  ? `จาก ส.ว. ${stats.askersWithPostponed} ท่าน`
                   : 'ไม่มีกระทู้ขอเลื่อนตอบ'}
               </div>
             </div>
 
-            {/* Metric 5: Withdrawn Questions */}
+            {/* Metric 6: Withdrawn Questions */}
             <div className="bg-white p-4 rounded-xl border border-rose-200 bg-rose-50/20 shadow-2xs">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-rose-800 uppercase tracking-wider">
@@ -225,7 +261,7 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
               </div>
               <div className="mt-1 text-[11px] text-rose-600 font-medium">
                 {stats.askersWithWithdrawn > 0
-                  ? `จาก ส.ว. ${stats.askersWithWithdrawn} ท่าน (ไม่จัดในวาระ)`
+                  ? `จาก ส.ว. ${stats.askersWithWithdrawn} ท่าน (ไม่จัดวาระ)`
                   : 'ไม่มีกระทู้ขอถอน'}
               </div>
             </div>
@@ -392,6 +428,28 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setFilterType('has_pending_answer')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    filterType === 'has_pending_answer'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                  }`}
+                >
+                  มีกระทู้รอตอบ ({stats.askersWithPendingAnswer})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterType('has_answered')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    filterType === 'has_answered'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                  }`}
+                >
+                  มีตอบแล้ว ({stats.askersWithAnswered})
+                </button>
+                <button
+                  type="button"
                   onClick={() => setFilterType('has_official')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     filterType === 'has_official'
@@ -417,8 +475,8 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                   onClick={() => setFilterType('has_postponed')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     filterType === 'has_postponed'
-                      ? 'bg-amber-600 text-white'
-                      : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                      ? 'bg-amber-700 text-white'
+                      : 'bg-amber-50 text-amber-900 hover:bg-amber-100'
                   }`}
                 >
                   มีขอเลื่อนตอบ ({stats.askersWithPostponed})
@@ -447,6 +505,8 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                   className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold bg-white text-slate-700 focus:outline-none focus:border-[#0369a1]"
                 >
                   <option value="questions">จำนวนกระทู้มากสุด</option>
+                  <option value="pending">กระทู้รอตอบมากสุด</option>
+                  <option value="answered">กระทู้ตอบแล้วมากสุด</option>
                   <option value="postponed">จำนวนขอเลื่อนมากสุด</option>
                   <option value="name">ชื่อตัวอักษร ก-ฮ</option>
                 </select>
@@ -543,8 +603,16 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                           {/* Answered */}
                           {asker.answeredCount > 0 ? (
                             <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold inline-flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <CheckCheck className="w-3 h-3 text-emerald-600" />
                               ตอบแล้ว {asker.answeredCount}
+                            </span>
+                          ) : null}
+
+                          {/* Pending Answer */}
+                          {asker.pendingAnswerCount > 0 ? (
+                            <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold inline-flex items-center gap-1">
+                              <HelpCircle className="w-3 h-3 text-amber-600" />
+                              รอตอบ {asker.pendingAnswerCount}
                             </span>
                           ) : null}
 
