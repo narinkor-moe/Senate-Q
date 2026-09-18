@@ -196,6 +196,77 @@ export function formatThaiShortDate(dateStr: string, useTwoDigitYear: boolean = 
   return `${day} ${month} ${yearStr}`;
 }
 
+/**
+ * Format any date string or text containing dates into Thai Buddhist numeric format: DD-MM-YYYY (พ.ศ.)
+ * e.g. "2026-08-31" -> "31-08-2569"
+ * e.g. "21/09/2026" -> "21-09-2569"
+ * e.g. "ครั้งที่ 1 (D): 21/09/2026" -> "ครั้งที่ 1 (D): 21-09-2569"
+ * e.g. "31/08/2026" -> "31-08-2569"
+ */
+export function formatThaiNumericDate(input?: string): string {
+  if (!input) return '';
+  const str = String(input).trim();
+  if (!str) return '';
+
+  // 1. Direct ISO format: YYYY-MM-DD
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    let year = parseInt(isoMatch[1], 10);
+    const month = isoMatch[2];
+    const day = isoMatch[3];
+    if (year < 2400) year += 543;
+    return `${day}-${month}-${year}`;
+  }
+
+  // 2. Direct format: DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+  const directMatch = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  if (directMatch) {
+    const day = String(parseInt(directMatch[1], 10)).padStart(2, '0');
+    const month = String(parseInt(directMatch[2], 10)).padStart(2, '0');
+    let year = parseInt(directMatch[3], 10);
+    if (year < 100) {
+      year = year >= 50 ? 1900 + year : 2000 + year;
+    }
+    if (year < 2400) year += 543;
+    return `${day}-${month}-${year}`;
+  }
+
+  // 3. String with embedded dates: replace ISO dates first, then slash/dash dates
+  let result = str;
+
+  // Replace embedded ISO: 2026-08-31
+  result = result.replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_match, y, m, d) => {
+    let year = parseInt(y, 10);
+    if (year < 2400) year += 543;
+    return `${d}-${m}-${year}`;
+  });
+
+  // Replace embedded slash/dash: 21/09/2026, 31/08/2026, 21-09-2026
+  result = result.replace(/\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})\b/g, (_match, d, m, y) => {
+    const day = String(parseInt(d, 10)).padStart(2, '0');
+    const month = String(parseInt(m, 10)).padStart(2, '0');
+    let year = parseInt(y, 10);
+    if (year < 100) {
+      year = year >= 50 ? 1900 + year : 2000 + year;
+    }
+    if (year < 2400) year += 543;
+    return `${day}-${month}-${year}`;
+  });
+
+  // 4. If nothing was replaced and it's a Thai text date like "21 ก.ย. 2569" or "31 ส.ค. 2569"
+  if (result === str) {
+    const parsed = parseThaiOrISODate(str);
+    if (parsed) {
+      const [y, m, d] = parsed.split('-');
+      let year = parseInt(y, 10);
+      if (year < 2400) year += 543;
+      return `${d}-${m}-${year}`;
+    }
+  }
+
+  return result;
+}
+
 export interface WorkingMondayResult {
   workingMondays: string[];
   skippedHolidays: HolidayItem[];

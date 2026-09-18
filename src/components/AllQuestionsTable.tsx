@@ -1055,20 +1055,16 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                         </span>
                         {q.postponedDate && (
                           <span
-                            className={`inline-flex items-center gap-1 self-start px-2 py-0.5 rounded text-[10px] font-bold ${
-                              q.isPostponedInSheet
-                                ? 'bg-emerald-50 text-emerald-900 border border-emerald-300'
-                                : 'bg-amber-50 text-amber-900 border border-amber-200'
-                            }`}
+                            className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-950 border border-amber-300"
                           >
                             {q.isPostponedInSheet ? (
-                              <FileSpreadsheet className="w-3 h-3 text-emerald-600 shrink-0" />
+                              <FileSpreadsheet className="w-3 h-3 text-amber-700 shrink-0" />
                             ) : (
-                              <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                              <Clock className="w-3 h-3 text-amber-700 shrink-0" />
                             )}
                             <span>เลื่อนตอบวันที่: {q.postponedSheetRaw || q.postponedDate}</span>
                             {q.isPostponedInSheet && (
-                              <span className="bg-emerald-200/80 text-emerald-900 px-1 rounded text-[9px] font-bold ml-0.5">
+                              <span className="bg-amber-200/90 text-amber-950 px-1 rounded text-[9px] font-bold border border-amber-400/80 ml-0.5">
                                 Sheet
                               </span>
                             )}
@@ -1234,9 +1230,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                               !isAdmin
                                 ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
                                 : q.postponedDate
-                                ? q.isPostponedInSheet
-                                  ? 'text-emerald-800 bg-emerald-100 hover:bg-emerald-200'
-                                  : 'text-amber-700 bg-amber-100 hover:bg-amber-200'
+                                ? 'text-amber-800 bg-amber-100 hover:bg-amber-200'
                                 : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
                             }`}
                           >

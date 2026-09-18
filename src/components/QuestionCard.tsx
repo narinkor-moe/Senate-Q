@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScheduledQuestion, QuestionItem, PostponeHistoryItem } from '../types';
 import { User, Briefcase, Clock, RotateCcw, Calendar, Sparkles, FileSpreadsheet, CheckCircle2, Lock, GraduationCap, Landmark } from 'lucide-react';
-import { formatThaiShortDate, formatThaiDateWithDayOfWeek } from '../scheduler';
+import { formatThaiShortDate, formatThaiDateWithDayOfWeek, formatThaiNumericDate } from '../scheduler';
 import { getQuestionPostponeHistoryItems } from '../utils/postponeStats';
 
 interface QuestionCardProps {
@@ -338,9 +338,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               !isAdmin
                 ? 'bg-slate-100/90 hover:bg-amber-50/80 text-slate-600 hover:text-amber-900 border border-slate-200 hover:border-amber-300'
                 : question.postponedDate || isPostponedNow
-                ? question.isPostponedInSheet
-                  ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300'
-                  : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
+                ? 'bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300'
                 : 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300'
             }`}
             title={
@@ -357,7 +355,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             ) : question.postponedDate || isPostponedNow ? (
               question.isPostponedInSheet ? (
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                <FileSpreadsheet className="w-3.5 h-3.5 text-amber-700 shrink-0" />
               ) : (
                 <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
               )
@@ -378,7 +376,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 เฉพาะ Admin
               </span>
             ) : question.isPostponedInSheet ? (
-              <span className="text-[10px] bg-emerald-200/80 text-emerald-900 px-1 py-0.2 rounded font-bold border border-emerald-300/80">
+              <span className="text-[10px] bg-amber-200/90 text-amber-950 px-1.5 py-0.2 rounded font-bold border border-amber-400/80">
                 Sheet
               </span>
             ) : !question.postponedDate ? (
