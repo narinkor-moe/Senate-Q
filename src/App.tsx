@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { QuestionItem, UserRole } from './types';
 import { INITIAL_QUESTIONS } from './mockData';
-import { computeWeeklySchedules, auditScheduleCompliance, THAI_PUBLIC_HOLIDAYS, formatThaiDateWithDayOfWeek, parseThaiOrISODate } from './scheduler';
+import { computeWeeklySchedules, auditScheduleCompliance, THAI_PUBLIC_HOLIDAYS, formatThaiDateWithDayOfWeek, formatThaiShortDate, parseThaiOrISODate } from './scheduler';
 import { WeeklySection } from './components/WeeklySection';
 import { AllQuestionsTable, QuestionStatusCategory } from './components/AllQuestionsTable';
 import { RuleComplianceBanner } from './components/RuleComplianceBanner';
@@ -495,6 +495,9 @@ export default function App() {
   // One-click quick filter for questions asked to the Minister of Education (Option 4)
   const [onlyEduMinisterFilter, setOnlyEduMinisterFilter] = useState<boolean>(false);
 
+  // Filter for questions/agendas after session closing date
+  const [onlyAfterClosingFilter, setOnlyAfterClosingFilter] = useState<boolean>(false);
+
   // Table status category filter (e.g. 'answered' when clicking the answered stats bar)
   const [tableStatusFilter, setTableStatusFilter] = useState<QuestionStatusCategory | undefined>(undefined);
 
@@ -503,7 +506,21 @@ export default function App() {
     return questions.filter((q) => q.minister?.includes('ศึกษาธิการ')).length;
   }, [questions]);
 
-  // Filtered schedules if a specific week, agenda type, or education minister filter is selected
+  // Full projection to know exact scheduled dates for all questions
+  const fullSimulationSchedules = useMemo(() => {
+    return computeWeeklySchedules(questions, postponedIds, startDate, 50, holidays).schedules;
+  }, [questions, postponedIds, startDate, holidays]);
+
+  // Questions scheduled on meeting dates after the session closing date
+  const questionsAfterClosing = useMemo(() => {
+    if (!sessionClosingDate) return [];
+    const afterClosingWeeks = fullSimulationSchedules.filter((s) => s.date > sessionClosingDate);
+    return afterClosingWeeks.flatMap((s) => s.questions);
+  }, [sessionClosingDate, fullSimulationSchedules]);
+
+  const questionsAfterClosingCount = questionsAfterClosing.length;
+
+  // Filtered schedules if a specific week, agenda type, education minister, or after-closing filter is selected
   const displayedSchedules = useMemo(() => {
     let list = schedules;
     if (agendaTypeFilter !== 'all') {
@@ -520,8 +537,11 @@ export default function App() {
         }))
         .filter((s) => s.questions.length > 0);
     }
+    if (onlyAfterClosingFilter && sessionClosingDate) {
+      list = list.filter((s) => s.date > sessionClosingDate);
+    }
     return list;
-  }, [schedules, selectedWeekFilter, agendaTypeFilter, onlyEduMinisterFilter]);
+  }, [schedules, selectedWeekFilter, agendaTypeFilter, onlyEduMinisterFilter, onlyAfterClosingFilter, sessionClosingDate]);
 
   // Compute session duration and weeks within session
   const sessionDurationInfo = useMemo(() => {
@@ -658,6 +678,43 @@ export default function App() {
     setTableStatusFilter((prev) => (prev === 'answered' ? 'all' : 'answered'));
     handleJumpToQuestionsTable();
   };
+
+  // Handle clicking on after-session-closing questions stat bar in the sidebar
+  const handleToggleAfterClosingFilter = useCallback(() => {
+    if (!sessionClosingDate) {
+      setToastMessage({
+        type: 'info',
+        text: 'ยังไม่ได้ระบุวันปิดสมัยประชุม กรุณาเลือกวันที่ปิดสมัยประชุมในเมนูด้านซ้าย',
+      });
+      setTimeout(() => setToastMessage(null), 3500);
+      return;
+    }
+
+    if (!onlyAfterClosingFilter) {
+      // Ensure maxWeeks is large enough to show after-closing weeks
+      const hasAfterInCurrent = schedules.some((s) => s.date > sessionClosingDate);
+      if (!hasAfterInCurrent && questionsAfterClosingCount > 0) {
+        let requiredW = 12;
+        for (let w = 6; w <= 50; w++) {
+          const sim = computeWeeklySchedules(questions, postponedIds, startDate, w, holidays);
+          if (sim.schedules.some((s) => s.date > sessionClosingDate)) {
+            requiredW = Math.max(w + 2, 12);
+            break;
+          }
+        }
+        setMaxWeeks(requiredW);
+      }
+      setOnlyAfterClosingFilter(true);
+      setSelectedWeekFilter('all');
+      setToastMessage({
+        type: 'info',
+        text: `แสดงเฉพาะระเบียบวาระหลังวันปิดสมัยประชุม (${formatThaiDateWithDayOfWeek(sessionClosingDate)}) รวม ${questionsAfterClosingCount} เรื่อง`,
+      });
+      setTimeout(() => setToastMessage(null), 3500);
+    } else {
+      setOnlyAfterClosingFilter(false);
+    }
+  }, [sessionClosingDate, onlyAfterClosingFilter, schedules, questionsAfterClosingCount, questions, postponedIds, startDate, holidays]);
 
   // Add new question handler
   const handleAddQuestion = (newQ: Omit<QuestionItem, 'id'>) => {
@@ -1515,6 +1572,67 @@ export default function App() {
                   {eduQuestionsCount} เรื่อง
                 </span>
               </button>
+
+              {/* แถบสถิติจำนวนกระทู้ถามหลังวันที่ปิดสมัยประชุม (วางไว้ใต้ปุ่มถาม รมว.ศึกษาธิการ) */}
+              <button
+                type="button"
+                id="btn-sidebar-after-closing-stats"
+                onClick={handleToggleAfterClosingFilter}
+                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer col-span-2 flex items-center justify-between shadow-2xs group ${
+                  onlyAfterClosingFilter
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-xs font-bold'
+                    : 'bg-amber-50/90 hover:bg-amber-100/90 border-amber-300 text-amber-950 font-medium'
+                }`}
+                title={
+                  sessionClosingDate
+                    ? `คลิกเพื่อกรองแสดงเฉพาะระเบียบวาระหลังวันปิดสมัยประชุม (${formatThaiDateWithDayOfWeek(sessionClosingDate)}) จำนวน ${questionsAfterClosingCount} เรื่อง`
+                    : 'ยังไม่ได้ระบุวันปิดสมัยประชุม'
+                }
+              >
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors shadow-2xs ${
+                      onlyAfterClosingFilter
+                        ? 'bg-white/20 text-white'
+                        : 'bg-amber-500 text-white group-hover:bg-amber-600'
+                    }`}
+                  >
+                    <CalendarOff className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold block leading-tight">
+                      กระทู้หลังวันปิดสมัยประชุม
+                    </span>
+                    <span
+                      className={`text-[9.5px] block ${
+                        onlyAfterClosingFilter
+                          ? 'text-amber-100'
+                          : 'text-amber-700'
+                      }`}
+                    >
+                      {sessionClosingDate
+                        ? `หลัง ${formatThaiShortDate(sessionClosingDate)}`
+                        : 'ยังไม่กำหนดวันปิดสมัย'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-1 shrink-0">
+                  <span
+                    className={`text-base font-black ${
+                      onlyAfterClosingFilter ? 'text-white' : 'text-amber-700'
+                    }`}
+                  >
+                    {questionsAfterClosingCount}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold ${
+                      onlyAfterClosingFilter ? 'text-amber-100' : 'text-amber-800'
+                    }`}
+                  >
+                    เรื่อง
+                  </span>
+                </div>
+              </button>
             </div>
 
             <button
@@ -1641,6 +1759,29 @@ export default function App() {
                 </span>
               </button>
 
+              {/* Quick Filter: Agendas after session closing */}
+              {sessionClosingDate && (
+                <button
+                  type="button"
+                  id="btn-schedule-filter-after-closing"
+                  onClick={handleToggleAfterClosingFilter}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                    onlyAfterClosingFilter
+                      ? 'bg-amber-600 text-white border border-amber-600 shadow-xs'
+                      : 'bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200'
+                  }`}
+                  title="คลิกเพื่อกรองแสดงเฉพาะระเบียบวาระหลังวันปิดสมัยประชุม"
+                >
+                  <CalendarOff className={`w-3.5 h-3.5 ${onlyAfterClosingFilter ? 'text-amber-200' : 'text-amber-600'}`} />
+                  <span>หลังปิดสมัย</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                    onlyAfterClosingFilter ? 'bg-white/20 text-white' : 'bg-amber-200 text-amber-900'
+                  }`}>
+                    {questionsAfterClosingCount}
+                  </span>
+                </button>
+              )}
+
               <button
                 type="button"
                 id="btn-schedule-download-pdf"
@@ -1720,6 +1861,34 @@ export default function App() {
             </div>
           )}
 
+          {/* Active After Session Closing Filter Banner */}
+          {onlyAfterClosingFilter && sessionClosingDate && (
+            <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2.5 text-amber-950 text-xs font-semibold">
+                <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <CalendarOff className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-amber-950">
+                    กำลังแสดงเฉพาะระเบียบวาระหลังวันปิดสมัยประชุม
+                  </div>
+                  <div className="text-[11px] text-amber-800/80">
+                    หลังวันที่ {formatThaiDateWithDayOfWeek(sessionClosingDate)} พบทั้งหมด {questionsAfterClosingCount} เรื่อง ใน {displayedSchedules.length} สัปดาห์ระเบียบวาระ
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                id="btn-clear-after-closing-filter"
+                onClick={() => setOnlyAfterClosingFilter(false)}
+                className="px-3 py-1.5 bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 shadow-2xs flex items-center gap-1"
+              >
+                <X className="w-3.5 h-3.5 text-amber-700" />
+                <span>แสดงทุกระเบียบวาระ (ล้างตัวกรอง)</span>
+              </button>
+            </div>
+          )}
+
           {/* Section 1-4: Weekly Schedules & Cards (วันบรรจุกระทู้ทุกวันจันทร์ + การ์ดกระทู้ 3 เรื่อง) */}
           <div className="space-y-6">
             {displayedSchedules.length === 0 ? (
@@ -1730,6 +1899,8 @@ export default function App() {
                 <p className="text-slate-800 font-bold text-sm">
                   {onlyEduMinisterFilter
                     ? 'ไม่พบกระทู้ถาม รัฐมนตรีว่าการกระทรวงศึกษาธิการ ในเงื่อนไขที่เลือก'
+                    : onlyAfterClosingFilter
+                    ? 'ไม่พบระเบียบวาระการประชุมหลังวันปิดสมัยประชุมในจำนวนสัปดาห์ที่กำลังแสดงผล'
                     : 'ไม่พบระเบียบวาระการประชุมตามเงื่อนไขที่เลือก'}
                 </p>
                 <p className="text-slate-500 text-xs mt-1">
@@ -1739,6 +1910,7 @@ export default function App() {
                   type="button"
                   onClick={() => {
                     setOnlyEduMinisterFilter(false);
+                    setOnlyAfterClosingFilter(false);
                     setSelectedWeekFilter('all');
                     setAgendaTypeFilter('all');
                   }}
