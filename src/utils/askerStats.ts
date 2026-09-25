@@ -41,6 +41,7 @@ export interface OverallAskerStats {
   askersWithOfficial: number;
   askersWithProjected: number;
   askersWithAnswered: number;
+  totalAnsweredQuestions: number;
   askersWithWithdrawn: number;
   totalWithdrawnQuestions: number;
   allAskers: AskerStatItem[];
@@ -249,6 +250,7 @@ export function computeAskerStats(
   let askersWithOfficial = 0;
   let askersWithProjected = 0;
   let askersWithAnswered = 0;
+  let totalAnsweredQuestions = 0;
   let askersWithWithdrawn = 0;
   let totalWithdrawnQuestions = 0;
 
@@ -259,6 +261,7 @@ export function computeAskerStats(
     if (item.answeredCount > 0) askersWithAnswered++;
     if (item.withdrawnCount > 0) askersWithWithdrawn++;
     totalWithdrawnQuestions += item.withdrawnCount;
+    totalAnsweredQuestions += item.answeredCount;
   });
 
   // Ministry distribution
@@ -280,6 +283,7 @@ export function computeAskerStats(
     askersWithOfficial,
     askersWithProjected,
     askersWithAnswered,
+    totalAnsweredQuestions,
     askersWithWithdrawn,
     totalWithdrawnQuestions,
     allAskers: sortedAskers,

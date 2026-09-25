@@ -53,6 +53,8 @@ interface AllQuestionsTableProps {
   isRefreshingSheet?: boolean;
   onOpenAskerStats?: () => void;
   selectedAskerFilter?: string;
+  selectedStatusFilter?: QuestionStatusCategory;
+  onStatusFilterChange?: (status: QuestionStatusCategory) => void;
   onCalculateAllAgendas?: () => void;
   isAdmin?: boolean;
   searchTerm?: string;
@@ -93,6 +95,8 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   isRefreshingSheet,
   onOpenAskerStats,
   selectedAskerFilter,
+  selectedStatusFilter,
+  onStatusFilterChange,
   onCalculateAllAgendas,
   isAdmin = true,
   searchTerm: externalSearchTerm,
@@ -116,7 +120,21 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   );
 
   const [searchScope, setSearchScope] = useState<SearchScope>('all');
-  const [statusFilter, setStatusFilter] = useState<QuestionStatusCategory>('all');
+  const [statusFilter, setStatusFilter] = useState<QuestionStatusCategory>(selectedStatusFilter || 'all');
+
+  const handleUpdateStatusFilter = useCallback((nextStatus: QuestionStatusCategory) => {
+    setStatusFilter(nextStatus);
+    if (onStatusFilterChange) {
+      onStatusFilterChange(nextStatus);
+    }
+  }, [onStatusFilterChange]);
+
+  // Sync external status filter
+  useEffect(() => {
+    if (selectedStatusFilter !== undefined) {
+      setStatusFilter(selectedStatusFilter);
+    }
+  }, [selectedStatusFilter]);
   const [sortByPostpone, setSortByPostpone] = useState<boolean>(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newTopic, setNewTopic] = useState('');
@@ -734,7 +752,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
           <button
             type="button"
             id="filter-status-all"
-            onClick={() => setStatusFilter('all')}
+            onClick={() => handleUpdateStatusFilter('all')}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
               statusFilter === 'all'
                 ? 'bg-[#1e293b] text-white shadow-xs'
@@ -755,7 +773,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
           <button
             type="button"
             id="filter-status-official"
-            onClick={() => setStatusFilter('official')}
+            onClick={() => handleUpdateStatusFilter('official')}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
               statusFilter === 'official'
                 ? 'bg-blue-700 text-white shadow-xs'
@@ -777,7 +795,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
           <button
             type="button"
             id="filter-status-projected"
-            onClick={() => setStatusFilter('projected')}
+            onClick={() => handleUpdateStatusFilter('projected')}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
               statusFilter === 'projected'
                 ? 'bg-purple-700 text-white shadow-xs'
@@ -799,7 +817,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
           <button
             type="button"
             id="filter-status-pending"
-            onClick={() => setStatusFilter('pending')}
+            onClick={() => handleUpdateStatusFilter('pending')}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
               statusFilter === 'pending'
                 ? 'bg-slate-700 text-white shadow-xs'
@@ -821,7 +839,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
           <button
             type="button"
             id="filter-status-postponed"
-            onClick={() => setStatusFilter('postponed')}
+            onClick={() => handleUpdateStatusFilter('postponed')}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
               statusFilter === 'postponed'
                 ? 'bg-amber-600 text-white shadow-xs'
@@ -843,7 +861,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
           <button
             type="button"
             id="filter-status-answered"
-            onClick={() => setStatusFilter('answered')}
+            onClick={() => handleUpdateStatusFilter('answered')}
             className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
               statusFilter === 'answered'
                 ? 'bg-emerald-700 text-white shadow-xs'
@@ -866,7 +884,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
             <button
               type="button"
               id="filter-status-withdrawn"
-              onClick={() => setStatusFilter('withdrawn')}
+              onClick={() => handleUpdateStatusFilter('withdrawn')}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                 statusFilter === 'withdrawn'
                   ? 'bg-rose-700 text-white shadow-xs'

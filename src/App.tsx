@@ -3,7 +3,7 @@ import { QuestionItem, UserRole } from './types';
 import { INITIAL_QUESTIONS } from './mockData';
 import { computeWeeklySchedules, auditScheduleCompliance, THAI_PUBLIC_HOLIDAYS, formatThaiDateWithDayOfWeek, parseThaiOrISODate } from './scheduler';
 import { WeeklySection } from './components/WeeklySection';
-import { AllQuestionsTable } from './components/AllQuestionsTable';
+import { AllQuestionsTable, QuestionStatusCategory } from './components/AllQuestionsTable';
 import { RuleComplianceBanner } from './components/RuleComplianceBanner';
 import { GoogleSheetsImport } from './components/GoogleSheetsImport';
 import { PostponeModal } from './components/PostponeModal';
@@ -33,6 +33,7 @@ import {
   Layers,
   Info,
   CheckCircle2,
+  CheckCheck,
   CalendarCheck,
   CalendarOff,
   CalendarDays,
@@ -181,6 +182,33 @@ export default function App() {
   const [startDate, setStartDate] = useState<string>('2026-08-31');
   const [maxWeeks, setMaxWeeks] = useState<number>(8);
   const [selectedWeekFilter, setSelectedWeekFilter] = useState<string | 'all'>('all');
+
+  // Session closing date state (Default: 30 ตุลาคม 2569 / 2026-10-30, persisted to localStorage)
+  const STORAGE_KEY_SESSION_CLOSING_DATE = 'senate_session_closing_date';
+  const [sessionClosingDate, setSessionClosingDate] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_SESSION_CLOSING_DATE);
+      if (saved !== null) {
+        return saved;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return '2026-10-30';
+  });
+
+  const handleSessionClosingDateChange = (dateVal: string) => {
+    setSessionClosingDate(dateVal);
+    try {
+      if (dateVal) {
+        localStorage.setItem(STORAGE_KEY_SESSION_CLOSING_DATE, dateVal);
+      } else {
+        localStorage.removeItem(STORAGE_KEY_SESSION_CLOSING_DATE);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // 8. Google Sheets Connection & Active Worksheet Configuration
   const [currentSheetName, setCurrentSheetName] = useState<string>(() => {
@@ -467,6 +495,9 @@ export default function App() {
   // One-click quick filter for questions asked to the Minister of Education (Option 4)
   const [onlyEduMinisterFilter, setOnlyEduMinisterFilter] = useState<boolean>(false);
 
+  // Table status category filter (e.g. 'answered' when clicking the answered stats bar)
+  const [tableStatusFilter, setTableStatusFilter] = useState<QuestionStatusCategory | undefined>(undefined);
+
   // Total count of questions addressed to Minister of Education
   const eduQuestionsCount = useMemo(() => {
     return questions.filter((q) => q.minister?.includes('ศึกษาธิการ')).length;
@@ -491,6 +522,29 @@ export default function App() {
     }
     return list;
   }, [schedules, selectedWeekFilter, agendaTypeFilter, onlyEduMinisterFilter]);
+
+  // Compute session duration and weeks within session
+  const sessionDurationInfo = useMemo(() => {
+    if (!startDate || !sessionClosingDate) return null;
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(sessionClosingDate + 'T00:00:00');
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+    const diffMs = end.getTime() - start.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1;
+    if (diffDays <= 0) {
+      return {
+        text: 'วันปิดสมัยต้องอยู่หลังวันเริ่มต้น',
+        weeksWithin: null,
+        isPast: true,
+      };
+    }
+    const weeksWithin = schedules.filter((s) => s.date <= sessionClosingDate).length;
+    return {
+      text: `ระยะเวลา ~${diffDays} วัน`,
+      weeksWithin,
+      isPast: false,
+    };
+  }, [startDate, sessionClosingDate, schedules]);
 
   // 9. State & Handler for calculating all agendas across all submitted questions (คำนวณวาระทั้งหมด)
   const [isCalculatingAll, setIsCalculatingAll] = useState<boolean>(false);
@@ -596,6 +650,12 @@ export default function App() {
   const handleFilterByAsker = (askerName: string) => {
     setActiveAskerFilter(askerName);
     setHeaderSearchQuery(askerName);
+    handleJumpToQuestionsTable();
+  };
+
+  // Handle clicking on answered questions stat bar in the sidebar
+  const handleToggleAnsweredFilter = () => {
+    setTableStatusFilter((prev) => (prev === 'answered' ? 'all' : 'answered'));
     handleJumpToQuestionsTable();
   };
 
@@ -1063,6 +1123,75 @@ export default function App() {
               )}
             </div>
 
+            {/* Session Closing Date Control: ช่องวันที่ปิดสมัยประชุม ตำแหน่งอยู่ใต้วันจันทร์เริ่มต้นวาระ */}
+            <div className="pt-2 border-t border-slate-100 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <CalendarOff className="w-3.5 h-3.5 text-amber-600" />
+                  วันที่ปิดสมัยประชุม
+                </label>
+                <div className="flex items-center gap-1.5">
+                  {sessionClosingDate !== '2026-10-30' && sessionClosingDate && (
+                    <button
+                      type="button"
+                      onClick={() => handleSessionClosingDateChange('2026-10-30')}
+                      className="text-[11px] text-[#0369a1] hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                      title="รีเซ็ตเป็นวันปิดสมัยประชุมสามัญประจำปี (30 ต.ค. 2569)"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      30 ต.ค. 69
+                    </button>
+                  )}
+                  {sessionClosingDate && (
+                    <button
+                      type="button"
+                      onClick={() => handleSessionClosingDateChange('')}
+                      className="text-[11px] text-slate-400 hover:text-rose-600 flex items-center gap-0.5 cursor-pointer font-medium"
+                      title="ล้างวันที่ปิดสมัยประชุม"
+                    >
+                      <X className="w-3 h-3" />
+                      ล้างค่า
+                    </button>
+                  )}
+                </div>
+              </div>
+              <input
+                type="date"
+                value={sessionClosingDate}
+                onChange={(e) => handleSessionClosingDateChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 bg-white"
+              />
+              {sessionClosingDate ? (
+                <div className="p-2 rounded-lg bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{formatThaiDateWithDayOfWeek(sessionClosingDate)}</span>
+                    <span className="px-1.5 py-0.5 rounded bg-amber-200/80 text-amber-900 text-[10px] font-bold">
+                      ปิดสมัยประชุม
+                    </span>
+                  </div>
+                  {sessionDurationInfo && (
+                    <div className="text-[10px] text-amber-700/90 font-medium flex items-center justify-between pt-1 border-t border-amber-200/60">
+                      <span>{sessionDurationInfo.text}</span>
+                      {sessionDurationInfo.weeksWithin !== null && (
+                        <span className="font-bold">ในสมัย {sessionDurationInfo.weeksWithin} สัปดาห์</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-500 italic flex items-center justify-between">
+                  <span>ยังไม่ได้กำหนดวันปิดสมัยประชุม</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSessionClosingDateChange('2026-10-30')}
+                    className="text-[10px] text-[#0369a1] hover:underline font-semibold not-italic cursor-pointer"
+                  >
+                    + ตั้งเป็น 30 ต.ค. 69
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Weeks Count Selector */}
             <div className="pt-1 flex items-center justify-between">
               <span className="text-[11px] text-slate-500 font-medium">คำนวณล่วงหน้า:</span>
@@ -1130,6 +1259,7 @@ export default function App() {
               {schedules.map((sch, i) => {
                 const isSelected = selectedWeekFilter === sch.date;
                 const hasPostponed = sch.questions.some((q) => q.isPostponedNow);
+                const isAfterClosing = sessionClosingDate ? sch.date > sessionClosingDate : false;
                 return (
                   <button
                     key={sch.date}
@@ -1138,13 +1268,24 @@ export default function App() {
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer ${
                       isSelected
                         ? 'bg-[#0369a1] text-white shadow-xs'
+                        : isAfterClosing
+                        ? 'bg-amber-50/60 hover:bg-amber-100/70 text-slate-700 border border-amber-200/70'
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <Calendar className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
+                      <Calendar className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-white' : isAfterClosing ? 'text-amber-500' : 'text-slate-400'}`} />
                       <div className="truncate">
-                        <div className="font-semibold">{sch.thaiDateFormatted}</div>
+                        <div className="font-semibold flex items-center gap-1.5">
+                          <span className="truncate">{sch.thaiDateFormatted}</span>
+                          {isAfterClosing && (
+                            <span className={`px-1 py-0.2 rounded text-[9px] font-bold shrink-0 ${
+                              isSelected ? 'bg-amber-400 text-slate-900' : 'bg-amber-100 text-amber-800 border border-amber-300'
+                            }`}>
+                              หลังปิดสมัย
+                            </span>
+                          )}
+                        </div>
                         <div className={`text-[10px] flex items-center gap-1.5 ${isSelected ? 'text-sky-100' : 'text-slate-400'}`}>
                           <span>สัปดาห์ที่ {i + 1}</span>
                           <span>•</span>
@@ -1165,7 +1306,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0">
                       {hasPostponed && (
                         <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-300' : 'bg-amber-500'}`}></span>
                       )}
@@ -1276,6 +1417,62 @@ export default function App() {
                 <div className="text-base font-bold text-sky-700">{askerStats.totalUniqueAskers}</div>
                 <div className="text-[10px] text-slate-500">ผู้ตั้งถาม (ท่าน)</div>
               </div>
+
+              {/* แถบสถิติจำนวนกระทู้ถามที่ตอบแล้ว */}
+              <button
+                type="button"
+                id="btn-sidebar-answered-stats"
+                onClick={handleToggleAnsweredFilter}
+                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer col-span-2 flex items-center justify-between shadow-2xs group ${
+                  tableStatusFilter === 'answered'
+                    ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs font-bold'
+                    : 'bg-emerald-50/90 hover:bg-emerald-100 border-emerald-300 text-emerald-950 font-medium'
+                }`}
+                title={`คลิกเพื่อดูรายการกระทู้ถามที่ตอบแล้วทั้งหมดในตาราง (${askerStats.totalAnsweredQuestions} เรื่อง)`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors shadow-2xs ${
+                      tableStatusFilter === 'answered'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-emerald-600 text-white group-hover:bg-emerald-700'
+                    }`}
+                  >
+                    <CheckCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold block leading-tight">
+                      กระทู้ถามที่ตอบแล้ว
+                    </span>
+                    <span
+                      className={`text-[9.5px] block ${
+                        tableStatusFilter === 'answered'
+                          ? 'text-emerald-100'
+                          : 'text-emerald-700'
+                      }`}
+                    >
+                      ตอบแล้วในที่ประชุม ({askerStats.askersWithAnswered} ท่าน)
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-1 shrink-0">
+                  <span
+                    className={`text-base font-black ${
+                      tableStatusFilter === 'answered' ? 'text-white' : 'text-emerald-700'
+                    }`}
+                  >
+                    {askerStats.totalAnsweredQuestions}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold ${
+                      tableStatusFilter === 'answered' ? 'text-emerald-100' : 'text-emerald-800'
+                    }`}
+                  >
+                    เรื่อง
+                  </span>
+                </div>
+              </button>
+
               <div
                 className="bg-white p-2 rounded-lg border border-slate-200"
                 title={`สถิติขอเลื่อนตอบรวม ${askerStats.totalPostponeTimes} ครั้ง (จำนวน ${askerStats.totalPostponedQuestions} เรื่อง)`}
@@ -1570,6 +1767,7 @@ export default function App() {
                     onPrintWeek={(date) => handleOpenPrintModal(date)}
                     onCancelWeek={(date) => handleToggleCancelMeeting(date)}
                     isAdmin={userRole === 'admin'}
+                    sessionClosingDate={sessionClosingDate}
                   />
                 );
               })
@@ -1637,6 +1835,8 @@ export default function App() {
               isRefreshingSheet={isCheckingSheet}
               onOpenAskerStats={() => setIsAskerStatsModalOpen(true)}
               selectedAskerFilter={activeAskerFilter}
+              selectedStatusFilter={tableStatusFilter}
+              onStatusFilterChange={setTableStatusFilter}
               onCalculateAllAgendas={handleCalculateAllAgendas}
               isAdmin={userRole === 'admin'}
               searchTerm={headerSearchQuery}

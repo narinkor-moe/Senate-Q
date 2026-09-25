@@ -11,6 +11,7 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
+  CheckCheck,
   AlertCircle,
   Sparkles,
   Printer,
@@ -134,7 +135,7 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
         {/* Modal Body */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1 bg-[#f8fafc]">
           {/* Key Metric Overview Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
             {/* Metric 1: Total Askers */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
@@ -187,7 +188,26 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
               </div>
             </div>
 
-            {/* Metric 4: Askers with Postponed Questions & Total Postponements */}
+            {/* Metric 4: Answered Questions */}
+            <div className="bg-white p-4 rounded-xl border border-emerald-200 bg-emerald-50/20 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
+                  ตอบแล้วในที่ประชุม
+                </span>
+                <CheckCheck className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-black text-emerald-600">{stats.totalAnsweredQuestions}</span>
+                <span className="text-xs text-emerald-700 font-medium">เรื่อง</span>
+              </div>
+              <div className="mt-1 text-[11px] text-emerald-700 font-medium">
+                {stats.askersWithAnswered > 0
+                  ? `จาก ส.ว. ${stats.askersWithAnswered} ท่าน (เสร็จสิ้น)`
+                  : 'ยังไม่มีกระทู้ตอบแล้ว'}
+              </div>
+            </div>
+
+            {/* Metric 5: Askers with Postponed Questions & Total Postponements */}
             <div className="bg-white p-4 rounded-xl border border-amber-200 bg-amber-50/20 shadow-2xs">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
@@ -206,12 +226,12 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
               </div>
               <div className="mt-1 text-[11px] text-amber-800">
                 {stats.askersWithPostponed > 0
-                  ? `จาก ส.ว. ${stats.askersWithPostponed} ท่าน (ได้สิทธิ์ลำดับแรกในวันนัดตอบ)`
+                  ? `จาก ส.ว. ${stats.askersWithPostponed} ท่าน (ได้สิทธิ์ลำดับแรก)`
                   : 'ไม่มีกระทู้ขอเลื่อนตอบ'}
               </div>
             </div>
 
-            {/* Metric 5: Withdrawn Questions */}
+            {/* Metric 6: Withdrawn Questions */}
             <div className="bg-white p-4 rounded-xl border border-rose-200 bg-rose-50/20 shadow-2xs">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-rose-800 uppercase tracking-wider">

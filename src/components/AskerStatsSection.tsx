@@ -84,7 +84,7 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
       {!isCollapsed && (
         <div className="p-4 space-y-4">
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200/80">
               <span className="text-[11px] font-semibold text-slate-500 block">ผู้ตั้งถามทั้งหมด</span>
               <div className="mt-1 flex items-baseline gap-1.5">
@@ -106,6 +106,14 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
               <div className="mt-1 flex items-baseline gap-1.5">
                 <span className="text-xl font-bold text-blue-800">{stats.askersWithOfficial}</span>
                 <span className="text-xs text-blue-600">ท่าน</span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200/80" title={`ตอบแล้วในที่ประชุม ${stats.totalAnsweredQuestions} เรื่อง (${stats.askersWithAnswered} ท่าน)`}>
+              <span className="text-[11px] font-semibold text-emerald-800 block">ตอบแล้ว</span>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-xl font-bold text-emerald-700">{stats.totalAnsweredQuestions}</span>
+                <span className="text-xs text-emerald-600">เรื่อง</span>
               </div>
             </div>
 

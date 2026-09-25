@@ -11,6 +11,7 @@ interface WeeklySectionProps {
   onDownloadWeekPdf?: (date: string) => void;
   onCancelWeek?: (date: string) => void;
   isAdmin?: boolean;
+  sessionClosingDate?: string;
 }
 
 export const WeeklySection: React.FC<WeeklySectionProps> = ({
@@ -21,12 +22,14 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
   onDownloadWeekPdf,
   onCancelWeek,
   isAdmin = true,
+  sessionClosingDate,
 }) => {
   const isOfficial = schedule.scheduleType === 'official';
   const isPostponedPresent = schedule.questions.some((q) => q.isPostponedNow || !!q.question.postponedDate);
   const hasEduMinister = schedule.questions.some((q) => q.question.minister?.includes('ศึกษาธิการ'));
   const effectiveWeekNumber = schedule.weekNumber ?? (weekIndex + 1);
   const effectiveWeekIndex = effectiveWeekNumber - 1;
+  const isAfterSessionClosing = sessionClosingDate ? schedule.date > sessionClosingDate : false;
 
   return (
     <section
@@ -68,6 +71,15 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
                 <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-900 border border-purple-200 px-2 py-0.5 rounded text-[11px] font-bold">
                   <Sparkles className="w-3 h-3 text-purple-700" />
                   คาดการณ์การบรรจุล่วงหน้า
+                </span>
+              )}
+              {isAfterSessionClosing && (
+                <span
+                  className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded text-[11px] font-bold"
+                  title={`ระเบียบวาระนี้จัดขึ้นหลังวันปิดสมัยประชุม (${sessionClosingDate})`}
+                >
+                  <CalendarOff className="w-3 h-3 text-amber-700" />
+                  หลังวันปิดสมัยประชุม
                 </span>
               )}
             </div>
