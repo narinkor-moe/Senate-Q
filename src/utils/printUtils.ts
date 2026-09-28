@@ -209,6 +209,7 @@ export function generateReportHtml(
               <span class="week-badge">สัปดาห์ที่ ${actualWeekNum} (W${actualWeekNum})</span>
               <strong class="week-date">ระเบียบวาระการประชุม: ${schedule.thaiDateFormatted}</strong>
               ${scheduleTypeBadge}
+              ${schedule.isSpecialMeeting ? '<span style="background: #d97706; color: #ffffff; padding: 2px 8px; border-radius: 3px; font-size: 11pt; font-weight: bold; margin-left: 8px;">วันประชุมเป็นพิเศษ (แทนวันจันทร์ที่งดประชุม)</span>' : ''}
             </div>
             <span class="week-stat">บรรจุกระทู้: ${schedule.questions.length} / ${schedule.capacity} เรื่อง</span>
           </div>

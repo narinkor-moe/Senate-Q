@@ -101,6 +101,23 @@ export default function App() {
 
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
 
+  // Special Meeting Dates state (วันนัดประชุมเป็นพิเศษ, persisted to localStorage)
+  const STORAGE_KEY_SPECIAL_MEETINGS = 'senate_special_meetings';
+  const [specialMeetings, setSpecialMeetings] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_SPECIAL_MEETINGS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Error loading special meetings from localStorage', e);
+    }
+    return {};
+  });
+
   // 4. User Role & Authentication State
   // Requirement: admin (password: admin1234) has full access; general user has no password and cannot use postpone to Google Sheet
   const STORAGE_KEY_USER_ROLE = 'senate_app_user_role';
@@ -376,6 +393,47 @@ export default function App() {
     }
   };
 
+  // Save / Add / Edit a Special Meeting (วันนัดประชุมเป็นพิเศษ)
+  const handleSaveSpecialMeeting = (date: string, name: string, oldDate?: string) => {
+    setSpecialMeetings((prev) => {
+      const next = { ...prev };
+      if (oldDate && oldDate !== date) {
+        delete next[oldDate];
+      }
+      next[date] = name;
+      try {
+        localStorage.setItem(STORAGE_KEY_SPECIAL_MEETINGS, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
+
+  // Delete a Special Meeting (วันนัดประชุมเป็นพิเศษ)
+  const handleDeleteSpecialMeeting = (date: string) => {
+    setSpecialMeetings((prev) => {
+      const next = { ...prev };
+      delete next[date];
+      try {
+        localStorage.setItem(STORAGE_KEY_SPECIAL_MEETINGS, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
+
+  // Reset Special Meetings
+  const handleResetSpecialMeetings = () => {
+    setSpecialMeetings({});
+    try {
+      localStorage.removeItem(STORAGE_KEY_SPECIAL_MEETINGS);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Open Postpone Modal for a question
   // User restriction rule: Non-admin users cannot use postpone button that saves to Google Sheets
   const handleOpenPostponeModal = (question: QuestionItem) => {
@@ -479,10 +537,10 @@ export default function App() {
     }
   };
 
-  // Compute Weekly Schedules using Core Algorithm with custom/configured holidays
+  // Compute Weekly Schedules using Core Algorithm with custom/configured holidays and special meetings
   const { schedules, remainingQuestions, skippedHolidays } = useMemo(() => {
-    return computeWeeklySchedules(questions, postponedIds, startDate, maxWeeks, holidays);
-  }, [questions, postponedIds, startDate, maxWeeks, holidays]);
+    return computeWeeklySchedules(questions, postponedIds, startDate, maxWeeks, holidays, specialMeetings);
+  }, [questions, postponedIds, startDate, maxWeeks, holidays, specialMeetings]);
 
   // Run parliamentary compliance audit on all generated schedules
   const complianceAudit = useMemo(() => {
@@ -508,8 +566,8 @@ export default function App() {
 
   // Full projection to know exact scheduled dates for all questions
   const fullSimulationSchedules = useMemo(() => {
-    return computeWeeklySchedules(questions, postponedIds, startDate, 50, holidays).schedules;
-  }, [questions, postponedIds, startDate, holidays]);
+    return computeWeeklySchedules(questions, postponedIds, startDate, 50, holidays, specialMeetings).schedules;
+  }, [questions, postponedIds, startDate, holidays, specialMeetings]);
 
   // Questions scheduled on meeting dates after the session closing date
   const questionsAfterClosing = useMemo(() => {
@@ -579,7 +637,7 @@ export default function App() {
 
       // Iteratively simulate schedule computation to find required week capacity
       for (let testW = 4; testW <= 60; testW++) {
-        const testRes = computeWeeklySchedules(questions, postponedIds, startDate, testW, holidays);
+        const testRes = computeWeeklySchedules(questions, postponedIds, startDate, testW, holidays, specialMeetings);
         if (testRes.remainingQuestions.length === 0) {
           optimalWeeks = testW;
           found = true;
@@ -974,13 +1032,18 @@ export default function App() {
               type="button"
               onClick={() => setIsHolidayModalOpen(true)}
               className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-colors cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
-              title="เพิ่ม ลบ หรือแก้ไขวันหยุดราชการในปฏิทิน"
+              title="เพิ่ม ลบ หรือแก้ไขวันหยุดราชการ วันงดประชุม และวันนัดประชุมเป็นพิเศษในปฏิทิน"
             >
               <CalendarOff className="w-3.5 h-3.5 text-rose-300 shrink-0" />
-              <span>ปฏิทินวันหยุดราชการ</span>
+              <span>ปฏิทินวันหยุด / นัดประชุม</span>
               <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-rose-500/80 text-white text-[10px] font-bold leading-none">
                 {Object.keys(holidays).length}
               </span>
+              {Object.keys(specialMeetings).length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-indigo-500 text-white text-[10px] font-bold leading-none" title={`วันนัดประชุมเป็นพิเศษ ${Object.keys(specialMeetings).length} วัน`}>
+                  +{Object.keys(specialMeetings).length} พิเศษ
+                </span>
+              )}
             </button>
 
             {/* Asker Statistics Button */}
@@ -1388,11 +1451,18 @@ export default function App() {
             >
               <div className="flex items-center gap-1.5">
                 <CalendarOff className="w-3.5 h-3.5 text-rose-600" />
-                <span>จัดการวันหยุด / วันงดประชุม</span>
+                <span>จัดการวันหยุด / นัดประชุม</span>
               </div>
-              <span className="text-[10px] bg-rose-200/80 text-rose-900 px-2 py-0.5 rounded-full font-bold">
-                {Object.keys(holidays).length} วัน
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] bg-rose-200/80 text-rose-900 px-2 py-0.5 rounded-full font-bold">
+                  {Object.keys(holidays).length} วัน
+                </span>
+                {Object.keys(specialMeetings).length > 0 && (
+                  <span className="text-[10px] bg-indigo-200/90 text-indigo-900 px-1.5 py-0.5 rounded-full font-bold">
+                    +{Object.keys(specialMeetings).length} พิเศษ
+                  </span>
+                )}
+              </div>
             </button>
 
             {/* Skipped Holidays & Cancelled Meetings Notice in Sidebar */}
@@ -1429,6 +1499,11 @@ export default function App() {
                             {isCancelled ? 'งดประชุม' : 'วันหยุด'}
                           </span>
                           <span className="font-medium text-[10px]">{h.date}: {h.name}</span>
+                          {h.rescheduledToSpecialDate && (
+                            <span className="block text-[9px] text-indigo-700 font-semibold mt-0.5">
+                              ↳ นำกระทู้ถามไปจัดในวันนัดพิเศษ: {h.rescheduledToSpecialDate} แทน
+                            </span>
+                          )}
                         </div>
                         {isCancelled && (
                           <button
@@ -1667,7 +1742,7 @@ export default function App() {
                   <span><strong>เงื่อนไขอื่นคงไว้ตามเดิม:</strong></span>
                   <ul className="list-disc list-inside space-y-1 text-[11px] text-amber-900/85 pl-1">
                     <li>วันเริ่มต้นวาระการประชุม: <strong>วันจันทร์ที่ 31 สิงหาคม 2569</strong></li>
-                    <li>จัดทุกวันจันทร์ (ยกเว้นวันหยุดนักขัตฤกษ์ และวันงดประชุม)</li>
+                    <li><strong>จัดทุกวันจันทร์ และวันที่จัดประชุมเป็นพิเศษของสัปดาห์ (ยกเว้นวันจันทร์ที่ตรงกับวันหยุดนักขัตฤกษ์หรืองดการประชุม)</strong></li>
                     <li>กระทู้ที่เลื่อนมาตอบวันเดียวกับที่จัดกระทู้ตามลำดับ <strong>ชื่อผู้ตั้งถามห้ามซ้ำกัน</strong> และให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ</li>
                     <li>จัดตามลำดับปกติในวันเดียวกัน <strong>ห้ามผู้ตั้งถามซ้ำกัน</strong></li>
                     <li>เรียงตาม <strong>ลำดับที่ยื่น</strong> อย่างเคร่งครัด</li>
@@ -2043,7 +2118,7 @@ export default function App() {
         initialTab={loginModalInitialTab}
       />
 
-      {/* Holiday Manager Modal (เพิ่ม ลบ แก้ไข วันหยุดราชการในปฏิทิน) */}
+      {/* Holiday Manager Modal (เพิ่ม ลบ แก้ไข วันหยุดราชการในปฏิทิน และ วันนัดประชุมเป็นพิเศษ) */}
       <HolidayManagerModal
         isOpen={isHolidayModalOpen}
         onClose={() => setIsHolidayModalOpen(false)}
@@ -2051,6 +2126,10 @@ export default function App() {
         onSaveHoliday={handleSaveHoliday}
         onDeleteHoliday={handleDeleteHoliday}
         onResetHolidays={handleResetHolidays}
+        specialMeetings={specialMeetings}
+        onSaveSpecialMeeting={handleSaveSpecialMeeting}
+        onDeleteSpecialMeeting={handleDeleteSpecialMeeting}
+        onResetSpecialMeetings={handleResetSpecialMeetings}
       />
 
       {/* Print Report Modal (พิมพ์รายงานราชการมาตรฐาน / พรีวิว & สั่งพิมพ์ออกเครื่องพิมพ์) */}

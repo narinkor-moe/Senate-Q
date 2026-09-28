@@ -267,21 +267,39 @@ export function formatThaiNumericDate(input?: string): string {
   return result;
 }
 
+/**
+ * Helper to add days to an ISO date string (YYYY-MM-DD)
+ */
+export function addDaysToISO(isoDate: string, days: number): string {
+  const d = new Date(isoDate + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export interface WorkingMondayResult {
   workingMondays: string[];
   skippedHolidays: HolidayItem[];
+  specialReplacements?: Record<string, { originalMonday: string; holidayName: string }>;
 }
 
 /**
- * Find working Mondays (excluding official public holidays) starting on or after a given date
+ * Find working Mondays (excluding official public holidays) starting on or after a given date.
+ * กฎเกณฑ์สำคัญ: หากวันจันทร์ในสัปดาห์ใด ตรงกับวันหยุดนักขัตฤกษ์ และวันงดประชุม
+ * ให้ระบบนำกระทู้ถามที่ได้บรรจุในวันจันทร์ของสัปดาห์นั้น ไปจัดระเบียบวาระการประชุมในวันนัดประชุมเป็นพิเศษของสัปดาห์นั้นแทน
  */
 export function getWorkingMondays(
   startDateStr: string,
   count: number,
-  customHolidays: Record<string, string> = THAI_PUBLIC_HOLIDAYS
+  customHolidays: Record<string, string> = THAI_PUBLIC_HOLIDAYS,
+  specialMeetings: Record<string, string> = {}
 ): WorkingMondayResult {
   const workingMondays: string[] = [];
   const skippedHolidays: HolidayItem[] = [];
+  const specialReplacements: Record<string, { originalMonday: string; holidayName: string }> = {};
+
   const current = new Date(startDateStr + 'T00:00:00');
   
   // Find the first Monday
@@ -290,34 +308,85 @@ export function getWorkingMondays(
   current.setDate(current.getDate() + daysUntilMonday);
 
   let iterations = 0;
-  const MAX_ITERATIONS = 100;
+  const MAX_ITERATIONS = 120;
 
   while (workingMondays.length < count && iterations < MAX_ITERATIONS) {
     iterations++;
     const yyyy = current.getFullYear();
     const mm = String(current.getMonth() + 1).padStart(2, '0');
     const dd = String(current.getDate()).padStart(2, '0');
-    const dateStr = `${yyyy}-${mm}-${dd}`;
+    const mondayStr = `${yyyy}-${mm}-${dd}`;
 
-    if (customHolidays[dateStr]) {
-      const holidayName = customHolidays[dateStr];
+    // Collect all special meetings defined within this week (from Monday through Sunday)
+    const specialDatesInThisWeek: string[] = [];
+    for (let offset = 0; offset < 7; offset++) {
+      const dStr = addDaysToISO(mondayStr, offset);
+      if (specialMeetings && specialMeetings[dStr]) {
+        specialDatesInThisWeek.push(dStr);
+      }
+    }
+    specialDatesInThisWeek.sort();
+
+    const isHoliday = !!(customHolidays && customHolidays[mondayStr]);
+
+    if (isHoliday) {
+      const holidayName = customHolidays[mondayStr];
       const isCancelledMeeting =
         holidayName.includes('งดประชุม') ||
         holidayName.includes('งดการประชุม');
-      skippedHolidays.push({
-        date: dateStr,
-        name: holidayName,
-        type: isCancelledMeeting ? 'cancelled_meeting' : 'holiday',
-      });
+
+      // กฎเกณฑ์: หากวันจันทร์ในสัปดาห์ใด ตรงกับวันหยุดนักขัตฤกษ์ หรือวันงดประชุม
+      // ให้ระบบนำกระทู้ถามที่ได้บรรจุในวันจันทร์ของสัปดาห์นั้น ไปจัดระเบียบวาระการประชุมในวันนัดประชุมเป็นพิเศษของสัปดาห์นั้นแทน
+      if (specialDatesInThisWeek.length > 0) {
+        // มีวันนัดประชุมเป็นพิเศษในสัปดาห์นั้น นำวันนัดพิเศษมาเป็นวันประชุมของสัปดาห์นี้แทนวันจันทร์
+        const specialTargetDate = specialDatesInThisWeek[0];
+        workingMondays.push(specialTargetDate);
+        specialReplacements[specialTargetDate] = {
+          originalMonday: mondayStr,
+          holidayName: holidayName,
+        };
+
+        // บันทึกวันหยุดลง skippedHolidays พร้อมระบุว่าย้ายไปจัดในวันนัดประชุมเป็นพิเศษของสัปดาห์นั้น
+        skippedHolidays.push({
+          date: mondayStr,
+          name: `${holidayName} (ย้ายไปจัดประชุมในวันนัดพิเศษ: ${formatThaiDateWithDayOfWeek(specialTargetDate)} แทน)`,
+          type: isCancelledMeeting ? 'cancelled_meeting' : 'holiday',
+          rescheduledToSpecialDate: specialTargetDate,
+          rescheduledReason: specialMeetings[specialTargetDate] || 'วันนัดประชุมเป็นพิเศษ',
+        });
+
+        // หากสัปดาห์นี้มีวันนัดประชุมเป็นพิเศษมากกว่า 1 วัน ให้บรรจุเพิ่มตามลำดับ
+        for (let i = 1; i < specialDatesInThisWeek.length; i++) {
+          workingMondays.push(specialDatesInThisWeek[i]);
+        }
+      } else {
+        // ไม่มีวันนัดประชุมเป็นพิเศษในสัปดาห์นั้น ให้งดการประชุมและข้ามไปสัปดาห์ถัดไป
+        skippedHolidays.push({
+          date: mondayStr,
+          name: holidayName,
+          type: isCancelledMeeting ? 'cancelled_meeting' : 'holiday',
+        });
+      }
     } else {
-      workingMondays.push(dateStr);
+      // วันจันทร์ปกติ (ไม่ใช่วันหยุด)
+      workingMondays.push(mondayStr);
+
+      // หากมีวันนัดประชุมเป็นพิเศษอื่นๆ ในสัปดาห์นี้เพิ่มเติมนอกเหนือจากวันจันทร์
+      for (const sDate of specialDatesInThisWeek) {
+        if (sDate !== mondayStr && !workingMondays.includes(sDate)) {
+          workingMondays.push(sDate);
+        }
+      }
     }
     
-    // next Monday (+7 days)
+    // Advance to next Monday (+7 days)
     current.setDate(current.getDate() + 7);
   }
 
-  return { workingMondays, skippedHolidays };
+  // Ensure chronological order
+  workingMondays.sort();
+
+  return { workingMondays, skippedHolidays, specialReplacements };
 }
 
 /**
@@ -513,7 +582,8 @@ export function computeWeeklySchedules(
   postponedQuestionIds: Set<string>,
   startDate: string = '2026-08-31',
   maxWeeks: number = 8,
-  customHolidays: Record<string, string> = THAI_PUBLIC_HOLIDAYS
+  customHolidays: Record<string, string> = THAI_PUBLIC_HOLIDAYS,
+  specialMeetings: Record<string, string> = {}
 ): {
   schedules: WeeklySchedule[];
   remainingQuestions: QuestionItem[];
@@ -522,7 +592,7 @@ export function computeWeeklySchedules(
   // 1. เรียงลำดับกระทู้ทั้งหมดตาม "ลำดับที่ยื่น" (submittedOrder) อย่างเคร่งครัด
   const allSortedQuestions = [...allQuestions].sort((a, b) => a.submittedOrder - b.submittedOrder);
   
-  const { workingMondays, skippedHolidays } = getWorkingMondays(startDate, maxWeeks, customHolidays);
+  const { workingMondays, skippedHolidays, specialReplacements } = getWorkingMondays(startDate, maxWeeks, customHolidays, specialMeetings);
   const schedules: WeeklySchedule[] = [];
 
   // ตรวจสอบกระทู้ที่มีการระบุ "วันที่บรรจุ" (scheduledDate) ไว้ล่วงหน้า (เช่น จาก Google Sheet)
@@ -1089,16 +1159,31 @@ export function computeWeeklySchedules(
     const dynamicCapacity = 3 + placedPostponedCount;
     const baseCapacity = 3;
 
+    const replacement = specialReplacements ? specialReplacements[mondayDate] : undefined;
+    const isSpecial = !!(specialMeetings && specialMeetings[mondayDate]) || !!replacement;
+
     schedules.push({
       date: mondayDate,
-      thaiDateFormatted: formatThaiDate(mondayDate),
+      thaiDateFormatted: formatThaiDateWithDayOfWeek(mondayDate),
       weekNumber: w + 1,
       questions: scheduledQuestions,
       capacity: dynamicCapacity,
       baseCapacity: baseCapacity,
       postponedCount: placedPostponedCount,
       scheduleType: isOfficial ? 'official' : 'projected',
-      officialNotice: isOfficial ? 'บรรจุในระเบียบวาระการประชุมแล้ว' : 'คาดการณ์การบรรจุระเบียบวาระล่วงหน้า'
+      officialNotice: replacement
+        ? `วันนัดประชุมเป็นพิเศษ (แทนวันจันทร์ที่ ${formatThaiShortDate(replacement.originalMonday)}: ${replacement.holidayName})`
+        : isSpecial
+        ? `วันนัดประชุมเป็นพิเศษ: ${specialMeetings[mondayDate]}`
+        : isOfficial
+        ? 'บรรจุในระเบียบวาระการประชุมแล้ว'
+        : 'คาดการณ์การบรรจุระเบียบวาระล่วงหน้า',
+      isSpecialMeeting: isSpecial,
+      specialMeetingReason: isSpecial
+        ? specialMeetings[mondayDate] || (replacement ? `นัดประชุมแทน: ${replacement.holidayName}` : undefined)
+        : undefined,
+      replacedHolidayDate: replacement ? replacement.originalMonday : undefined,
+      replacedHolidayName: replacement ? replacement.holidayName : undefined,
     });
 
     // If pool is empty and no carry-overs, and we have completed at least 2 weeks, stop
@@ -1258,23 +1343,25 @@ export function auditScheduleCompliance(
     details: 'คงชื่อเรื่องกระทู้เดิมในระเบียบวาระครบถ้วน และส่งต่อไปยังระเบียบวาระสัปดาห์เป้าหมายถูกต้อง'
   });
 
-  // Check 6: Working Monday & Holiday Exclusion Rule (วันประชุมวันจันทร์ที่ไม่ตรงวันหยุด)
+  // Check 6: Working Monday & Special Meeting Rule (จัดทุกวันจันทร์ และวันที่จัดประชุมเป็นพิเศษของสัปดาห์ (ยกเว้นวันจันทร์ที่ตรงกับวันหยุดนักขัตฤกษ์หรืองดการประชุม))
   let mondayPassed = true;
   const mondayIssues: string[] = [];
   schedules.forEach((s, idx) => {
-    const dateObj = new Date(s.date);
+    // หากเป็นวันนัดประชุมเป็นพิเศษ ถือว่าถูกต้องตามเกณฑ์
+    if (s.isSpecialMeeting) return;
+    const dateObj = new Date(s.date + 'T00:00:00');
     if (dateObj.getDay() !== 1) {
       mondayPassed = false;
-      mondayIssues.push(`สัปดาห์ที่ ${idx + 1} (${s.date}) ไม่ใช่วันจันทร์`);
+      mondayIssues.push(`สัปดาห์ที่ ${idx + 1} (${s.date}) ไม่ใช่วันจันทร์และไม่ได้กำหนดเป็นวันนัดประชุมเป็นพิเศษ`);
     }
   });
   checks.push({
     ruleId: 'WORKING_MONDAY_RULE',
-    ruleName: 'กำหนดวันประชุมตามปฏิทินวุฒิสภา (วันจันทร์ทำการ)',
-    description: 'กำหนดวันประชุมทุกวันจันทร์ ยกเว้นวันหยุดราชการหรือวันหยุดนักขัตฤกษ์ (ข้ามไปวันจันทร์ทำการถัดไป)',
+    ruleName: 'กำหนดวันประชุมตามปฏิทินวุฒิสภา (วันจันทร์ทำการ และวันที่จัดประชุมเป็นพิเศษ)',
+    description: 'จัดทุกวันจันทร์ และวันที่จัดประชุมเป็นพิเศษของสัปดาห์ (ยกเว้นวันจันทร์ที่ตรงกับวันหยุดนักขัตฤกษ์หรืองดการประชุม)',
     passed: mondayPassed,
     details: mondayPassed
-      ? 'วันประชุมทุกสัปดาห์เป็นวันจันทร์ทำการ ไม่ตรงกับวันหยุดนักขัตฤกษ์'
+      ? 'วันประชุมทุกสัปดาห์เป็นไปตามเกณฑ์: จัดทุกวันจันทร์ และวันที่จัดประชุมเป็นพิเศษของสัปดาห์ (ยกเว้นวันจันทร์ที่ตรงกับวันหยุดนักขัตฤกษ์หรืองดการประชุม)'
       : mondayIssues.join(', ')
   });
 

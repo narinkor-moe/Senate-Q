@@ -57,6 +57,10 @@ export interface WeeklySchedule {
   cancelledReason?: string;
   scheduleType?: 'official' | 'projected'; // 'official' = บรรจุในระเบียบวาระแล้ว (ทางการ), 'projected' = คาดการณ์การบรรจุล่วงหน้า
   officialNotice?: string;
+  isSpecialMeeting?: boolean;
+  specialMeetingReason?: string;
+  replacedHolidayDate?: string; // วันจันทร์เดิมที่ตรงกับวันหยุด/งดประชุม และถูกย้ายมาจัดในวันนี้แทน
+  replacedHolidayName?: string; // ชื่อวันหยุดหรือวันงดประชุมที่ถูกย้ายมา
 }
 
 export interface RuleComplianceCheck {
@@ -81,7 +85,21 @@ export interface RuleComplianceAudit {
 export interface HolidayItem {
   date: string;
   name: string;
-  type?: 'holiday' | 'cancelled_meeting';
+  type?: 'holiday' | 'cancelled_meeting' | 'special_meeting';
+  rescheduledToSpecialDate?: string; // วันที่นัดประชุมเป็นพิเศษที่นำกระทู้ถามไปจัดแทน
+  rescheduledReason?: string; // รายละเอียดวันนัดประชุมเป็นพิเศษที่จัดแทน
+}
+
+export interface SpecialMeetingItem {
+  date: string; // ISO format YYYY-MM-DD
+  name: string; // เช่น วันนัดประชุมวุฒิสภาเป็นพิเศษ
+  notes?: string;
+}
+
+export interface SpecialMeetingConfig {
+  cancelledMonday?: string;
+  specialDate?: string;
+  reason?: string;
 }
 
 export interface SimulationConfig {

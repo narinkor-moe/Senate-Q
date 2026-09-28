@@ -1,7 +1,7 @@
 import React from 'react';
 import { WeeklySchedule, QuestionItem } from '../types';
 import { QuestionCard } from './QuestionCard';
-import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff, Landmark, Sparkles, FileCheck, FileDown, GraduationCap } from 'lucide-react';
+import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff, Landmark, Sparkles, FileCheck, FileDown, GraduationCap, CalendarCheck } from 'lucide-react';
 
 interface WeeklySectionProps {
   schedule: WeeklySchedule;
@@ -71,6 +71,23 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
                 <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-900 border border-purple-200 px-2 py-0.5 rounded text-[11px] font-bold">
                   <Sparkles className="w-3 h-3 text-purple-700" />
                   คาดการณ์การบรรจุล่วงหน้า
+                </span>
+              )}
+              {schedule.isSpecialMeeting && (
+                <span
+                  className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded text-[11px] font-bold"
+                  title={
+                    schedule.replacedHolidayName
+                      ? `จัดประชุมเป็นพิเศษแทนวันจันทร์ที่ ${schedule.replacedHolidayDate} (${schedule.replacedHolidayName})`
+                      : schedule.specialMeetingReason || 'วันนัดประชุมเป็นพิเศษ'
+                  }
+                >
+                  <CalendarCheck className="w-3 h-3 text-amber-700" />
+                  {schedule.replacedHolidayName ? (
+                    <span>วันนัดประชุมเป็นพิเศษ (แทนวันหยุด: {schedule.replacedHolidayName})</span>
+                  ) : (
+                    <span>วันนัดประชุมเป็นพิเศษ {schedule.specialMeetingReason ? `(${schedule.specialMeetingReason})` : ''}</span>
+                  )}
                 </span>
               )}
               {isAfterSessionClosing && (
