@@ -2163,18 +2163,15 @@ export default function App() {
         onClick={handleScrollToTop}
         aria-label="กลับขึ้นไปด้านบนสุดของหน้า"
         title="กลับขึ้นไปด้านบนสุดของหน้า"
-        className={`fixed bottom-6 right-6 z-40 flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-full bg-[#1e293b] hover:bg-[#0f172a] text-white shadow-xl hover:shadow-2xl border border-slate-700/80 transition-all duration-300 transform cursor-pointer group active:scale-95 ${
+        className={`fixed bottom-6 right-6 z-40 w-11 h-11 flex items-center justify-center rounded-full bg-[#1e293b] hover:bg-[#0f172a] text-white shadow-xl hover:shadow-2xl border border-slate-700/80 transition-all duration-300 transform cursor-pointer group active:scale-95 ${
           showScrollTop
             ? 'opacity-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 translate-y-4 pointer-events-none'
         }`}
       >
-        <div className="w-6 h-6 rounded-full bg-[#0369a1] group-hover:bg-[#0284c7] flex items-center justify-center transition-colors shadow-2xs">
-          <ArrowUp className="w-3.5 h-3.5 text-white transition-transform group-hover:-translate-y-0.5" />
+        <div className="w-8 h-8 rounded-full bg-[#0369a1] group-hover:bg-[#0284c7] flex items-center justify-center transition-colors shadow-2xs">
+          <ArrowUp className="w-4 h-4 text-white transition-transform group-hover:-translate-y-0.5" />
         </div>
-        <span className="text-xs font-semibold tracking-wide pr-0.5 hidden sm:inline-block">
-          ขึ้นบนสุด
-        </span>
       </button>
 
       {/* Floating Toast Notification */}
