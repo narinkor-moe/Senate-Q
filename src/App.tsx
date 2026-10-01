@@ -64,7 +64,9 @@ import {
   GraduationCap,
   ArrowUp,
   Search,
+  Cloud,
 } from 'lucide-react';
+import { subscribeSharedCalendar, saveSharedCalendarToCloud } from './firebase';
 
 const STORAGE_KEY_HOLIDAYS = 'senate_official_holidays';
 
@@ -225,6 +227,10 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
+    setCloudSyncStatus('syncing');
+    saveSharedCalendarToCloud({ sessionClosingDate: dateVal })
+      .then(() => setCloudSyncStatus('synced'))
+      .catch(() => setCloudSyncStatus('offline'));
   };
 
   // 8. Google Sheets Connection & Active Worksheet Configuration
@@ -329,6 +335,61 @@ export default function App() {
     return handleRefreshFromGoogleSheet(showNotification);
   }, [handleRefreshFromGoogleSheet]);
 
+  // 9. Real-time Cloud Calendar Synchronization across all devices (Firebase Firestore)
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('syncing');
+
+  useEffect(() => {
+    const unsubscribe = subscribeSharedCalendar(
+      (sharedData, exists) => {
+        if (exists) {
+          if (sharedData.customHolidays && Object.keys(sharedData.customHolidays).length > 0) {
+            setHolidays(sharedData.customHolidays);
+            try {
+              localStorage.setItem(STORAGE_KEY_HOLIDAYS, JSON.stringify(sharedData.customHolidays));
+            } catch (e) {
+              console.error(e);
+            }
+          }
+          if (sharedData.specialMeetings !== undefined) {
+            setSpecialMeetings(sharedData.specialMeetings);
+            try {
+              localStorage.setItem(STORAGE_KEY_SPECIAL_MEETINGS, JSON.stringify(sharedData.specialMeetings));
+            } catch (e) {
+              console.error(e);
+            }
+          }
+          if (sharedData.sessionClosingDate) {
+            setSessionClosingDate(sharedData.sessionClosingDate);
+            try {
+              localStorage.setItem(STORAGE_KEY_SESSION_CLOSING_DATE, sharedData.sessionClosingDate);
+            } catch (e) {
+              console.error(e);
+            }
+          }
+          setCloudSyncStatus('synced');
+        } else {
+          // Document does not exist yet on cloud: seed with current configuration
+          saveSharedCalendarToCloud({
+            customHolidays: holidays,
+            specialMeetings: specialMeetings,
+            sessionClosingDate: sessionClosingDate,
+          })
+            .then(() => setCloudSyncStatus('synced'))
+            .catch((err) => {
+              console.warn('Initial calendar seed to cloud failed:', err);
+              setCloudSyncStatus('offline');
+            });
+        }
+      },
+      (err) => {
+        console.warn('Firestore calendar subscription error:', err);
+        setCloudSyncStatus('offline');
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
   // Initial check on mount: pull latest data from Google Sheet
   useEffect(() => {
     handleRefreshFromGoogleSheet(false);
@@ -348,6 +409,10 @@ export default function App() {
       } catch (e) {
         console.error(e);
       }
+      setCloudSyncStatus('syncing');
+      saveSharedCalendarToCloud({ customHolidays: next })
+        .then(() => setCloudSyncStatus('synced'))
+        .catch(() => setCloudSyncStatus('offline'));
       return next;
     });
   };
@@ -365,6 +430,10 @@ export default function App() {
       } catch (e) {
         console.error(e);
       }
+      setCloudSyncStatus('syncing');
+      saveSharedCalendarToCloud({ customHolidays: next })
+        .then(() => setCloudSyncStatus('synced'))
+        .catch(() => setCloudSyncStatus('offline'));
       return next;
     });
   };
@@ -379,6 +448,10 @@ export default function App() {
       } catch (e) {
         console.error(e);
       }
+      setCloudSyncStatus('syncing');
+      saveSharedCalendarToCloud({ customHolidays: next })
+        .then(() => setCloudSyncStatus('synced'))
+        .catch(() => setCloudSyncStatus('offline'));
       return next;
     });
   };
@@ -391,6 +464,10 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
+    setCloudSyncStatus('syncing');
+    saveSharedCalendarToCloud({ customHolidays: THAI_PUBLIC_HOLIDAYS })
+      .then(() => setCloudSyncStatus('synced'))
+      .catch(() => setCloudSyncStatus('offline'));
   };
 
   // Save / Add / Edit a Special Meeting (วันนัดประชุมเป็นพิเศษ)
@@ -406,6 +483,10 @@ export default function App() {
       } catch (e) {
         console.error(e);
       }
+      setCloudSyncStatus('syncing');
+      saveSharedCalendarToCloud({ specialMeetings: next })
+        .then(() => setCloudSyncStatus('synced'))
+        .catch(() => setCloudSyncStatus('offline'));
       return next;
     });
   };
@@ -420,6 +501,10 @@ export default function App() {
       } catch (e) {
         console.error(e);
       }
+      setCloudSyncStatus('syncing');
+      saveSharedCalendarToCloud({ specialMeetings: next })
+        .then(() => setCloudSyncStatus('synced'))
+        .catch(() => setCloudSyncStatus('offline'));
       return next;
     });
   };
@@ -432,6 +517,10 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
+    setCloudSyncStatus('syncing');
+    saveSharedCalendarToCloud({ specialMeetings: {} })
+      .then(() => setCloudSyncStatus('synced'))
+      .catch(() => setCloudSyncStatus('offline'));
   };
 
   // Open Postpone Modal for a question
@@ -1175,9 +1264,16 @@ export default function App() {
               )}
             </div>
 
-            <div className="hidden xl:flex items-center gap-2 pl-2 border-l border-slate-700 text-xs text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>ระบบออนไลน์</span>
+            <div className="hidden lg:flex items-center gap-2 pl-2 border-l border-slate-700 text-xs text-slate-300">
+              <span className={`w-2 h-2 rounded-full ${
+                cloudSyncStatus === 'synced' ? 'bg-emerald-400 animate-pulse' : cloudSyncStatus === 'syncing' ? 'bg-amber-400 animate-ping' : 'bg-rose-400'
+              }`}></span>
+              <span className="flex items-center gap-1.5" title="ปฏิทินวันหยุดและวันนัดประชุมซิงก์เชื่อมโยงผ่าน Cloud Firestore ทุกอุปกรณ์ใช้ข้อมูลเดียวกันแบบเรียลไทม์">
+                <Cloud className="w-3.5 h-3.5 text-sky-400" />
+                <span className="text-[11px] font-medium">
+                  {cloudSyncStatus === 'synced' ? 'คลาวด์ซิงก์เรียลไทม์' : cloudSyncStatus === 'syncing' ? 'กำลังซิงก์...' : 'ออฟไลน์'}
+                </span>
+              </span>
             </div>
           </div>
         </div>
@@ -2130,6 +2226,7 @@ export default function App() {
         onSaveSpecialMeeting={handleSaveSpecialMeeting}
         onDeleteSpecialMeeting={handleDeleteSpecialMeeting}
         onResetSpecialMeetings={handleResetSpecialMeetings}
+        cloudSyncStatus={cloudSyncStatus}
       />
 
       {/* Print Report Modal (พิมพ์รายงานราชการมาตรฐาน / พรีวิว & สั่งพิมพ์ออกเครื่องพิมพ์) */}

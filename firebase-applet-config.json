@@ -3,6 +3,7 @@
   "appId": "1:819658838500:web:2e5157458b5fcd34cab7f1",
   "apiKey": "AIzaSyDFTlAA5jRKpplfkB4PZxzNI7PqmYaZHoo",
   "authDomain": "gen-lang-client-0193698957.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-parliamentaryque-cb66d932-eae5-4821-8d11-5686f5701576",
   "storageBucket": "gen-lang-client-0193698957.firebasestorage.app",
   "messagingSenderId": "819658838500",
   "measurementId": "",

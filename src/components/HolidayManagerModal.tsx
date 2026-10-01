@@ -16,7 +16,8 @@ import {
   Clock,
   ShieldCheck,
   CalendarCheck,
-  CalendarPlus
+  CalendarPlus,
+  Cloud
 } from 'lucide-react';
 import {
   formatThaiDateWithDayOfWeek,
@@ -36,6 +37,7 @@ interface HolidayManagerModalProps {
   onSaveSpecialMeeting?: (date: string, name: string, oldDate?: string) => void;
   onDeleteSpecialMeeting?: (date: string) => void;
   onResetSpecialMeetings?: () => void;
+  cloudSyncStatus?: 'synced' | 'syncing' | 'offline';
 }
 
 export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
@@ -49,6 +51,7 @@ export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
   onSaveSpecialMeeting,
   onDeleteSpecialMeeting,
   onResetSpecialMeetings,
+  cloudSyncStatus = 'synced',
 }) => {
   // --- 1. Public Holidays Form State ---
   const [inputDate, setInputDate] = useState<string>('');
@@ -363,6 +366,13 @@ export const HolidayManagerModal: React.FC<HolidayManagerModalProps> = ({
                     นัดประชุมเป็นพิเศษ {specialCount} วัน
                   </span>
                 )}
+                <span
+                  className="bg-sky-100 text-sky-900 border border-sky-300 px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1"
+                  title="ข้อมูลปฏิทินวันหยุด วันงดประชุม และวันนัดประชุมเป็นพิเศษ ซิงก์เชื่อมโยงผ่าน Cloud Firestore ทุกอุปกรณ์ใช้ข้อมูลเดียวกันแบบเรียลไทม์"
+                >
+                  <Cloud className="w-3.5 h-3.5 text-sky-600" />
+                  ซิงก์คลาวด์ทุกอุปกรณ์
+                </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 เพิ่ม ลบ หรือแก้ไขวันหยุดราชการ วันงดประชุม และวันนัดประชุมเป็นพิเศษ เพื่อประกอบการคำนวณและจัดระเบียบวาระกระทู้ถามอัตโนมัติ
