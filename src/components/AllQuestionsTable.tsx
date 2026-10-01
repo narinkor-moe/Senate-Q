@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { QuestionItem, WeeklySchedule } from '../types';
-import { getQuestionPostponeCount } from '../scheduler';
+import { getQuestionPostponeCount, formatThaiShortDate, getLatestAgendaDate } from '../scheduler';
 import {
   Search,
   ArrowUpDown,
@@ -203,13 +203,13 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
     const q = typeof target === 'string' ? questions.find((item) => item.id === target) : target;
     if (!q) return { category: 'pending', label: 'รอคิว', subLabel: 'รอการจัดวาระ' };
 
-    // 0. ขอถอน (จาก Google Sheet หรือ withdrawn)
+    // 0. ขอถอน / ถอนกระทู้ (จาก Google Sheet หรือ withdrawn)
     if (
       q.status === 'withdrawn' ||
       q.isWithdrawn ||
       (q.rawStatus && (q.rawStatus.includes('ถอน') || q.rawStatus.toLowerCase().includes('withdrawn')))
     ) {
-      return { category: 'withdrawn', label: 'ขอถอน', subLabel: 'ขอถอนกระทู้ถาม (ไม่นำมาจัดในวาระ)' };
+      return { category: 'withdrawn', label: 'ถอนกระทู้', subLabel: 'คงไว้ในการ์ดตามลำดับที่จัดระเบียบ' };
     }
 
     // 1. ตอบแล้ว (จาก Google Sheet หรือ completed)
@@ -892,7 +892,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
               }`}
             >
               <FileX2 className="w-3.5 h-3.5 text-rose-600" />
-              <span>ขอถอน</span>
+              <span>ถอนกระทู้</span>
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] ${
                   statusFilter === 'withdrawn' ? 'bg-white/20 text-white' : 'bg-rose-200 text-rose-900'
@@ -1156,8 +1156,11 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                             <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
                             ตอบแล้ว
                           </span>
-                          <span className="text-[10px] text-emerald-700 font-medium mt-0.5">
-                            ตอบแล้วในที่ประชุม
+                          <span
+                            className="text-[10px] text-emerald-800 font-semibold mt-0.5"
+                            title="อ้างอิงจากวันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด"
+                          >
+                            วันที่ตอบ: {getLatestAgendaDate(q).thaiShort || 'ตอบแล้วในที่ประชุม'}
                           </span>
                         </div>
                       )}
@@ -1204,12 +1207,12 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
 
                       {statusInfo.category === 'withdrawn' && (
                         <div className="inline-flex flex-col items-center">
-                          <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-0.5 rounded text-[11px] font-bold inline-flex items-center gap-1">
-                            <FileX2 className="w-3.5 h-3.5 text-rose-600" />
-                            ขอถอน
+                          <span className="bg-red-100 text-red-800 border border-red-300 px-2.5 py-0.5 rounded text-[11px] font-bold inline-flex items-center gap-1">
+                            <FileX2 className="w-3.5 h-3.5 text-red-600" />
+                            ถอนกระทู้
                           </span>
-                          <span className="text-[10px] text-rose-700 font-medium mt-0.5">
-                            ไม่นำมาจัดในวาระ
+                          <span className="text-[10px] text-red-700 font-medium mt-0.5">
+                            คงไว้ตามลำดับที่จัดระเบียบ
                           </span>
                         </div>
                       )}

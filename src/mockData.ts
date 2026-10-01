@@ -41,7 +41,8 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "sheetRowIndex": 3,
     "status": "completed",
     "rawStatus": "ตอบแล้ว",
-    "isAnswered": true
+    "isAnswered": true,
+    "answeredDate": "2026-09-07"
   },
   {
     "id": "sheet-q-3-4",
@@ -198,8 +199,9 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "minister": "รัฐมนตรีว่าการกระทรวงแรงงาน",
     "isPostponedInSheet": false,
     "sheetRowIndex": 15,
-    "status": "pending",
-    "rawStatus": "รอการบรรจุ",
+    "status": "withdrawn",
+    "rawStatus": "ถอนกระทู้",
+    "isWithdrawn": true,
     "isAnswered": false
   },
   {

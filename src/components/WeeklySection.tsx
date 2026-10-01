@@ -1,7 +1,7 @@
 import React from 'react';
 import { WeeklySchedule, QuestionItem } from '../types';
 import { QuestionCard } from './QuestionCard';
-import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff, Landmark, Sparkles, FileCheck, FileDown, GraduationCap, CalendarCheck } from 'lucide-react';
+import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff, Landmark, Sparkles, FileCheck, FileDown, GraduationCap, CalendarCheck, XCircle } from 'lucide-react';
 
 interface WeeklySectionProps {
   schedule: WeeklySchedule;
@@ -207,6 +207,8 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
                 scheduledItem={item}
                 onOpenPostponeModal={onOpenPostponeModal}
                 isAdmin={isAdmin}
+                meetingDate={schedule.date}
+                meetingThaiDate={schedule.thaiDateFormatted}
               />
             ))}
           </div>

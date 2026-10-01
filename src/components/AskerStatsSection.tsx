@@ -209,7 +209,7 @@ export const AskerStatsSection: React.FC<AskerStatsSectionProps> = ({
                       {asker.withdrawnCount > 0 && (
                         <span
                           className={`w-2 h-2 rounded-full ${isSelected ? 'bg-rose-200' : 'bg-rose-500'}`}
-                          title={`ขอถอน: ${asker.withdrawnCount} เรื่อง (ไม่นำมาจัดวาระ)`}
+                          title={`ถอนกระทู้: ${asker.withdrawnCount} เรื่อง (คงไว้ตามลำดับที่จัดระเบียบ)`}
                         />
                       )}
                     </div>

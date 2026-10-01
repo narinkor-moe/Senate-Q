@@ -1,5 +1,5 @@
 import { WeeklySchedule, QuestionItem, HolidayItem } from '../types';
-import { formatThaiDateWithDayOfWeek } from '../scheduler';
+import { formatThaiDateWithDayOfWeek, formatThaiShortDate, getLatestAgendaDate } from '../scheduler';
 import { computeAskerStats } from './askerStats';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -164,7 +164,7 @@ export function generateReportHtml(
               let statusText = 'รอดำเนินการ';
               let statusClass = 'status-pending';
               if (q.status === 'withdrawn' || q.isWithdrawn || (q.rawStatus && (q.rawStatus.includes('ถอน') || q.rawStatus.toLowerCase().includes('withdrawn')))) {
-                statusText = 'ขอถอน (ไม่นำมาจัดวาระ)';
+                statusText = 'ถอนกระทู้ (คงไว้ตามลำดับที่จัดระเบียบ)';
                 statusClass = 'status-withdrawn';
               } else if (q.status === 'completed' || q.status === 'answered' || q.isAnswered || (q.rawStatus && q.rawStatus.includes('ตอบแล้ว'))) {
                 statusText = 'ตอบแล้ว (ไม่นำมาจัดวาระ)';
@@ -236,11 +236,16 @@ export function generateReportHtml(
                   ? '<span class="status-badge status-official">บรรจุในระเบียบวาระ</span>' 
                   : '<span class="status-badge status-projected">คาดการณ์ตามลำดับ</span>';
                 
-                const isAnswered = item.question.isAnswered === true || item.question.status === 'completed' || item.question.status === 'answered' || (item.question.rawStatus && item.question.rawStatus.includes('ตอบแล้ว'));
+                const isWithdrawn = item.question.isWithdrawn === true || item.question.status === 'withdrawn' || (item.question.rawStatus && (item.question.rawStatus.includes('ถอน') || item.question.rawStatus.toLowerCase().includes('withdrawn')));
+                const isAnswered = !isWithdrawn && (item.question.isAnswered === true || item.question.status === 'completed' || item.question.status === 'answered' || (item.question.rawStatus && item.question.rawStatus.includes('ตอบแล้ว')));
                 const isEdu = item.question.minister?.includes('ศึกษาธิการ');
 
-                if (isAnswered) {
-                  noteHtml = '<span class="status-badge status-answered">ตอบแล้วในที่ประชุม (เสร็จสิ้น)</span>';
+                if (isWithdrawn) {
+                  noteHtml = '<span class="status-badge status-withdrawn" style="background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; font-weight: bold;">ถอนกระทู้ (คงไว้ตามลำดับที่จัดระเบียบ)</span>';
+                } else if (isAnswered) {
+                  const latestDate = getLatestAgendaDate(item.question, schedule.date);
+                  const ansDateFormatted = latestDate.thaiShort || '';
+                  noteHtml = `<span class="status-badge status-answered">ตอบแล้วในที่ประชุม${ansDateFormatted ? ` (วันที่ตอบ: ${ansDateFormatted})` : ' (เสร็จสิ้น)'}</span>`;
                 } else if (item.isPostponedFromPrevious) {
                   noteHtml = '<span class="status-badge status-previous-postponed">กระทู้เลื่อนมาจากสัปดาห์ก่อนหน้า (บรรจุลำดับแรก)</span>';
                 } else if (item.isPostponedNow) {
@@ -255,7 +260,7 @@ export function generateReportHtml(
                 }
 
                 return `
-                  <tr style="${isEdu ? 'background-color: #f5f7ff;' : ''}">
+                  <tr style="${isWithdrawn ? 'background-color: #fef2f2; border-left: 4px solid #dc2626;' : isEdu ? 'background-color: #f5f7ff;' : ''}">
                     <td style="text-align: center; font-weight: 700; vertical-align: middle; ${isEdu ? 'border-left: 4px solid #4338ca;' : ''}">${item.slotNumber || slotIdx + 1}</td>
                     <td>
                       <div style="font-weight: 700; line-height: 1.45;">

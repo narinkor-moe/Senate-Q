@@ -356,7 +356,7 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
                         <div
                           className="bg-rose-500 h-full"
                           style={{ width: `${withdrawnPct}%` }}
-                          title={`ขอถอน: ${asker.withdrawnCount} เรื่อง (ไม่จัดในวาระ)`}
+                          title={`ถอนกระทู้: ${asker.withdrawnCount} เรื่อง (คงไว้ตามลำดับที่จัดระเบียบ)`}
                         />
                       )}
                       {pendingPct > 0 && (
@@ -570,9 +570,9 @@ export const AskerStatsModal: React.FC<AskerStatsModalProps> = ({
 
                           {/* Withdrawn */}
                           {asker.withdrawnCount > 0 ? (
-                            <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-800 border border-rose-200 text-xs font-bold inline-flex items-center gap-1">
-                              <FileX2 className="w-3 h-3 text-rose-600" />
-                              ขอถอน {asker.withdrawnCount}
+                            <span className="px-2.5 py-1 rounded-lg bg-red-50 text-red-800 border border-red-200 text-xs font-bold inline-flex items-center gap-1">
+                              <FileX2 className="w-3 h-3 text-red-600" />
+                              ถอนกระทู้ {asker.withdrawnCount}
                             </span>
                           ) : null}
 

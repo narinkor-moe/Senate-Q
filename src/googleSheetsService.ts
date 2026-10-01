@@ -577,6 +577,7 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
   let colAsker = 9;
   let colMinister = 10;
   let colStatus = 11;
+  let colAnswered = -1;
 
   // 1. Try to detect header row
   for (let r = 0; r < Math.min(rows.length, 5); r++) {
@@ -590,6 +591,7 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
     const mIdx = strRow.findIndex((c) => c.includes('รัฐมนตรี') || c.includes('รมต.'));
     const sIdx = strRow.findIndex((c) => c.includes('วันที่บรรจุ') || c.includes('บรรจุ'));
     const stIdx = strRow.findIndex((c) => c.includes('สถานะ') || c.includes('status'));
+    const ansIdx = strRow.findIndex((c) => c.includes('วันที่ตอบ') || c.includes('ตอบวันที่') || c.includes('วันตอบ'));
 
     const p1Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('1') || c.includes('๑')));
     const p2Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('2') || c.includes('๒')));
@@ -606,6 +608,7 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
       if (aIdx !== -1) colAsker = aIdx;
       if (mIdx !== -1) colMinister = mIdx;
       if (stIdx !== -1) colStatus = stIdx;
+      if (ansIdx !== -1) colAnswered = ansIdx;
 
       if (p1Idx !== -1) colPostponed1 = p1Idx;
       else if (genericPIdx !== -1) colPostponed1 = genericPIdx;
@@ -633,6 +636,7 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
     let askerVal = '';
     let ministerVal = '';
     let statusVal = '';
+    let answeredVal = '';
 
     const postponeRoundsRaw: { round: number; colLetter: string; raw: string }[] = [];
     const roundColIndices = [
@@ -650,6 +654,7 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
       askerVal = colAsker !== -1 && row[colAsker] !== undefined ? String(row[colAsker]).trim() : '';
       ministerVal = colMinister !== -1 && row[colMinister] !== undefined ? String(row[colMinister]).trim() : '';
       statusVal = colStatus !== -1 && row[colStatus] !== undefined ? String(row[colStatus]).trim() : '';
+      answeredVal = colAnswered !== -1 && row[colAnswered] !== undefined ? String(row[colAnswered]).trim() : '';
 
       roundColIndices.forEach(({ round, colLetter, idx }) => {
         const val = idx !== -1 && row[idx] !== undefined ? String(row[idx]).trim() : '';
@@ -768,10 +773,20 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
       const isAnswered = statusVal.includes('ตอบแล้ว') || statusVal.toLowerCase() === 'answered';
       const isWithdrawn = statusVal.includes('ถอน') || statusVal.toLowerCase().includes('withdrawn');
       let qStatus: QuestionItem['status'] = 'pending';
+      let cleanAnsweredDate: string | undefined = undefined;
       if (isWithdrawn) {
         qStatus = 'withdrawn';
       } else if (isAnswered) {
         qStatus = 'completed';
+        if (answeredVal) {
+          const parsedAns = parseThaiOrISODate(answeredVal);
+          cleanAnsweredDate = parsedAns || answeredVal;
+        } else if (cleanPostponedDate) {
+          cleanAnsweredDate = cleanPostponedDate;
+        } else if (scheduledVal) {
+          const parsedSched = parseThaiOrISODate(scheduledVal);
+          cleanAnsweredDate = parsedSched || scheduledVal;
+        }
       } else if (cleanPostponedDate) {
         qStatus = 'postponed';
       }
@@ -794,6 +809,7 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
         status: qStatus,
         rawStatus: statusVal.trim() || undefined,
         isAnswered: isAnswered,
+        answeredDate: cleanAnsweredDate,
         isWithdrawn: isWithdrawn,
       });
     }

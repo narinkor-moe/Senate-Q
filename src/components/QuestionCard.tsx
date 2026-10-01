@@ -1,23 +1,39 @@
 import React from 'react';
 import { ScheduledQuestion, QuestionItem, PostponeHistoryItem } from '../types';
-import { User, Briefcase, Clock, RotateCcw, Calendar, Sparkles, FileSpreadsheet, CheckCircle2, Lock, GraduationCap, Landmark } from 'lucide-react';
-import { formatThaiShortDate, formatThaiDateWithDayOfWeek, formatThaiNumericDate } from '../scheduler';
+import { User, Briefcase, Clock, RotateCcw, Calendar, Sparkles, FileSpreadsheet, CheckCircle2, Lock, GraduationCap, Landmark, XCircle } from 'lucide-react';
+import { formatThaiShortDate, formatThaiDateWithDayOfWeek, formatThaiNumericDate, parseThaiOrISODate, getLatestAgendaDate } from '../scheduler';
 import { getQuestionPostponeHistoryItems } from '../utils/postponeStats';
 
 interface QuestionCardProps {
   scheduledItem: ScheduledQuestion;
   onOpenPostponeModal: (question: QuestionItem) => void;
   isAdmin?: boolean;
+  meetingDate?: string;
+  meetingThaiDate?: string;
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({
   scheduledItem,
   onOpenPostponeModal,
   isAdmin = true,
+  meetingDate,
+  meetingThaiDate,
 }) => {
   const { question, slotNumber, isPostponedFromPrevious, isPostponedNow } = scheduledItem;
-  const isAnswered = question.isAnswered === true || question.status === 'completed' || question.status === 'answered' || (question.rawStatus && question.rawStatus.includes('ตอบแล้ว'));
+  const isWithdrawn =
+    question.isWithdrawn === true ||
+    question.status === 'withdrawn' ||
+    (question.rawStatus &&
+      (question.rawStatus.includes('ถอน') ||
+        question.rawStatus.includes('ขอถอน') ||
+        question.rawStatus.toLowerCase().includes('withdrawn')));
+  const isAnswered = !isWithdrawn && (question.isAnswered === true || question.status === 'completed' || question.status === 'answered' || (question.rawStatus && question.rawStatus.includes('ตอบแล้ว')));
   const isEduMinister = question.minister?.includes('ศึกษาธิการ');
+
+  // คำนวณวันที่ตอบ โดยอ้างอิงจาก "วันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด"
+  const latestAgenda = getLatestAgendaDate(question, meetingDate);
+  const answeredDateFull = latestAgenda.thaiFull;
+  const answeredDateShort = latestAgenda.thaiShort;
 
   // ดึงประวัติการขอเลื่อนตอบทั้งหมดของกระทู้
   const baseHistoryItems = getQuestionPostponeHistoryItems(question);
@@ -47,16 +63,25 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     <div
       id={`question-card-${question.id}`}
       className={`relative flex flex-col justify-between rounded-xl transition-all duration-200 pt-6 px-5 pb-5 ${
-        isEduMinister ? 'border-l-[6px] border-l-indigo-600 ring-1 ring-indigo-200/80' : ''
-      } ${
-        isAnswered
-          ? `border-2 border-emerald-600/70 ${isEduMinister ? 'bg-gradient-to-br from-indigo-50/40 via-emerald-50/20 to-white' : 'bg-emerald-50/20'} shadow-xs`
-          : isPostponedNow
-          ? `border-2 border-amber-400 ${isEduMinister ? 'bg-gradient-to-br from-indigo-50/30 via-amber-50/30 to-white' : 'bg-amber-50/40'} shadow-sm`
-          : isPostponedFromPrevious
-          ? `border-2 border-amber-400 shadow-sm ${isEduMinister ? 'bg-gradient-to-br from-indigo-50/30 via-amber-50/30 to-white' : 'bg-amber-50/40'}`
+        isWithdrawn
+          ? `border-2 border-red-600 ring-2 ring-red-400/50 bg-red-50/40 shadow-sm ${
+              isEduMinister ? 'bg-gradient-to-br from-indigo-50/30 via-red-50/35 to-white' : ''
+            }`
           : isEduMinister
-          ? 'border-2 border-indigo-600 ring-1 ring-indigo-300/70 bg-gradient-to-br from-indigo-50/40 via-white to-indigo-50/15 shadow-sm hover:shadow-md'
+          ? 'border-l-[6px] border-l-indigo-600 ring-1 ring-indigo-200/80 ' +
+            (isAnswered
+              ? 'border-2 border-emerald-600/70 bg-gradient-to-br from-indigo-50/40 via-emerald-50/20 to-white shadow-xs'
+              : isPostponedNow
+              ? 'border-2 border-amber-400 bg-gradient-to-br from-indigo-50/30 via-amber-50/30 to-white shadow-sm'
+              : isPostponedFromPrevious
+              ? 'border-2 border-amber-400 shadow-sm bg-gradient-to-br from-indigo-50/30 via-amber-50/30 to-white'
+              : 'border-2 border-indigo-600 ring-1 ring-indigo-300/70 bg-gradient-to-br from-indigo-50/40 via-white to-indigo-50/15 shadow-sm hover:shadow-md')
+          : isAnswered
+          ? 'border-2 border-emerald-600/70 bg-emerald-50/20 shadow-xs'
+          : isPostponedNow
+          ? 'border-2 border-amber-400 bg-amber-50/40 shadow-sm'
+          : isPostponedFromPrevious
+          ? 'border-2 border-amber-400 shadow-sm bg-amber-50/40'
           : scheduledItem.projectionType === 'projected_regular'
           ? 'border-2 border-indigo-500/80 ring-1 ring-indigo-300/40 bg-gradient-to-br from-indigo-50/20 via-white to-slate-50/30 shadow-sm hover:shadow-md'
           : 'border-2 border-[#0369a1] ring-1 ring-[#0369a1]/30 bg-gradient-to-br from-sky-50/25 via-white to-slate-50/30 shadow-sm hover:shadow-md hover:border-blue-700'
@@ -74,10 +99,23 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           </span>
         )}
 
-        {isAnswered ? (
-          <span className="inline-flex items-center gap-1 bg-emerald-700 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase shadow-sm tracking-wide">
+        {isWithdrawn ? (
+          <span className="inline-flex items-center gap-1.5 bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase shadow-sm tracking-wide">
+            <XCircle className="w-3.5 h-3.5 text-white" />
+            <span>ลำดับที่ {slotNumber} (ถอนกระทู้)</span>
+          </span>
+        ) : isAnswered ? (
+          <span className="inline-flex items-center gap-1.5 bg-emerald-700 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase shadow-sm tracking-wide">
             <CheckCircle2 className="w-3 h-3" />
-            ลำดับที่ {slotNumber} (ตอบแล้ว)
+            <span>ลำดับที่ {slotNumber} (ตอบแล้ว)</span>
+            {answeredDateShort && (
+              <span
+                className="bg-emerald-800/90 text-emerald-100 px-1.5 py-0.5 rounded text-[9px] font-semibold border border-emerald-500/40"
+                title={`วันที่ตอบ: ${answeredDateFull || answeredDateShort} (อ้างอิงจากวันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด)`}
+              >
+                {answeredDateShort}
+              </span>
+            )}
           </span>
         ) : isPostponedFromPrevious ? (
           <span className="inline-flex items-center gap-1 bg-amber-600 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase shadow-sm tracking-wide">
@@ -131,7 +169,12 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 </span>
               </span>
 
-              {isAnswered ? (
+              {isWithdrawn ? (
+                <span className="text-[10px] text-red-900 font-bold bg-red-100 px-2 py-0.5 rounded border border-red-300 flex items-center gap-1">
+                  <XCircle className="w-3 h-3 text-red-700" />
+                  <span>ถอนกระทู้</span>
+                </span>
+              ) : isAnswered ? (
                 <span className="text-[10px] text-emerald-900 font-bold bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3 text-emerald-700" />
                   <span>ตอบแล้วในที่ประชุม</span>
@@ -168,7 +211,9 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   <div
                     key={idx}
                     className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-white shadow-2xs ${
-                      isAnswered
+                      isWithdrawn
+                        ? 'border border-red-200 text-red-950'
+                        : isAnswered
                         ? 'border border-amber-300 text-amber-950'
                         : isCurrentRound
                         ? 'border-2 border-amber-500 bg-amber-50 text-amber-950 font-bold'
@@ -189,19 +234,44 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           </div>
         )}
 
-        {isAnswered && (
+        {isWithdrawn && (
           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-md font-bold border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-              <span>สถานะ: ตอบแล้ว</span>
-              <span className="font-normal text-emerald-800">
-                (บรรจุในวาระและตอบแล้วในที่ประชุม)
+            <span className="text-[11px] bg-red-100 text-red-950 px-2.5 py-1.5 rounded-md font-bold border border-red-300 flex items-center gap-2 shadow-2xs flex-wrap">
+              <XCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+              <span>สถานะ: ถอนกระทู้</span>
+              <span className="font-normal text-red-800 text-[10px]">
+                (ผู้ตั้งถามขอถอนกระทู้ถามออกจากการพิจารณา &bull; คงไว้ตามลำดับที่จัดระเบียบวาระ)
               </span>
             </span>
           </div>
         )}
 
-        {isPostponedNow && !isAnswered && (
+        {isAnswered && (
+          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] bg-emerald-100 text-emerald-950 px-2.5 py-1.5 rounded-md font-bold border border-emerald-300 flex items-center gap-2 shadow-2xs flex-wrap">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+              <span>สถานะ: ตอบแล้ว</span>
+              {answeredDateFull ? (
+                <span
+                  className="font-bold text-emerald-950 bg-emerald-200/90 px-2 py-0.5 rounded border border-emerald-400 flex items-center gap-1 text-[11px]"
+                  title="อ้างอิงจากวันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด"
+                >
+                  <Calendar className="w-3 h-3 text-emerald-800 shrink-0" />
+                  <span>วันที่ตอบ: {answeredDateFull}</span>
+                </span>
+              ) : (
+                <span className="font-normal text-emerald-800">
+                  (บรรจุในวาระและตอบแล้วในที่ประชุม)
+                </span>
+              )}
+              <span className="font-normal text-emerald-800 text-[10px]">
+                (อ้างอิงจากวันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด)
+              </span>
+            </span>
+          </div>
+        )}
+
+        {isPostponedNow && !isAnswered && !isWithdrawn && (
           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] bg-amber-100 text-amber-900 px-2.5 py-1 rounded-md font-bold border border-amber-300 flex items-center gap-1.5 shadow-2xs">
               <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
@@ -236,7 +306,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           </div>
         )}
 
-        {isPostponedFromPrevious && !isAnswered && (
+        {isPostponedFromPrevious && !isAnswered && !isWithdrawn && (
           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] bg-amber-100 text-amber-900 px-2.5 py-1 rounded-md font-bold border border-amber-300 flex items-center gap-1.5 shadow-2xs">
               <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
@@ -264,7 +334,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           </div>
         )}
 
-        {!isAnswered && !isPostponedNow && !isPostponedFromPrevious && (
+        {!isAnswered && !isWithdrawn && !isPostponedNow && !isPostponedFromPrevious && (
           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] bg-sky-50 text-[#0369a1] px-2.5 py-1 rounded-md font-bold border border-sky-300 flex items-center gap-1.5 shadow-2xs">
               <Landmark className="w-3.5 h-3.5 text-[#0369a1] shrink-0" />
@@ -285,6 +355,26 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
       {/* Meta details list in theme layout */}
       <div className="space-y-2 py-3 border-t border-slate-100 text-xs">
+        {isWithdrawn && (
+          <div className="flex items-start gap-2 bg-red-50/80 p-2.5 rounded-lg border border-red-200 text-red-950 shadow-2xs">
+            <span className="w-20 text-red-800 font-bold shrink-0 flex items-center gap-1">
+              <XCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+              สถานะ:
+            </span>
+            <div className="flex-1">
+              <div className="font-bold text-red-950 break-words flex items-center gap-1.5 flex-wrap">
+                <span>ถอนกระทู้ถาม</span>
+                <span className="text-[10px] font-semibold text-red-800 bg-red-100 px-1.5 py-0.5 rounded border border-red-300">
+                  ถอนเรื่อง
+                </span>
+              </div>
+              <p className="text-[10px] text-red-700 font-normal mt-0.5">
+                (คงไว้ในการ์ดตามลำดับที่จัดระเบียบวาระ &bull; ไม่ดำเนินการถามตอบในสภา)
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-start gap-2">
           <span className="w-20 text-slate-400 font-medium shrink-0 flex items-center gap-1">
             <User className="w-3.5 h-3.5 text-slate-400" />
@@ -316,11 +406,24 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
       {/* Action Footer: Postpone Request Trigger Pop Up */}
       <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-        {isAnswered ? (
+        {isWithdrawn ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-800 bg-red-100/90 px-3 py-1.5 rounded-lg border border-red-300 shadow-2xs">
+              <XCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+              <span>ถอนกระทู้แล้ว (ไม่ดำเนินการถามในสภา)</span>
+            </span>
+            {hasPostponeHistory && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-900 bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
+                <Clock className="w-3 h-3 text-amber-700" />
+                <span>เคยเลื่อน {postponeHistoryItems.length} ครั้ง</span>
+              </span>
+            )}
+          </div>
+        ) : isAnswered ? (
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-100/80 px-3 py-1.5 rounded-lg border border-emerald-300 shadow-2xs">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-              ตอบแล้วในที่ประชุม (เสร็จสิ้น)
+              <span>ตอบแล้วในที่ประชุม{answeredDateShort ? ` (${answeredDateShort})` : ' (เสร็จสิ้น)'}</span>
             </span>
             {hasPostponeHistory && (
               <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-900 bg-amber-50 px-2 py-1 rounded-md border border-amber-200">

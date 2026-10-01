@@ -424,7 +424,7 @@ export function findMatchingWorkingMonday(
 
 /**
  * Core Algorithm for scheduling parliamentary questions:
- * 1. กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็นลำดับแรก ในวันที่ขอเลื่อนไปตอบ และจัดกระทู้ถามลำดับถัดไปที่เพิ่มใหม่อีก 3 กระทู้ถามตามลำดับที่ยื่น
+ * 1. กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็นลำดับแรกในวันที่ขอเลื่อนไปตอบ โดยให้จัดตามลำดับก่อน - หลังตามที่ขอเลื่อน และจัดกระทู้ถามที่เพิ่มใหม่อีก 3 กระทู้ถามต่อท้ายตามลำดับที่ยื่น
  * 2. ให้จัดระเบียบกระทู้ที่ขอเลื่อนก่อน เรียงตามลำดับที่ยื่น และตามด้วยกระทู้ที่จัดลำดับใหม่ อีก 3 กระทู้ เรียงตามลำดับที่ยื่น
  * 3. เงื่อนไขอื่นให้คงไว้ตามเดิม:
  *    - จัดระเบียบวาระครั้งละ 3 เรื่อง ทุกวันจันทร์ (ยกเว้นวันหยุดนักขัตฤกษ์ และวันงดประชุม โดยจะข้ามไปจัดวันจันทร์ทำการถัดไป)
@@ -451,8 +451,114 @@ export function isQuestionAnswered(q: QuestionItem): boolean {
 }
 
 /**
- * Helper to check if a question has been requested to withdraw (ขอถอนกระทู้ถาม)
- * หากมีการขอถอนกระทู้ถามในลำดับคิวที่ยื่น ให้ระบบไม่นำมาจัดในวาระการประชุม
+ * คำนวณ "วันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด" สำหรับกระทู้ถามที่มีสถานะตอบแล้ว
+ * โดยอ้างอิงจากวันที่บรรจุในวาระครั้งหลังสุด (เช่น จากประวัติการขอเลื่อนตอบรอบล่าสุด หรือวันที่บรรจุเดิม)
+ */
+export function getLatestAgendaDate(
+  question: QuestionItem,
+  meetingDate?: string
+): {
+  raw: string;
+  iso: string | null;
+  thaiFull: string;
+  thaiShort: string;
+  sourceDescription: string;
+} {
+  // 1. ตรวจสอบจากประวัติการเลื่อนตอบ (postponeHistoryItems) หาตัวสุดท้ายที่ระบุวันไว้
+  if (question.postponeHistoryItems && question.postponeHistoryItems.length > 0) {
+    for (let i = question.postponeHistoryItems.length - 1; i >= 0; i--) {
+      const item = question.postponeHistoryItems[i];
+      const targetDate = item.isoDate || item.rawDate;
+      if (targetDate && targetDate.trim() !== '') {
+        const parsed = parseThaiOrISODate(targetDate);
+        return {
+          raw: targetDate,
+          iso: parsed,
+          thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : (item.thaiFormatted || targetDate),
+          thaiShort: parsed ? formatThaiShortDate(parsed) : (item.thaiFormatted || targetDate),
+          sourceDescription: `เลื่อนตอบครั้งที่ ${item.round} (คอลัมน์ ${item.colLetter})`
+        };
+      }
+    }
+  }
+
+  // 2. ตรวจสอบจาก postponedDates array
+  if (question.postponedDates && question.postponedDates.length > 0) {
+    for (let i = question.postponedDates.length - 1; i >= 0; i--) {
+      const d = question.postponedDates[i];
+      if (d && d.trim() !== '') {
+        const parsed = parseThaiOrISODate(d);
+        return {
+          raw: d,
+          iso: parsed,
+          thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : d,
+          thaiShort: parsed ? formatThaiShortDate(parsed) : d,
+          sourceDescription: `เลื่อนตอบครั้งหลังสุด`
+        };
+      }
+    }
+  }
+
+  // 3. ตรวจสอบจาก postponedDate
+  if (question.postponedDate && question.postponedDate.trim() !== '') {
+    const parsed = parseThaiOrISODate(question.postponedDate);
+    return {
+      raw: question.postponedDate,
+      iso: parsed,
+      thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : question.postponedDate,
+      thaiShort: parsed ? formatThaiShortDate(parsed) : question.postponedDate,
+      sourceDescription: `เลื่อนตอบครั้งหลังสุด`
+    };
+  }
+
+  // 4. หากถูกบรรจุในวาระการประชุมปัจจุบัน (meetingDate)
+  if (meetingDate && meetingDate.trim() !== '') {
+    const parsed = parseThaiOrISODate(meetingDate);
+    return {
+      raw: meetingDate,
+      iso: parsed,
+      thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : meetingDate,
+      thaiShort: parsed ? formatThaiShortDate(parsed) : meetingDate,
+      sourceDescription: `วาระการประชุมสัปดาห์นี้`
+    };
+  }
+
+  // 5. ใช้วันที่บรรจุในระเบียบวาระเดิม (scheduledDate)
+  if (question.scheduledDate && question.scheduledDate.trim() !== '') {
+    const parsed = parseThaiOrISODate(question.scheduledDate);
+    return {
+      raw: question.scheduledDate,
+      iso: parsed,
+      thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : question.scheduledDate,
+      thaiShort: parsed ? formatThaiShortDate(parsed) : question.scheduledDate,
+      sourceDescription: `วันที่บรรจุในวาระ`
+    };
+  }
+
+  // 6. fallback answeredDate (ถ้ามีระบุไว้)
+  if (question.answeredDate && question.answeredDate.trim() !== '') {
+    const parsed = parseThaiOrISODate(question.answeredDate);
+    return {
+      raw: question.answeredDate,
+      iso: parsed,
+      thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : question.answeredDate,
+      thaiShort: parsed ? formatThaiShortDate(parsed) : question.answeredDate,
+      sourceDescription: `วันที่บันทึกตอบ`
+    };
+  }
+
+  return {
+    raw: '',
+    iso: null,
+    thaiFull: '',
+    thaiShort: '',
+    sourceDescription: ''
+  };
+}
+
+/**
+ * Helper to check if a question has been requested to withdraw (ขอถอนกระทู้ถาม / ถอนกระทู้)
+ * กระทู้ที่มีสถานะถอนกระทู้ ให้คงไว้ในการ์ดตามลำดับที่จัดระเบียบวาระ พร้อมกรอบสีแดงและแสดงสถานะถอนกระทู้
  */
 export function isQuestionWithdrawn(q: QuestionItem): boolean {
   if (q.isWithdrawn === true) return true;
@@ -600,7 +706,6 @@ export function computeWeeklySchedules(
   const explicitScheduledIds = new Set<string>();
 
   for (const q of allSortedQuestions) {
-    if (isQuestionWithdrawn(q)) continue; // หากขอถอนกระทู้ถาม ไม่นำมาจัดในวาระการประชุม
     if (q.scheduledDate && q.scheduledDate.trim() !== '') {
       const parsed = parseThaiOrISODate(q.scheduledDate);
       if (parsed) {
@@ -621,12 +726,11 @@ export function computeWeeklySchedules(
   const monday0 = workingMondays[0];
   const explicit0 = explicitScheduledByMonday.get(monday0);
   let firstWeekCandidates: QuestionItem[] = explicit0 && explicit0.length > 0 
-    ? explicit0.filter((q) => !isQuestionWithdrawn(q))
+    ? explicit0
     : [];
   if (firstWeekCandidates.length === 0) {
     const firstWeekAskers = new Set<string>();
     for (const q of allSortedQuestions) {
-      if (isQuestionWithdrawn(q)) continue; // ข้ามกระทู้ที่ขอถอน ไม่นำมาจัดในวาระ
       if (isQuestionAnswered(q)) continue;
       if (!firstWeekAskers.has(q.asker)) {
         firstWeekCandidates.push(q);
@@ -674,7 +778,7 @@ export function computeWeeklySchedules(
 
     for (const q of allSortedQuestions) {
       if (baselineScheduledMonday.has(q.id)) continue;
-      if (isQuestionWithdrawn(q) || isQuestionAnswered(q)) continue;
+      if (isQuestionAnswered(q)) continue;
 
       for (let w = 0; w < workingMondays.length; w++) {
         const m = workingMondays[w];
@@ -746,12 +850,9 @@ export function computeWeeklySchedules(
   }
 
   // Pool สำหรับกระทู้ทั่วไปที่ยังไม่ถูกบรรจุ และ "ยังไม่ตอบ"
-  // (หากขอถอนกระทู้ถาม หรือใน Google Sheet คอลัมน์ "สถานะ" เป็น "ตอบแล้ว" ให้ระบบไม่ต้องนำมาจัดในวาระการประชุม)
+  // (กระทู้ที่มีสถานะถอนกระทู้ ให้คงไว้ในการ์ดตามลำดับที่จัดระเบียบวาระ)
   const regularPool: QuestionItem[] = [];
   for (const q of allSortedQuestions) {
-    if (isQuestionWithdrawn(q)) {
-      continue; // หากขอถอนกระทู้ถาม ไม่นำมาจัดในวาระการประชุม
-    }
     if (firstWeekCandidateIds.has(q.id) || explicitScheduledIds.has(q.id)) {
       continue;
     }
@@ -837,9 +938,6 @@ export function computeWeeklySchedules(
     let placedPostponedCount = 0;
 
     for (const item of allPostponedForToday) {
-      if (isQuestionWithdrawn(item.question)) {
-        continue; // ข้ามกระทู้ที่ขอถอน ไม่นำมาจัดในวาระ
-      }
       // ตรวจสอบว่าผู้ตั้งถามซ้ำกับกระทู้ที่ได้จัดในวันนี้แล้วหรือไม่
       if (askersScheduledToday.has(item.question.asker)) {
         // หากผู้ตั้งถามซ้ำกับกระทู้ที่จัดในวันนี้ -> ให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
@@ -1280,7 +1378,7 @@ export function auditScheduleCompliance(
 
   // Check 4: Priority for Postponed Questions & Agenda Arrangement Order
   // กฎเกณฑ์ข้อ 1 & 2:
-  // 1. กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็นลำดับแรก ในวันที่ขอเลื่อนไปตอบ และจัดกระทู้ถามลำดับถัดไปที่เพิ่มใหม่อีก 3 กระทู้ถามตามลำดับที่ยื่น
+  // 1. กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็นลำดับแรกในวันที่ขอเลื่อนไปตอบ โดยให้จัดตามลำดับก่อน - หลังตามที่ขอเลื่อน และจัดกระทู้ถามที่เพิ่มใหม่อีก 3 กระทู้ถามต่อท้ายตามลำดับที่ยื่น
   // 2. ให้จัดระเบียบกระทู้ที่ขอเลื่อนก่อน โดยเรียงตามสัปดาห์ก่อนหน้ามาจัดลำดับก่อนสัปดาห์ที่เลื่อนมาตอบวันเดียวกันในภายหลัง และหากมาจากสัปดาห์เดียวกันให้เรียงตามลำดับที่ยื่น
   let priorityPassed = true;
   const priorityIssues: string[] = [];

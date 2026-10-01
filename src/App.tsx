@@ -1826,7 +1826,7 @@ export default function App() {
             <ul className="text-xs text-amber-900/90 space-y-2 list-none leading-relaxed">
               <li className="flex items-start gap-2">
                 <span className="font-bold text-amber-800 shrink-0">1.</span>
-                <span><strong>กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็น ลำดับแรก</strong> ในวันที่ขอเลื่อนไปตอบ และจัดกระทู้ถามลำดับถัดไปที่เพิ่มใหม่อีก <strong>3 กระทู้ถาม</strong> ตามลำดับที่ยื่น</span>
+                <span><strong>กระทู้ที่ขอเลื่อน ได้สิทธิ์เป็นลำดับแรก</strong> ในวันที่ขอเลื่อนไปตอบ โดยให้จัดตามลำดับก่อน - หลังตามที่ขอเลื่อน และจัดกระทู้ถามที่เพิ่มใหม่อีก <strong>3 กระทู้ถาม</strong> ต่อท้ายตามลำดับที่ยื่น</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="font-bold text-amber-800 shrink-0">2.</span>
