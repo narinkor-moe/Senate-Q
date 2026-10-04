@@ -10,6 +10,9 @@ interface QuestionCardProps {
   isAdmin?: boolean;
   meetingDate?: string;
   meetingThaiDate?: string;
+  isSpecialMeeting?: boolean;
+  specialMeetingReason?: string;
+  specialMeetings?: Record<string, string>;
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({
@@ -18,6 +21,9 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   isAdmin = true,
   meetingDate,
   meetingThaiDate,
+  isSpecialMeeting,
+  specialMeetingReason,
+  specialMeetings,
 }) => {
   const { question, slotNumber, isPostponedFromPrevious, isPostponedNow } = scheduledItem;
   const isWithdrawn =
@@ -30,8 +36,12 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const isAnswered = !isWithdrawn && (question.isAnswered === true || question.status === 'completed' || question.status === 'answered' || (question.rawStatus && question.rawStatus.includes('ตอบแล้ว')));
   const isEduMinister = question.minister?.includes('ศึกษาธิการ');
 
-  // คำนวณวันที่ตอบ โดยอ้างอิงจาก "วันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด"
-  const latestAgenda = getLatestAgendaDate(question, meetingDate);
+  // คำนวณวันที่ตอบ โดยอ้างอิงจาก "วันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด" หรือ "วันที่นัดประชุมพิเศษ" (ใช้วันหลังสุด)
+  const latestAgenda = getLatestAgendaDate(
+    question,
+    meetingDate,
+    specialMeetings || (isSpecialMeeting ? meetingDate : undefined)
+  );
   const answeredDateFull = latestAgenda.thaiFull;
   const answeredDateShort = latestAgenda.thaiShort;
 
@@ -110,10 +120,15 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <span>ลำดับที่ {slotNumber} (ตอบแล้ว)</span>
             {answeredDateShort && (
               <span
-                className="bg-emerald-800/90 text-emerald-100 px-1.5 py-0.5 rounded text-[9px] font-semibold border border-emerald-500/40"
-                title={`วันที่ตอบ: ${answeredDateFull || answeredDateShort} (อ้างอิงจากวันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด)`}
+                className="bg-emerald-800/90 text-emerald-100 px-1.5 py-0.5 rounded text-[9px] font-semibold border border-emerald-500/40 inline-flex items-center gap-1"
+                title={`วันที่ตอบ: ${answeredDateFull || answeredDateShort} (อ้างอิงจาก${latestAgenda.isSpecialMeeting ? 'วันนัดประชุมพิเศษ' : 'วันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด'} โดยใช้วันหลังสุด)`}
               >
-                {answeredDateShort}
+                <span>{answeredDateShort}</span>
+                {latestAgenda.isSpecialMeeting && (
+                  <span className="text-[8px] bg-amber-400 text-amber-950 px-1 py-0.2 rounded font-extrabold">
+                    พิเศษ
+                  </span>
+                )}
               </span>
             )}
           </span>
@@ -253,11 +268,16 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               <span>สถานะ: ตอบแล้ว</span>
               {answeredDateFull ? (
                 <span
-                  className="font-bold text-emerald-950 bg-emerald-200/90 px-2 py-0.5 rounded border border-emerald-400 flex items-center gap-1 text-[11px]"
-                  title="อ้างอิงจากวันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด"
+                  className="font-bold text-emerald-950 bg-emerald-200/90 px-2 py-0.5 rounded border border-emerald-400 flex items-center gap-1.5 text-[11px]"
+                  title="อ้างอิงจากวันที่บรรจุในวาระกระทู้ถามครั้งหลังสุดหรือวันที่นัดประชุมพิเศษ โดยใช้วันหลังสุด"
                 >
                   <Calendar className="w-3 h-3 text-emerald-800 shrink-0" />
                   <span>วันที่ตอบ: {answeredDateFull}</span>
+                  {latestAgenda.isSpecialMeeting && (
+                    <span className="text-[9px] bg-amber-400 text-amber-950 px-1.5 py-0.2 rounded font-extrabold border border-amber-500/50 shadow-2xs">
+                      นัดประชุมพิเศษ
+                    </span>
+                  )}
                 </span>
               ) : (
                 <span className="font-normal text-emerald-800">
@@ -265,7 +285,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 </span>
               )}
               <span className="font-normal text-emerald-800 text-[10px]">
-                (อ้างอิงจากวันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด)
+                (อ้างอิงจาก{latestAgenda.isSpecialMeeting ? 'วันนัดประชุมพิเศษ' : 'วันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด'} โดยใช้วันหลังสุด)
               </span>
             </span>
           </div>

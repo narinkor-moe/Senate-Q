@@ -208,10 +208,10 @@ export function generateReportHtml(
             <div>
               <span class="week-badge">สัปดาห์ที่ ${actualWeekNum} (W${actualWeekNum})</span>
               <strong class="week-date">ระเบียบวาระการประชุม: ${schedule.thaiDateFormatted}</strong>
-              ${scheduleTypeBadge}
+              ${schedule.isCancelledMeeting ? '<span style="background: #e11d48; color: #ffffff; padding: 2px 8px; border-radius: 3px; font-size: 11pt; font-weight: bold; margin-left: 8px;">งดประชุม</span>' : scheduleTypeBadge}
               ${schedule.isSpecialMeeting ? '<span style="background: #d97706; color: #ffffff; padding: 2px 8px; border-radius: 3px; font-size: 11pt; font-weight: bold; margin-left: 8px;">วันประชุมเป็นพิเศษ (แทนวันจันทร์ที่งดประชุม)</span>' : ''}
             </div>
-            <span class="week-stat">บรรจุกระทู้: ${schedule.questions.length} / ${schedule.capacity} เรื่อง</span>
+            <span class="week-stat">${schedule.isCancelledMeeting ? 'สถานะ: งดประชุม' : `บรรจุกระทู้: ${schedule.questions.length} / ${schedule.capacity} เรื่อง`}</span>
           </div>
 
           <table class="report-table">
@@ -225,7 +225,13 @@ export function generateReportHtml(
               </tr>
             </thead>
             <tbody>
-              ${schedule.questions.length === 0 ? `
+              ${schedule.isCancelledMeeting ? `
+                <tr>
+                  <td colspan="5" style="text-align: center; color: #991b1b; padding: 16px; font-weight: bold; background: #fff1f2; font-size: 10.5pt;">
+                    สถานะ: งดประชุม (${escapeHtml(schedule.cancelledReason || schedule.holidayName || 'งดการประชุมวุฒิสภา')}) — ${schedule.rescheduledToSpecialDate ? `เลื่อนระเบียบวาระกระทู้ถามไปจัดในวันประชุมเป็นพิเศษ (${escapeHtml(formatThaiDateWithDayOfWeek(schedule.rescheduledToSpecialDate))}) ในสัปดาห์นี้` : 'เลื่อนระเบียบวาระกระทู้ถามไปจัดในวันจันทร์ของสัปดาห์ถัดไป'}
+                  </td>
+                </tr>
+              ` : schedule.questions.length === 0 ? `
                 <tr>
                   <td colspan="5" style="text-align: center; color: #64748b; padding: 14px;">
                     - ไม่มีการบรรจุกระทู้ถามในสัปดาห์นี้ -
@@ -243,9 +249,13 @@ export function generateReportHtml(
                 if (isWithdrawn) {
                   noteHtml = '<span class="status-badge status-withdrawn" style="background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; font-weight: bold;">ถอนกระทู้ (คงไว้ตามลำดับที่จัดระเบียบ)</span>';
                 } else if (isAnswered) {
-                  const latestDate = getLatestAgendaDate(item.question, schedule.date);
+                  const latestDate = getLatestAgendaDate(
+                    item.question,
+                    schedule.date,
+                    schedule.isSpecialMeeting ? schedule.date : undefined
+                  );
                   const ansDateFormatted = latestDate.thaiShort || '';
-                  noteHtml = `<span class="status-badge status-answered">ตอบแล้วในที่ประชุม${ansDateFormatted ? ` (วันที่ตอบ: ${ansDateFormatted})` : ' (เสร็จสิ้น)'}</span>`;
+                  noteHtml = `<span class="status-badge status-answered">ตอบแล้วในที่ประชุม${ansDateFormatted ? ` (วันที่ตอบ: ${ansDateFormatted}${latestDate.isSpecialMeeting ? ' [ประชุมพิเศษ]' : ''})` : ' (เสร็จสิ้น)'}</span>`;
                 } else if (item.isPostponedFromPrevious) {
                   noteHtml = '<span class="status-badge status-previous-postponed">กระทู้เลื่อนมาจากสัปดาห์ก่อนหน้า (บรรจุลำดับแรก)</span>';
                 } else if (item.isPostponedNow) {

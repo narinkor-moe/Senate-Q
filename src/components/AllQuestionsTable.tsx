@@ -59,6 +59,7 @@ interface AllQuestionsTableProps {
   isAdmin?: boolean;
   searchTerm?: string;
   onSearchTermChange?: (term: string) => void;
+  specialMeetings?: Record<string, string>;
 }
 
 const highlightMatch = (text: string, query: string) => {
@@ -101,6 +102,7 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
   isAdmin = true,
   searchTerm: externalSearchTerm,
   onSearchTermChange,
+  specialMeetings,
 }) => {
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
   const isControlled = externalSearchTerm !== undefined;
@@ -1150,20 +1152,33 @@ export const AllQuestionsTable: React.FC<AllQuestionsTableProps> = ({
                     </td>
 
                     <td className="px-6 py-3 text-center">
-                      {statusInfo.category === 'answered' && (
-                        <div className="inline-flex flex-col items-center">
-                          <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded text-[11px] font-bold inline-flex items-center gap-1">
-                            <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
-                            ตอบแล้ว
-                          </span>
-                          <span
-                            className="text-[10px] text-emerald-800 font-semibold mt-0.5"
-                            title="อ้างอิงจากวันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด"
-                          >
-                            วันที่ตอบ: {getLatestAgendaDate(q).thaiShort || 'ตอบแล้วในที่ประชุม'}
-                          </span>
-                        </div>
-                      )}
+                      {statusInfo.category === 'answered' && (() => {
+                        const matchingSchedule = schedules.find((s) => s.questions.some((sq) => sq.question.id === q.id));
+                        const ansInfo = getLatestAgendaDate(
+                          q,
+                          matchingSchedule ? matchingSchedule.date : undefined,
+                          specialMeetings || (matchingSchedule && matchingSchedule.isSpecialMeeting ? matchingSchedule.date : undefined)
+                        );
+                        return (
+                          <div className="inline-flex flex-col items-center">
+                            <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded text-[11px] font-bold inline-flex items-center gap-1">
+                              <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+                              ตอบแล้ว
+                            </span>
+                            <span
+                              className="text-[10px] text-emerald-800 font-semibold mt-0.5 inline-flex items-center gap-1"
+                              title={`วันที่ตอบ: ${ansInfo.thaiFull || ansInfo.thaiShort} (อ้างอิงจาก${ansInfo.isSpecialMeeting ? 'วันนัดประชุมพิเศษ' : 'วันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด'} โดยใช้วันหลังสุด)`}
+                            >
+                              <span>วันที่ตอบ: {ansInfo.thaiShort || 'ตอบแล้วในที่ประชุม'}</span>
+                              {ansInfo.isSpecialMeeting && (
+                                <span className="text-[8px] bg-amber-200 text-amber-950 px-1 py-0.2 rounded font-extrabold border border-amber-400">
+                                  พิเศษ
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })()}
 
                       {statusInfo.category === 'postponed' && (
                         <div className="inline-flex flex-col items-center">

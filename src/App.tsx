@@ -2184,6 +2184,7 @@ export default function App() {
               isAdmin={userRole === 'admin'}
               searchTerm={headerSearchQuery}
               onSearchTermChange={handleHeaderSearchChange}
+              specialMeetings={specialMeetings}
             />
           </div>
 

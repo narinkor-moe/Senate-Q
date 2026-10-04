@@ -279,10 +279,18 @@ export function addDaysToISO(isoDate: string, days: number): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+export interface CancelledWeekInfo {
+  date: string;
+  holidayName: string;
+  isCancelledMeeting: boolean;
+  rescheduledToSpecialDate?: string;
+}
+
 export interface WorkingMondayResult {
   workingMondays: string[];
   skippedHolidays: HolidayItem[];
   specialReplacements?: Record<string, { originalMonday: string; holidayName: string }>;
+  cancelledMondays?: CancelledWeekInfo[];
 }
 
 /**
@@ -299,6 +307,7 @@ export function getWorkingMondays(
   const workingMondays: string[] = [];
   const skippedHolidays: HolidayItem[] = [];
   const specialReplacements: Record<string, { originalMonday: string; holidayName: string }> = {};
+  const cancelledMondays: CancelledWeekInfo[] = [];
 
   const current = new Date(startDateStr + 'T00:00:00');
   
@@ -355,6 +364,14 @@ export function getWorkingMondays(
           rescheduledReason: specialMeetings[specialTargetDate] || 'วันนัดประชุมเป็นพิเศษ',
         });
 
+        // บันทึกวันจันทร์ที่งดประชุมลง cancelledMondays พร้อมระบุวันนัดประชุมเป็นพิเศษในสัปดาห์นั้น
+        cancelledMondays.push({
+          date: mondayStr,
+          holidayName: holidayName,
+          isCancelledMeeting: isCancelledMeeting,
+          rescheduledToSpecialDate: specialTargetDate,
+        });
+
         // หากสัปดาห์นี้มีวันนัดประชุมเป็นพิเศษมากกว่า 1 วัน ให้บรรจุเพิ่มตามลำดับ
         for (let i = 1; i < specialDatesInThisWeek.length; i++) {
           workingMondays.push(specialDatesInThisWeek[i]);
@@ -365,6 +382,11 @@ export function getWorkingMondays(
           date: mondayStr,
           name: holidayName,
           type: isCancelledMeeting ? 'cancelled_meeting' : 'holiday',
+        });
+        cancelledMondays.push({
+          date: mondayStr,
+          holidayName: holidayName,
+          isCancelledMeeting: isCancelledMeeting,
         });
       }
     } else {
@@ -386,7 +408,7 @@ export function getWorkingMondays(
   // Ensure chronological order
   workingMondays.sort();
 
-  return { workingMondays, skippedHolidays, specialReplacements };
+  return { workingMondays, skippedHolidays, specialReplacements, cancelledMondays };
 }
 
 /**
@@ -451,99 +473,255 @@ export function isQuestionAnswered(q: QuestionItem): boolean {
 }
 
 /**
- * คำนวณ "วันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด" สำหรับกระทู้ถามที่มีสถานะตอบแล้ว
- * โดยอ้างอิงจากวันที่บรรจุในวาระครั้งหลังสุด (เช่น จากประวัติการขอเลื่อนตอบรอบล่าสุด หรือวันที่บรรจุเดิม)
+ * Helper to get the Monday ISO date (YYYY-MM-DD) for any given ISO date string.
+ */
+export function getMondayOfISO(isoDate: string): string {
+  const d = new Date(isoDate + 'T00:00:00');
+  const day = d.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
+ * คำนวณ "วันที่ตอบ" สำหรับกระทู้ถามที่มีสถานะตอบแล้ว
+ * ให้อ้างอิงจาก "วันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด" หรือ "วันที่นัดประชุมพิเศษ" โดยใช้วันหลังสุด (Latest Date)
  */
 export function getLatestAgendaDate(
   question: QuestionItem,
-  meetingDate?: string
+  meetingDate?: string,
+  specialMeetingsInput?: Record<string, any> | string[] | string
 ): {
   raw: string;
   iso: string | null;
   thaiFull: string;
   thaiShort: string;
   sourceDescription: string;
+  isSpecialMeeting: boolean;
 } {
-  // 1. ตรวจสอบจากประวัติการเลื่อนตอบ (postponeHistoryItems) หาตัวสุดท้ายที่ระบุวันไว้
+  // 1. รวบรวมวันที่บรรจุในวาระกระทู้ถามทั้งหมดของกระทู้นี้ (Agenda Candidates)
+  const agendaCandidates: { iso: string; raw: string; source: string }[] = [];
+
+  // 1.1 ประวัติการเลื่อนตอบ (postponeHistoryItems)
   if (question.postponeHistoryItems && question.postponeHistoryItems.length > 0) {
-    for (let i = question.postponeHistoryItems.length - 1; i >= 0; i--) {
-      const item = question.postponeHistoryItems[i];
+    question.postponeHistoryItems.forEach((item) => {
       const targetDate = item.isoDate || item.rawDate;
       if (targetDate && targetDate.trim() !== '') {
         const parsed = parseThaiOrISODate(targetDate);
-        return {
-          raw: targetDate,
-          iso: parsed,
-          thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : (item.thaiFormatted || targetDate),
-          thaiShort: parsed ? formatThaiShortDate(parsed) : (item.thaiFormatted || targetDate),
-          sourceDescription: `เลื่อนตอบครั้งที่ ${item.round} (คอลัมน์ ${item.colLetter})`
-        };
+        if (parsed) {
+          agendaCandidates.push({
+            iso: parsed,
+            raw: targetDate,
+            source: `เลื่อนตอบครั้งที่ ${item.round} (คอลัมน์ ${item.colLetter})`
+          });
+        }
       }
-    }
+    });
   }
 
-  // 2. ตรวจสอบจาก postponedDates array
+  // 1.2 รายการวันที่ขอเลื่อนตอบ (postponedDates)
   if (question.postponedDates && question.postponedDates.length > 0) {
-    for (let i = question.postponedDates.length - 1; i >= 0; i--) {
-      const d = question.postponedDates[i];
+    question.postponedDates.forEach((d) => {
       if (d && d.trim() !== '') {
         const parsed = parseThaiOrISODate(d);
-        return {
-          raw: d,
-          iso: parsed,
-          thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : d,
-          thaiShort: parsed ? formatThaiShortDate(parsed) : d,
-          sourceDescription: `เลื่อนตอบครั้งหลังสุด`
-        };
+        if (parsed) {
+          agendaCandidates.push({
+            iso: parsed,
+            raw: d,
+            source: 'เลื่อนตอบในวาระ'
+          });
+        }
+      }
+    });
+  }
+
+  // 1.3 วันที่ขอเลื่อนตอบเดี่ยว (postponedDate)
+  if (question.postponedDate && question.postponedDate.trim() !== '') {
+    const parsed = parseThaiOrISODate(question.postponedDate);
+    if (parsed) {
+      agendaCandidates.push({
+        iso: parsed,
+        raw: question.postponedDate,
+        source: 'เลื่อนตอบในวาระ'
+      });
+    }
+  }
+
+  // 1.4 วันที่บรรจุในวาระการประชุมปัจจุบันที่การ์ดแสดงอยู่ (meetingDate)
+  if (meetingDate && meetingDate.trim() !== '') {
+    const parsed = parseThaiOrISODate(meetingDate);
+    if (parsed) {
+      agendaCandidates.push({
+        iso: parsed,
+        raw: meetingDate,
+        source: 'วาระการประชุม'
+      });
+    }
+  }
+
+  // 1.5 วันที่บรรจุเดิมตามระเบียบวาระ (scheduledDate)
+  if (question.scheduledDate && question.scheduledDate.trim() !== '') {
+    const parsed = parseThaiOrISODate(question.scheduledDate);
+    if (parsed) {
+      agendaCandidates.push({
+        iso: parsed,
+        raw: question.scheduledDate,
+        source: 'วันที่บรรจุในวาระ'
+      });
+    }
+  }
+
+  // 1.6 วันที่บันทึกตอบ (answeredDate) ถ้ามี
+  if (question.answeredDate && question.answeredDate.trim() !== '') {
+    const parsed = parseThaiOrISODate(question.answeredDate);
+    if (parsed) {
+      agendaCandidates.push({
+        iso: parsed,
+        raw: question.answeredDate,
+        source: 'วันที่บันทึกตอบ'
+      });
+    }
+  }
+
+  // หาวันที่บรรจุในวาระกระทู้ถามครั้งหลังสุด (เรียงตามลำดับเวลา ISO จากน้อยไปมาก -> ตัวท้ายสุดคือหลังสุด)
+  agendaCandidates.sort((a, b) => a.iso.localeCompare(b.iso));
+  const latestAgenda = agendaCandidates.length > 0 ? agendaCandidates[agendaCandidates.length - 1] : null;
+
+  // 2. รวบรวม "วันที่นัดประชุมพิเศษ" (Special Meeting Candidates)
+  const specialMeetingCandidates: { iso: string; raw: string; reason?: string }[] = [];
+
+  const addSpecialCandidate = (dStr: string, reason?: string) => {
+    const parsed = parseThaiOrISODate(dStr);
+    if (parsed && !specialMeetingCandidates.some((c) => c.iso === parsed)) {
+      specialMeetingCandidates.push({
+        iso: parsed,
+        raw: dStr,
+        reason: reason || 'วันนัดประชุมเป็นพิเศษ'
+      });
+    }
+  };
+
+  // 2.1 ตรวจสอบจาก specialMeetingsInput
+  let specials = specialMeetingsInput;
+  if (!specials && typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const saved = window.localStorage.getItem('senate_special_meetings');
+      if (saved) {
+        specials = JSON.parse(saved);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (specials) {
+    if (typeof specials === 'string') {
+      addSpecialCandidate(specials);
+    } else if (Array.isArray(specials)) {
+      specials.forEach((s) => {
+        if (typeof s === 'string') addSpecialCandidate(s);
+        else if (s && typeof s === 'object' && (s as any).specialDate) addSpecialCandidate((s as any).specialDate, (s as any).reason);
+      });
+    } else if (typeof specials === 'object') {
+      Object.entries(specials).forEach(([key, val]) => {
+        if (val && typeof val === 'object') {
+          const cfg = val as any;
+          if (cfg.specialDate) addSpecialCandidate(cfg.specialDate, cfg.reason);
+          if (cfg.cancelledMonday && parseThaiOrISODate(cfg.cancelledMonday)) {
+            // Monday that had special meeting
+          }
+        } else {
+          // key could be special date (e.g. '2026-09-04': 'วันนัดประชุมเป็นพิเศษ')
+          addSpecialCandidate(key, typeof val === 'string' ? val : undefined);
+          if (typeof val === 'string' && parseThaiOrISODate(val)) {
+            addSpecialCandidate(val);
+          }
+        }
+      });
+    }
+  }
+
+  // 2.2 ตรวจสอบข้อความหมายเหตุ (notes) ของกระทู้ถามว่ามีการระบุวันประชุมพิเศษหรือไม่
+  if (question.notes) {
+    const notesStr = question.notes;
+    if (notesStr.includes('พิเศษ') || notesStr.includes('ประชุมพิเศษ')) {
+      const parsedFromNotes = parseThaiOrISODate(notesStr);
+      if (parsedFromNotes) {
+        addSpecialCandidate(parsedFromNotes, 'วันนัดประชุมเป็นพิเศษตามหมายเหตุ');
       }
     }
   }
 
-  // 3. ตรวจสอบจาก postponedDate
-  if (question.postponedDate && question.postponedDate.trim() !== '') {
-    const parsed = parseThaiOrISODate(question.postponedDate);
-    return {
-      raw: question.postponedDate,
-      iso: parsed,
-      thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : question.postponedDate,
-      thaiShort: parsed ? formatThaiShortDate(parsed) : question.postponedDate,
-      sourceDescription: `เลื่อนตอบครั้งหลังสุด`
-    };
+  // 3. หาวันนัดประชุมพิเศษที่อยู่ในสัปดาห์วาระการประชุมของกระทู้นี้ หรือเกี่ยวข้องกับวาระนี้
+  let applicableSpecials: { iso: string; raw: string; reason?: string }[] = [];
+  if (latestAgenda) {
+    const sessionMonday = getMondayOfISO(latestAgenda.iso);
+    const sessionSunday = addDaysToISO(sessionMonday, 6);
+
+    applicableSpecials = specialMeetingCandidates.filter((s) => {
+      // อยู่ในสัปดาห์เดียวกับวาระกระทู้ถาม
+      return s.iso >= sessionMonday && s.iso <= sessionSunday;
+    });
+
+    // หากไม่มีการนัดประชุมพิเศษในสัปดาห์นั้น แต่มีวันนัดประชุมพิเศษที่ตรงกับ meetingDate
+    if (applicableSpecials.length === 0 && meetingDate) {
+      const meetingISO = parseThaiOrISODate(meetingDate);
+      const match = specialMeetingCandidates.find((s) => s.iso === meetingISO);
+      if (match) {
+        applicableSpecials.push(match);
+      }
+    }
+  } else {
+    // ถ้าไม่มี latestAgenda แต่มี special meetings ให้ใช้วันนัดประชุมพิเศษที่มี
+    applicableSpecials = specialMeetingCandidates;
   }
 
-  // 4. หากถูกบรรจุในวาระการประชุมปัจจุบัน (meetingDate)
-  if (meetingDate && meetingDate.trim() !== '') {
-    const parsed = parseThaiOrISODate(meetingDate);
-    return {
-      raw: meetingDate,
-      iso: parsed,
-      thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : meetingDate,
-      thaiShort: parsed ? formatThaiShortDate(parsed) : meetingDate,
-      sourceDescription: `วาระการประชุมสัปดาห์นี้`
-    };
+  // เรียงวันนัดประชุมพิเศษตามเวลาจากน้อยไปมาก
+  applicableSpecials.sort((a, b) => a.iso.localeCompare(b.iso));
+  const latestSpecial = applicableSpecials.length > 0 ? applicableSpecials[applicableSpecials.length - 1] : null;
+
+  // 4. เปรียบเทียบ: "ให้อ้างอิงจากวันที่บรรจุในวาระกระทู้ถามครั้งหลังสุดหรือวันที่นัดประชุมพิเศษ โดยใช้วันหลังสุด"
+  let chosenDateISO: string | null = null;
+  let chosenRaw = '';
+  let chosenSource = '';
+  let isSpecial = false;
+
+  if (latestAgenda && latestSpecial) {
+    // ใช้วันหลังสุด (the latest in chronological order)
+    if (latestSpecial.iso >= latestAgenda.iso) {
+      chosenDateISO = latestSpecial.iso;
+      chosenRaw = latestSpecial.raw;
+      chosenSource = latestSpecial.reason || 'วันนัดประชุมเป็นพิเศษ';
+      isSpecial = true;
+    } else {
+      chosenDateISO = latestAgenda.iso;
+      chosenRaw = latestAgenda.raw;
+      chosenSource = latestAgenda.source;
+      isSpecial = false;
+    }
+  } else if (latestSpecial) {
+    chosenDateISO = latestSpecial.iso;
+    chosenRaw = latestSpecial.raw;
+    chosenSource = latestSpecial.reason || 'วันนัดประชุมเป็นพิเศษ';
+    isSpecial = true;
+  } else if (latestAgenda) {
+    chosenDateISO = latestAgenda.iso;
+    chosenRaw = latestAgenda.raw;
+    chosenSource = latestAgenda.source;
+    isSpecial = false;
   }
 
-  // 5. ใช้วันที่บรรจุในระเบียบวาระเดิม (scheduledDate)
-  if (question.scheduledDate && question.scheduledDate.trim() !== '') {
-    const parsed = parseThaiOrISODate(question.scheduledDate);
+  if (chosenDateISO) {
     return {
-      raw: question.scheduledDate,
-      iso: parsed,
-      thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : question.scheduledDate,
-      thaiShort: parsed ? formatThaiShortDate(parsed) : question.scheduledDate,
-      sourceDescription: `วันที่บรรจุในวาระ`
-    };
-  }
-
-  // 6. fallback answeredDate (ถ้ามีระบุไว้)
-  if (question.answeredDate && question.answeredDate.trim() !== '') {
-    const parsed = parseThaiOrISODate(question.answeredDate);
-    return {
-      raw: question.answeredDate,
-      iso: parsed,
-      thaiFull: parsed ? formatThaiDateWithDayOfWeek(parsed) : question.answeredDate,
-      thaiShort: parsed ? formatThaiShortDate(parsed) : question.answeredDate,
-      sourceDescription: `วันที่บันทึกตอบ`
+      raw: chosenRaw || chosenDateISO,
+      iso: chosenDateISO,
+      thaiFull: formatThaiDateWithDayOfWeek(chosenDateISO),
+      thaiShort: formatThaiShortDate(chosenDateISO),
+      sourceDescription: chosenSource,
+      isSpecialMeeting: isSpecial
     };
   }
 
@@ -552,7 +730,8 @@ export function getLatestAgendaDate(
     iso: null,
     thaiFull: '',
     thaiShort: '',
-    sourceDescription: ''
+    sourceDescription: '',
+    isSpecialMeeting: false
   };
 }
 
@@ -698,7 +877,7 @@ export function computeWeeklySchedules(
   // 1. เรียงลำดับกระทู้ทั้งหมดตาม "ลำดับที่ยื่น" (submittedOrder) อย่างเคร่งครัด
   const allSortedQuestions = [...allQuestions].sort((a, b) => a.submittedOrder - b.submittedOrder);
   
-  const { workingMondays, skippedHolidays, specialReplacements } = getWorkingMondays(startDate, maxWeeks, customHolidays, specialMeetings);
+  const { workingMondays, skippedHolidays, specialReplacements, cancelledMondays = [] } = getWorkingMondays(startDate, maxWeeks, customHolidays, specialMeetings);
   const schedules: WeeklySchedule[] = [];
 
   // ตรวจสอบกระทู้ที่มีการระบุ "วันที่บรรจุ" (scheduledDate) ไว้ล่วงหน้า (เช่น จาก Google Sheet)
@@ -1289,6 +1468,45 @@ export function computeWeeklySchedules(
       break;
     }
   }
+
+  // วันจันทร์ของสัปดาห์ที่งดประชุม:
+  // 1) ให้แสดงการ์ดคาดการณ์การจัดระเบียบกระทู้ถามไว้ พร้อมทั้งแสดงสถานะว่า "งดประชุม" ไว้ด้านบนการ์ด
+  // 2) หากมีวันนัดประชุมพิเศษในสัปดาห์นั้น ให้เลื่อนระเบียบวาระกระทู้ถามไปจัดในวันที่มีการประชุมเป็นพิเศษในสัปดาห์นั้น
+  //    หากไม่มีวันนัดประชุมพิเศษในสัปดาห์นั้น ให้เลื่อนระเบียบวาระกระทู้ถามไปจัดในวันจันทร์ของสัปดาห์ถัดไป
+  // (ซึ่งกระทู้ทั้งหมดได้ถูกเลื่อนไปยังวันประชุมเป้าหมายในกระบวนการจัดสรรคิวด้านบนเรียบร้อยแล้ว)
+  const maxSimDate = workingMondays.length > 0 ? workingMondays[workingMondays.length - 1] : undefined;
+  for (const cancelled of cancelledMondays) {
+    if (cancelled.date >= startDate && (!maxSimDate || cancelled.date <= maxSimDate)) {
+      const notice = cancelled.rescheduledToSpecialDate
+        ? `งดการประชุม (${cancelled.holidayName || 'งดการประชุม'}) • เลื่อนระเบียบวาระกระทู้ถามไปจัดในวันประชุมพิเศษ: ${formatThaiShortDate(cancelled.rescheduledToSpecialDate)}`
+        : `งดการประชุม (${cancelled.holidayName || 'งดการประชุม'}) • เลื่อนระเบียบวาระไปจัดในวันจันทร์ถัดไป`;
+
+      schedules.push({
+        date: cancelled.date,
+        thaiDateFormatted: formatThaiDateWithDayOfWeek(cancelled.date),
+        weekNumber: 0,
+        questions: [],
+        capacity: 0,
+        baseCapacity: 3,
+        postponedCount: 0,
+        scheduleType: 'projected',
+        officialNotice: notice,
+        isCancelledMeeting: true,
+        cancelledReason: cancelled.holidayName || 'งดการประชุมวุฒิสภา',
+        isHoliday: true,
+        holidayName: cancelled.holidayName,
+        rescheduledToSpecialDate: cancelled.rescheduledToSpecialDate,
+      });
+    }
+  }
+
+  // เรียงลำดับ schedules ตามวันที่ปฏิทิน (date) จากน้อยไปมาก
+  schedules.sort((a, b) => a.date.localeCompare(b.date));
+
+  // กำหนดลำดับสัปดาห์ (weekNumber) ให้เรียงตามลำดับปฏิทิน 1, 2, 3...
+  schedules.forEach((s, idx) => {
+    s.weekNumber = idx + 1;
+  });
 
   return {
     schedules,

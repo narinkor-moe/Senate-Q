@@ -62,6 +62,7 @@ export interface WeeklySchedule {
   specialMeetingReason?: string;
   replacedHolidayDate?: string; // วันจันทร์เดิมที่ตรงกับวันหยุด/งดประชุม และถูกย้ายมาจัดในวันนี้แทน
   replacedHolidayName?: string; // ชื่อวันหยุดหรือวันงดประชุมที่ถูกย้ายมา
+  rescheduledToSpecialDate?: string; // วันนัดประชุมเป็นพิเศษที่ถูกย้ายไปจัดแทนในสัปดาห์นั้น
 }
 
 export interface RuleComplianceCheck {
