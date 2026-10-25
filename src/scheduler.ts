@@ -22,7 +22,6 @@ export const THAI_PUBLIC_HOLIDAYS: Record<string, string> = {
   '2026-08-12': 'วันแม่แห่งชาติ (วันเฉลิมพระชนมพรรษาสมเด็จพระบรมราชชนนีพันปีหลวง)',
   '2026-10-13': 'วันนวมินทรมหาราช',
   '2026-10-23': 'วันปิยมหาราช',
-  '2026-10-26': 'วันหยุดชดเชยวันปิยมหาราช',
   '2026-12-07': 'วันหยุดชดเชยวันคล้ายวันพระบรมราชสมภพ ร.9 / วันพ่อแห่งชาติ',
   '2026-12-10': 'วันรัฐธรรมนูญ',
   '2026-12-31': 'วันสิ้นปี',
@@ -1117,15 +1116,7 @@ export function computeWeeklySchedules(
     let placedPostponedCount = 0;
 
     for (const item of allPostponedForToday) {
-      // ตรวจสอบว่าผู้ตั้งถามซ้ำกับกระทู้ที่ได้จัดในวันนี้แล้วหรือไม่
-      if (askersScheduledToday.has(item.question.asker)) {
-        // หากผู้ตั้งถามซ้ำกับกระทู้ที่จัดในวันนี้ -> ให้เลื่อนไปจัดลำดับในสัปดาห์ถัดๆ ไปที่ชื่อผู้ตั้งถามไม่ซ้ำ
-        nextDynamicPostponedCarryOver.push({
-          question: item.question,
-          originalDate: item.originalDate || mondayDate,
-          arrivedFromRound: item.arrivedFromRound,
-          arrivedFromCol: item.arrivedFromCol
-        });
+      if (scheduledQuestions.some((x) => x.question.id === item.question.id)) {
         continue;
       }
 
@@ -1545,30 +1536,40 @@ export function auditScheduleCompliance(
       : capacityIssues.join(', ')
   });
 
-  // Check 2: Asker Exclusivity Rule (ห้ามผู้ตั้งถามซ้ำกันในวันประชุมเดียวกัน)
+  // Check 2: Asker Exclusivity Rule (รูปแบบ B: งดเฉพาะกระทู้ใหม่ที่ชื่อผู้ตั้งถามซ้ำกับกระทู้เลื่อน)
   let askerPassed = true;
   const askerIssues: string[] = [];
   schedules.forEach((s, idx) => {
-    const askers = s.questions.map((q) => q.question.asker);
-    const uniqueAskers = new Set(askers);
-    if (uniqueAskers.size !== askers.length) {
+    const regularQuestions = s.questions.filter((q) => !q.isPostponedFromPrevious);
+    const regularAskers = regularQuestions.map((q) => q.question.asker);
+    const postponedAskers = new Set(
+      s.questions.filter((q) => q.isPostponedFromPrevious).map((q) => q.question.asker)
+    );
+
+    // 1. กระทู้บรรจุใหม่ ห้ามมีผู้ตั้งถามซ้ำกันเอง
+    const uniqueRegular = new Set(regularAskers);
+    if (uniqueRegular.size !== regularAskers.length) {
       askerPassed = false;
-      const seen = new Set<string>();
-      const dups: string[] = [];
-      askers.forEach((a) => {
-        if (seen.has(a)) dups.push(a);
-        seen.add(a);
-      });
-      askerIssues.push(`สัปดาห์ที่ ${idx + 1} (${s.thaiDateFormatted}) มีผู้ตั้งถามซ้ำ: ${dups.join(', ')}`);
+      askerIssues.push(`สัปดาห์ที่ ${idx + 1} (${s.thaiDateFormatted}) มีกระทู้บรรจุใหม่ที่มีผู้ตั้งถามซ้ำกันเอง`);
+    }
+
+    // 2. กระทู้บรรจุใหม่ ห้ามมีชื่อผู้ตั้งถามซ้ำกับผู้ตั้งถามของกระทู้เลื่อนตอบในวันนั้น
+    for (const rAsker of regularAskers) {
+      if (postponedAskers.has(rAsker)) {
+        askerPassed = false;
+        askerIssues.push(
+          `สัปดาห์ที่ ${idx + 1} (${s.thaiDateFormatted}) กระทู้บรรจุใหม่มีชื่อผู้ตั้งถามซ้ำกับกระทู้เลื่อนตอบ: ${rAsker}`
+        );
+      }
     }
   });
   checks.push({
     ruleId: 'UNIQUE_ASKER_RULE',
-    ruleName: 'ผู้ตั้งกระทู้ถามไม่ซ้ำกันในวันประชุมเดียวกัน',
-    description: 'สมาชิกหนึ่งท่านสามารถมีกระทู้ถามในระเบียบวาระเดียวกันได้เพียง 1 เรื่อง หากซ้ำให้เลื่อนไปสัปดาห์ถัดไป',
+    ruleName: 'ผู้ตั้งกระทู้ถามไม่ซ้ำกัน (ตามเกณฑ์รูปแบบ B: งดเฉพาะกระทู้ใหม่ที่ซ้ำกับกระทู้เลื่อน)',
+    description: 'กระทู้บรรจุใหม่ต้องไม่ซ้ำกันเอง และห้ามมีชื่อผู้ตั้งถามซ้ำกับกระทู้ที่เลื่อนมาตอบในวันประชุมเดียวกันอย่างเด็ดขาด',
     passed: askerPassed,
     details: askerPassed
-      ? 'ผู้ตั้งกระทู้ถามในแต่ละวันประชุมไม่มีชื่อซ้ำกัน 100% (เป็นไปตามข้อบังคับ)'
+      ? 'การจัดระเบียบวาระถูกต้องตามเกณฑ์รูปแบบ B: กระทู้บรรจุใหม่ไม่มีผู้ตั้งถามซ้ำกับกระทู้เลื่อนตอบ และไม่ซ้ำกันเองครบถ้วน 100%'
       : askerIssues.join(', ')
   });
 

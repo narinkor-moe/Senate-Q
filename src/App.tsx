@@ -92,6 +92,15 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          // If 2026-10-26 was cached as a holiday, remove it so 26 Oct 2569 meeting is active
+          if (parsed['2026-10-26']) {
+            delete parsed['2026-10-26'];
+            try {
+              localStorage.setItem(STORAGE_KEY_HOLIDAYS, JSON.stringify(parsed));
+            } catch {
+              // ignore
+            }
+          }
           return parsed;
         }
       }
@@ -199,7 +208,7 @@ export default function App() {
 
   // 7. Configuration for starting Monday date (Default: 31 สิงหาคม 2569 / 2026-08-31)
   const [startDate, setStartDate] = useState<string>('2026-08-31');
-  const [maxWeeks, setMaxWeeks] = useState<number>(8);
+  const [maxWeeks, setMaxWeeks] = useState<number>(10);
   const [selectedWeekFilter, setSelectedWeekFilter] = useState<string | 'all'>('all');
 
   // Session closing date state (Default: 30 ตุลาคม 2569 / 2026-10-30, persisted to localStorage)
