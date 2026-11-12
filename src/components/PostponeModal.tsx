@@ -187,7 +187,7 @@ export const PostponeModal: React.FC<PostponeModalProps> = ({
                 </span>
                 <span className="text-[10px] bg-emerald-200/80 text-emerald-900 px-1.5 py-0.2 rounded font-bold border border-emerald-300">
                   {question.postponeHistoryItems && question.postponeHistoryItems.length > 1
-                    ? `เลื่อนรวม ${question.postponeHistoryItems.length} ครั้ง (Cols C-${question.postponeHistoryItems[question.postponeHistoryItems.length - 1].colLetter})`
+                    ? `เลื่อนรวม ${question.postponeHistoryItems.length} ครั้ง (Cols D-${question.postponeHistoryItems[question.postponeHistoryItems.length - 1].colLetter})`
                     : targetCellName}
                 </span>
               </div>

@@ -670,7 +670,7 @@ export default function App() {
   // Questions scheduled on meeting dates after the session closing date
   const questionsAfterClosing = useMemo(() => {
     if (!sessionClosingDate) return [];
-    const afterClosingWeeks = fullSimulationSchedules.filter((s) => s.date > sessionClosingDate);
+    const afterClosingWeeks = fullSimulationSchedules.filter((s) => s.date > sessionClosingDate && !s.isCancelledMeeting);
     return afterClosingWeeks.flatMap((s) => s.questions);
   }, [sessionClosingDate, fullSimulationSchedules]);
 
@@ -714,7 +714,7 @@ export default function App() {
         isPast: true,
       };
     }
-    const weeksWithin = schedules.filter((s) => s.date <= sessionClosingDate).length;
+    const weeksWithin = schedules.filter((s) => s.date <= sessionClosingDate && !s.isCancelledMeeting).length;
     return {
       text: `ระยะเวลา ~${diffDays} วัน`,
       weeksWithin,

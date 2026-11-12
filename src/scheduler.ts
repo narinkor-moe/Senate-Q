@@ -815,7 +815,7 @@ export function getNextPostponeForMonday(
 
   // 2. Check question.postponedDates array if present
   if (question.postponedDates && question.postponedDates.length > 0) {
-    const colLetters = ['D', 'E', 'F', 'G', 'H'];
+    const colLetters = ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
     for (let r = 0; r < question.postponedDates.length; r++) {
       const raw = question.postponedDates[r];
       if (!raw || raw.trim() === '') continue;
@@ -825,7 +825,7 @@ export function getNextPostponeForMonday(
       if (targetMonday && targetMonday > currentMonday) {
         return {
           round: r + 1,
-          colLetter: colLetters[r] || 'D',
+          colLetter: colLetters[r] || (r < 8 ? String.fromCharCode(68 + r) : 'D'),
           targetMonday,
           rawDate: raw
         };
@@ -839,18 +839,13 @@ export function getNextPostponeForMonday(
     if (parsed) {
       const targetMonday = findMatchingWorkingMonday(parsed, workingMondays);
       if (targetMonday && targetMonday > currentMonday) {
+        const roundNum = question.postponeCount || 1;
+        const roundMap: Record<number, string> = {
+          1: 'D', 2: 'E', 3: 'F', 4: 'G', 5: 'H', 6: 'I', 7: 'J', 8: 'K'
+        };
         return {
-          round: question.postponeCount || 1,
-          colLetter:
-            question.postponeCount === 2
-              ? 'E'
-              : question.postponeCount === 3
-              ? 'F'
-              : question.postponeCount === 4
-              ? 'G'
-              : question.postponeCount === 5
-              ? 'H'
-              : 'D',
+          round: roundNum,
+          colLetter: roundMap[roundNum] || 'D',
           targetMonday,
           rawDate: question.postponedDate
         };
@@ -1131,10 +1126,12 @@ export function computeWeeklySchedules(
       const activeRound = isPostponedAgain
         ? nextPostpone!.round
         : item.arrivedFromRound || item.question.postponeCount || 1;
+      const roundMap: Record<number, string> = {
+        1: 'D', 2: 'E', 3: 'F', 4: 'G', 5: 'H', 6: 'I', 7: 'J', 8: 'K'
+      };
       const activeColLetter = isPostponedAgain
         ? nextPostpone!.colLetter
-        : item.arrivedFromCol ||
-          (activeRound === 2 ? 'E' : activeRound === 3 ? 'F' : activeRound === 4 ? 'G' : activeRound === 5 ? 'H' : 'D');
+        : item.arrivedFromCol || roundMap[activeRound] || 'D';
 
       scheduledQuestions.push({
         question: item.question,
@@ -1719,11 +1716,11 @@ export function auditScheduleCompliance(
 
   checks.push({
     ruleId: 'MULTI_POSTPONE_RULE',
-    ruleName: 'การคาดการณ์การเลื่อนวันตอบมากกว่า 1 ครั้ง (ใช้ข้อมูลคอลัมน์ E, F, G, H สำหรับครั้งที่ 2, 3, 4, 5)',
-    description: 'หากกระทู้ถามใดมีการเลื่อนวันตอบมากกว่า 1 ครั้ง โดยครั้งที่ 2, 3, 4, 5 ให้นำข้อมูลจาก Google Sheet คอลัมน์ E, F, G, H ใช้คาดการณ์ระเบียบวาระการประชุมตามลำดับ',
+    ruleName: 'การคาดการณ์การเลื่อนวันตอบมากกว่า 1 ครั้ง (ใช้ข้อมูลคอลัมน์ E - K สำหรับครั้งที่ 2 - 8)',
+    description: 'หากกระทู้ถามใดมีการเลื่อนวันตอบมากกว่า 1 ครั้ง โดยครั้งที่ 2 - 8 ให้นำข้อมูลจาก Google Sheet คอลัมน์ E - K ใช้คาดการณ์ระเบียบวาระการประชุมตามลำดับ',
     passed: multiPostponePassed,
     details: multiPostponePassed
-      ? `กระทู้ที่มีการขอเลื่อนวันตอบมากกว่า 1 ครั้ง (กระทู้ #${questionsWithMultiPostpone.map((x) => x.submittedOrder).join(', #')}) ได้นำข้อมูลจากคอลัมน์ E, F, G, H มาใช้คาดการณ์ระเบียบวาระถูกต้องครบถ้วน 100%`
+      ? `กระทู้ที่มีการขอเลื่อนวันตอบมากกว่า 1 ครั้ง (กระทู้ #${questionsWithMultiPostpone.map((x) => x.submittedOrder).join(', #')}) ได้นำข้อมูลจากคอลัมน์ E - K มาใช้คาดการณ์ระเบียบวาระถูกต้องครบถ้วน 100%`
       : multiPostponeIssues.join(', ')
   });
 

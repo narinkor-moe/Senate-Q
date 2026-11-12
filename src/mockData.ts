@@ -117,12 +117,13 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "asker": "นายเปรมศักดิ์ เพียยุระ",
     "minister": "นายกรัฐมนตรี",
     "scheduledDate": "31/08/2026",
-    "postponedDate": "2026-10-26",
-    "postponedSheetRaw": "ครั้งที่ 1 (D): 14/09/2026 | ครั้งที่ 2 (E): 28/9/2026 | ครั้งที่ 3 (F): 26/10/2026",
+    "postponedDate": "2026-11-09",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 14/09/2026 | ครั้งที่ 2 (E): 28/9/2026 | ครั้งที่ 3 (F): 26/10/2026 | ครั้งที่ 4 (G): 9/11/2026",
     "postponedDates": [
       "2026-09-14",
       "2026-09-28",
-      "2026-10-26"
+      "2026-10-26",
+      "2026-11-09"
     ],
     "postponeHistoryItems": [
       {
@@ -145,19 +146,28 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
         "rawDate": "26/10/2026",
         "isoDate": "2026-10-26",
         "thaiFormatted": "26 ต.ค. 2569"
+      },
+      {
+        "round": 4,
+        "colLetter": "G",
+        "rawDate": "9/11/2026",
+        "isoDate": "2026-11-09",
+        "thaiFormatted": "9 พ.ย. 2569"
       }
     ],
-    "postponeCount": 3,
+    "postponeCount": 4,
     "postponeHistory": [
       "14/09/2026",
       "28/9/2026",
-      "26/10/2026"
+      "26/10/2026",
+      "9/11/2026"
     ],
     "isPostponedInSheet": true,
     "sheetRowIndex": 5,
-    "status": "postponed",
-    "rawStatus": "เลื่อนตอบ",
-    "isAnswered": false,
+    "status": "completed",
+    "rawStatus": "ตอบแล้ว",
+    "isAnswered": true,
+    "answeredDate": "2026-11-09",
     "isWithdrawn": false
   },
   {
@@ -209,12 +219,14 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "asker": "นายเดชา นุตาลัย",
     "minister": "รัฐมนตรีว่าการกระทรวงเกษตรและสหกรณ์",
     "scheduledDate": "07/09/2026",
-    "postponedDate": "2026-10-26",
-    "postponedSheetRaw": "ครั้งที่ 1 (D): 21/09/2026 | ครั้งที่ 2 (E): 5/10/2026 | ครั้งที่ 3 (F): 26/10/2026",
+    "postponedDate": "2026-11-30",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 21/09/2026 | ครั้งที่ 2 (E): 5/10/2026 | ครั้งที่ 3 (F): 26/10/2026 | ครั้งที่ 4 (G): 9/11/2026 | ครั้งที่ 5 (H): 30/11/2026",
     "postponedDates": [
       "2026-09-21",
       "2026-10-05",
-      "2026-10-26"
+      "2026-10-26",
+      "2026-11-09",
+      "2026-11-30"
     ],
     "postponeHistoryItems": [
       {
@@ -237,13 +249,29 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
         "rawDate": "26/10/2026",
         "isoDate": "2026-10-26",
         "thaiFormatted": "26 ต.ค. 2569"
+      },
+      {
+        "round": 4,
+        "colLetter": "G",
+        "rawDate": "9/11/2026",
+        "isoDate": "2026-11-09",
+        "thaiFormatted": "9 พ.ย. 2569"
+      },
+      {
+        "round": 5,
+        "colLetter": "H",
+        "rawDate": "30/11/2026",
+        "isoDate": "2026-11-30",
+        "thaiFormatted": "30 พ.ย. 2569"
       }
     ],
-    "postponeCount": 3,
+    "postponeCount": 5,
     "postponeHistory": [
       "21/09/2026",
       "5/10/2026",
-      "26/10/2026"
+      "26/10/2026",
+      "9/11/2026",
+      "30/11/2026"
     ],
     "isPostponedInSheet": true,
     "sheetRowIndex": 7,
@@ -483,11 +511,12 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "asker": "นางสาวมณีรัฐ เขมะวงค์",
     "minister": "นายกรัฐมนตรี",
     "scheduledDate": "21/09/2026",
-    "postponedDate": "2026-10-26",
-    "postponedSheetRaw": "ครั้งที่ 1 (D): 28/09/2026 | ครั้งที่ 2 (E): 26/10/2026",
+    "postponedDate": "2026-11-09",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 28/09/2026 | ครั้งที่ 2 (E): 26/10/2026 | ครั้งที่ 3 (F): 9/11/2026",
     "postponedDates": [
       "2026-09-28",
-      "2026-10-26"
+      "2026-10-26",
+      "2026-11-09"
     ],
     "postponeHistoryItems": [
       {
@@ -503,18 +532,27 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
         "rawDate": "26/10/2026",
         "isoDate": "2026-10-26",
         "thaiFormatted": "26 ต.ค. 2569"
+      },
+      {
+        "round": 3,
+        "colLetter": "F",
+        "rawDate": "9/11/2026",
+        "isoDate": "2026-11-09",
+        "thaiFormatted": "9 พ.ย. 2569"
       }
     ],
-    "postponeCount": 2,
+    "postponeCount": 3,
     "postponeHistory": [
       "28/09/2026",
-      "26/10/2026"
+      "26/10/2026",
+      "9/11/2026"
     ],
     "isPostponedInSheet": true,
     "sheetRowIndex": 14,
-    "status": "postponed",
-    "rawStatus": "เลื่อนตอบ",
-    "isAnswered": false,
+    "status": "completed",
+    "rawStatus": "ตอบแล้ว",
+    "isAnswered": true,
+    "answeredDate": "2026-11-09",
     "isWithdrawn": false
   },
   {
@@ -544,9 +582,10 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     ],
     "isPostponedInSheet": true,
     "sheetRowIndex": 15,
-    "status": "postponed",
-    "rawStatus": "เลื่อนตอบ",
-    "isAnswered": false,
+    "status": "completed",
+    "rawStatus": "ตอบแล้ว",
+    "isAnswered": true,
+    "answeredDate": "2026-10-26",
     "isWithdrawn": false
   },
   {
@@ -576,9 +615,10 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     ],
     "isPostponedInSheet": true,
     "sheetRowIndex": 16,
-    "status": "postponed",
-    "rawStatus": "เลื่อนตอบ",
-    "isAnswered": false,
+    "status": "completed",
+    "rawStatus": "ตอบแล้ว",
+    "isAnswered": true,
+    "answeredDate": "2026-10-26",
     "isWithdrawn": false
   },
   {
@@ -588,10 +628,11 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "asker": "นายสุนทร พฤกษพิพัฒน์",
     "minister": "นายกรัฐมนตรี",
     "scheduledDate": "28/09/2026",
-    "postponedDate": "2026-11-09",
-    "postponedSheetRaw": "ครั้งที่ 1 (D): 09/11/2026",
+    "postponedDate": "2026-12-21",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 09/11/2026 | ครั้งที่ 2 (E): 21/12/2026",
     "postponedDates": [
-      "2026-11-09"
+      "2026-11-09",
+      "2026-12-21"
     ],
     "postponeHistoryItems": [
       {
@@ -600,11 +641,19 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
         "rawDate": "09/11/2026",
         "isoDate": "2026-11-09",
         "thaiFormatted": "9 พ.ย. 2569"
+      },
+      {
+        "round": 2,
+        "colLetter": "E",
+        "rawDate": "21/12/2026",
+        "isoDate": "2026-12-21",
+        "thaiFormatted": "21 ธ.ค. 2569"
       }
     ],
-    "postponeCount": 1,
+    "postponeCount": 2,
     "postponeHistory": [
-      "09/11/2026"
+      "09/11/2026",
+      "21/12/2026"
     ],
     "isPostponedInSheet": true,
     "sheetRowIndex": 17,
@@ -653,6 +702,88 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "asker": "นางจุฑารัตน์ นิลเปรม",
     "minister": "รัฐมนตรีว่าการกระทรวงการคลัง",
     "scheduledDate": "05/10/2026",
+    "postponedDate": "2026-12-21",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 09/11/2026 | ครั้งที่ 2 (E): 21/12/2026",
+    "postponedDates": [
+      "2026-11-09",
+      "2026-12-21"
+    ],
+    "postponeHistoryItems": [
+      {
+        "round": 1,
+        "colLetter": "D",
+        "rawDate": "09/11/2026",
+        "isoDate": "2026-11-09",
+        "thaiFormatted": "9 พ.ย. 2569"
+      },
+      {
+        "round": 2,
+        "colLetter": "E",
+        "rawDate": "21/12/2026",
+        "isoDate": "2026-12-21",
+        "thaiFormatted": "21 ธ.ค. 2569"
+      }
+    ],
+    "postponeCount": 2,
+    "postponeHistory": [
+      "09/11/2026",
+      "21/12/2026"
+    ],
+    "isPostponedInSheet": true,
+    "sheetRowIndex": 19,
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
+    "isAnswered": false,
+    "isWithdrawn": false
+  },
+  {
+    "id": "sheet-q-19-20",
+    "submittedOrder": 19,
+    "topic": "การรายงานผลการดำเนินการประจำปีด้านการทรมานและการกระทำให้บุคคลสูญหายต่อรัฐสภา",
+    "asker": "นางอังคณา นีละไพจิตร",
+    "minister": "รัฐมนตรีว่าการกระทรวงยุติธรรม",
+    "scheduledDate": "19/10/2026",
+    "postponedDate": "2026-11-16",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 02/11/2026 | ครั้งที่ 2 (E): 16/11/2026",
+    "postponedDates": [
+      "2026-11-02",
+      "2026-11-16"
+    ],
+    "postponeHistoryItems": [
+      {
+        "round": 1,
+        "colLetter": "D",
+        "rawDate": "02/11/2026",
+        "isoDate": "2026-11-02",
+        "thaiFormatted": "2 พ.ย. 2569"
+      },
+      {
+        "round": 2,
+        "colLetter": "E",
+        "rawDate": "16/11/2026",
+        "isoDate": "2026-11-16",
+        "thaiFormatted": "16 พ.ย. 2569"
+      }
+    ],
+    "postponeCount": 2,
+    "postponeHistory": [
+      "02/11/2026",
+      "16/11/2026"
+    ],
+    "isPostponedInSheet": true,
+    "sheetRowIndex": 20,
+    "status": "postponed",
+    "rawStatus": "บรรจุแล้ว",
+    "isAnswered": false,
+    "isWithdrawn": false
+  },
+  {
+    "id": "sheet-q-20-21",
+    "submittedOrder": 20,
+    "topic": "การปฏิบัติตามหลักการไม่ผลักดันสู่อันตราย",
+    "asker": "นางอังคณา นีละไพจิตร",
+    "minister": "รัฐมนตรีว่าการกระทรวงการต่างประเทศ",
+    "scheduledDate": "26/10/2026",
     "postponedDate": "2026-11-09",
     "postponedSheetRaw": "ครั้งที่ 1 (D): 09/11/2026",
     "postponedDates": [
@@ -672,56 +803,9 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
       "09/11/2026"
     ],
     "isPostponedInSheet": true,
-    "sheetRowIndex": 19,
-    "status": "postponed",
-    "rawStatus": "เลื่อนตอบ",
-    "isAnswered": false,
-    "isWithdrawn": false
-  },
-  {
-    "id": "sheet-q-19-20",
-    "submittedOrder": 19,
-    "topic": "การรายงานผลการดำเนินการประจำปีด้านการทรมานและการกระทำให้บุคคลสูญหายต่อรัฐสภา",
-    "asker": "นางอังคณา นีละไพจิตร",
-    "minister": "รัฐมนตรีว่าการกระทรวงยุติธรรม",
-    "scheduledDate": "19/10/2026",
-    "postponedDate": "2026-11-02",
-    "postponedSheetRaw": "ครั้งที่ 1 (D): 02/11/2026",
-    "postponedDates": [
-      "2026-11-02"
-    ],
-    "postponeHistoryItems": [
-      {
-        "round": 1,
-        "colLetter": "D",
-        "rawDate": "02/11/2026",
-        "isoDate": "2026-11-02",
-        "thaiFormatted": "2 พ.ย. 2569"
-      }
-    ],
-    "postponeCount": 1,
-    "postponeHistory": [
-      "02/11/2026"
-    ],
-    "isPostponedInSheet": true,
-    "sheetRowIndex": 20,
-    "status": "postponed",
-    "rawStatus": "เลื่อนตอบ",
-    "isAnswered": false,
-    "isWithdrawn": false
-  },
-  {
-    "id": "sheet-q-20-21",
-    "submittedOrder": 20,
-    "topic": "การปฏิบัติตามหลักการไม่ผลักดันสู่อันตราย",
-    "asker": "นางอังคณา นีละไพจิตร",
-    "minister": "รัฐมนตรีว่าการกระทรวงการต่างประเทศ",
-    "scheduledDate": "26/10/2026",
-    "postponeCount": 0,
-    "isPostponedInSheet": false,
     "sheetRowIndex": 21,
-    "status": "pending",
-    "rawStatus": "บรรจุแล้ว",
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
     "isAnswered": false,
     "isWithdrawn": false
   },
@@ -732,10 +816,12 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "asker": "นายเปรมศักดิ์ เพียยุระ",
     "minister": "นายกรัฐมนตรี",
     "scheduledDate": "19/10/2026",
-    "postponedDate": "2026-10-26",
-    "postponedSheetRaw": "ครั้งที่ 1 (D): 26/10/2026",
+    "postponedDate": "2026-11-16",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 26/10/2026 | ครั้งที่ 2 (E): 9/11/2026 | ครั้งที่ 3 (F): 16/11/2026",
     "postponedDates": [
-      "2026-10-26"
+      "2026-10-26",
+      "2026-11-09",
+      "2026-11-16"
     ],
     "postponeHistoryItems": [
       {
@@ -744,11 +830,27 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
         "rawDate": "26/10/2026",
         "isoDate": "2026-10-26",
         "thaiFormatted": "26 ต.ค. 2569"
+      },
+      {
+        "round": 2,
+        "colLetter": "E",
+        "rawDate": "9/11/2026",
+        "isoDate": "2026-11-09",
+        "thaiFormatted": "9 พ.ย. 2569"
+      },
+      {
+        "round": 3,
+        "colLetter": "F",
+        "rawDate": "16/11/2026",
+        "isoDate": "2026-11-16",
+        "thaiFormatted": "16 พ.ย. 2569"
       }
     ],
-    "postponeCount": 1,
+    "postponeCount": 3,
     "postponeHistory": [
-      "26/10/2026"
+      "26/10/2026",
+      "9/11/2026",
+      "16/11/2026"
     ],
     "isPostponedInSheet": true,
     "sheetRowIndex": 22,
@@ -763,11 +865,29 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "ปัญหาความผิดพลาดและความล้มเหลวในการคัดกรองผู้มีสิทธิได้รับบัตรสวัสดิการแห่งรัฐ",
     "asker": "นายเปรมศักดิ์ เพียยุระ",
     "minister": "นายกรัฐมนตรี",
-    "postponeCount": 0,
-    "isPostponedInSheet": false,
+    "scheduledDate": "02/11/2026",
+    "postponedDate": "2026-12-14",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 14/12/2026",
+    "postponedDates": [
+      "2026-12-14"
+    ],
+    "postponeHistoryItems": [
+      {
+        "round": 1,
+        "colLetter": "D",
+        "rawDate": "14/12/2026",
+        "isoDate": "2026-12-14",
+        "thaiFormatted": "14 ธ.ค. 2569"
+      }
+    ],
+    "postponeCount": 1,
+    "postponeHistory": [
+      "14/12/2026"
+    ],
+    "isPostponedInSheet": true,
     "sheetRowIndex": 23,
-    "status": "pending",
-    "rawStatus": "รอการบรรจุ",
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
     "isAnswered": false,
     "isWithdrawn": false
   },
@@ -810,11 +930,37 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "asker": "นายชูชีพ เอื้อการณ์",
     "minister": "นายกรัฐมนตรี",
     "scheduledDate": "26/10/2026",
-    "postponeCount": 0,
-    "isPostponedInSheet": false,
+    "postponedDate": "2026-11-23",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 09/11/2026 | ครั้งที่ 2 (E): 23/11/2026",
+    "postponedDates": [
+      "2026-11-09",
+      "2026-11-23"
+    ],
+    "postponeHistoryItems": [
+      {
+        "round": 1,
+        "colLetter": "D",
+        "rawDate": "09/11/2026",
+        "isoDate": "2026-11-09",
+        "thaiFormatted": "9 พ.ย. 2569"
+      },
+      {
+        "round": 2,
+        "colLetter": "E",
+        "rawDate": "23/11/2026",
+        "isoDate": "2026-11-23",
+        "thaiFormatted": "23 พ.ย. 2569"
+      }
+    ],
+    "postponeCount": 2,
+    "postponeHistory": [
+      "09/11/2026",
+      "23/11/2026"
+    ],
+    "isPostponedInSheet": true,
     "sheetRowIndex": 25,
-    "status": "pending",
-    "rawStatus": "บรรจุแล้ว",
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
     "isAnswered": false,
     "isWithdrawn": false
   },
@@ -824,11 +970,29 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "มาตรการป้องกันและปราบปรามการถือครองและควบคุมที่ดินโดยคนต่างด้าวผ่านนอมินีในจังหวัดท่องเที่ยว",
     "asker": "นายชูชีพ เอื้อการณ์",
     "minister": "นายกรัฐมนตรี",
-    "postponeCount": 0,
-    "isPostponedInSheet": false,
+    "scheduledDate": "02/11/2026",
+    "postponedDate": "2026-11-16",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 16/11/2026",
+    "postponedDates": [
+      "2026-11-16"
+    ],
+    "postponeHistoryItems": [
+      {
+        "round": 1,
+        "colLetter": "D",
+        "rawDate": "16/11/2026",
+        "isoDate": "2026-11-16",
+        "thaiFormatted": "16 พ.ย. 2569"
+      }
+    ],
+    "postponeCount": 1,
+    "postponeHistory": [
+      "16/11/2026"
+    ],
+    "isPostponedInSheet": true,
     "sheetRowIndex": 26,
-    "status": "pending",
-    "rawStatus": "รอการบรรจุ",
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
     "isAnswered": false,
     "isWithdrawn": false
   },
@@ -839,11 +1003,37 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "asker": "นางสาวรัชนีกร ทองทิพย์",
     "minister": "นายกรัฐมนตรี",
     "scheduledDate": "26/10/2026",
-    "postponeCount": 0,
-    "isPostponedInSheet": false,
+    "postponedDate": "2026-11-23",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 09/11/2026 | ครั้งที่ 2 (E): 23/11/2026",
+    "postponedDates": [
+      "2026-11-09",
+      "2026-11-23"
+    ],
+    "postponeHistoryItems": [
+      {
+        "round": 1,
+        "colLetter": "D",
+        "rawDate": "09/11/2026",
+        "isoDate": "2026-11-09",
+        "thaiFormatted": "9 พ.ย. 2569"
+      },
+      {
+        "round": 2,
+        "colLetter": "E",
+        "rawDate": "23/11/2026",
+        "isoDate": "2026-11-23",
+        "thaiFormatted": "23 พ.ย. 2569"
+      }
+    ],
+    "postponeCount": 2,
+    "postponeHistory": [
+      "09/11/2026",
+      "23/11/2026"
+    ],
+    "isPostponedInSheet": true,
     "sheetRowIndex": 27,
-    "status": "pending",
-    "rawStatus": "บรรจุแล้ว",
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
     "isAnswered": false,
     "isWithdrawn": false
   },
@@ -853,12 +1043,31 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "การเร่งรัดโครงการรถไฟสายชุมพร–ท่าเรือระนอง เพื่อเสริมสร้างศักยภาพด้านคมนาคม และยกระดับโลจิสติกส์ไทยสู่ตลาดโลก",
     "asker": "พลตำรวจโท วันไชย เอกพรพิชญ์",
     "minister": "รัฐมนตรีว่าการกระทรวงคมนาคม",
-    "postponeCount": 0,
-    "isPostponedInSheet": false,
+    "scheduledDate": "02/11/2026",
+    "postponedDate": "2026-11-09",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 09/11/2026",
+    "postponedDates": [
+      "2026-11-09"
+    ],
+    "postponeHistoryItems": [
+      {
+        "round": 1,
+        "colLetter": "D",
+        "rawDate": "09/11/2026",
+        "isoDate": "2026-11-09",
+        "thaiFormatted": "9 พ.ย. 2569"
+      }
+    ],
+    "postponeCount": 1,
+    "postponeHistory": [
+      "09/11/2026"
+    ],
+    "isPostponedInSheet": true,
     "sheetRowIndex": 28,
-    "status": "pending",
-    "rawStatus": "รอการบรรจุ",
-    "isAnswered": false,
+    "status": "completed",
+    "rawStatus": "ตอบแล้ว",
+    "isAnswered": true,
+    "answeredDate": "2026-11-09",
     "isWithdrawn": false
   },
   {
@@ -895,12 +1104,14 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "มาตรการการแก้ไขปัญหาวิกฤตอุดมศึกษาไทย",
     "asker": "นางสาวนันทนา นันทวโรภาส",
     "minister": "รัฐมนตรีว่าการกระทรวงการอุดมศึกษา วิทยาศาสตร์ วิจัยและนวัตกรรม",
+    "scheduledDate": "09/11/2026",
     "postponeCount": 0,
     "isPostponedInSheet": false,
     "sheetRowIndex": 31,
-    "status": "pending",
-    "rawStatus": "รอการบรรจุ",
-    "isAnswered": false,
+    "status": "completed",
+    "rawStatus": "ตอบแล้ว",
+    "isAnswered": true,
+    "answeredDate": "2026-11-09",
     "isWithdrawn": false
   },
   {
@@ -909,11 +1120,12 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "มาตรการบรรเทาผลกระทบอันเกิดจากการสร้างอ่างเก็บน้ำคลองวังโตนด",
     "asker": "นางสาวนันทนา นันทวโรภาส",
     "minister": "รัฐมนตรีว่าการกระทรวงเกษตรและสหกรณ์",
+    "scheduledDate": "16/11/2026",
     "postponeCount": 0,
     "isPostponedInSheet": false,
     "sheetRowIndex": 32,
     "status": "pending",
-    "rawStatus": "รอการบรรจุ",
+    "rawStatus": "บรรจุแล้ว",
     "isAnswered": false,
     "isWithdrawn": false
   },
@@ -923,12 +1135,14 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "การยกระดับการกำกับดูแลแพลตฟอร์มดิจิทัลให้ทันต่อปัญญาประดิษฐ์และความเสี่ยงต่อประชาชน",
     "asker": "นายสุทนต์ กล้าการขาย",
     "minister": "นายกรัฐมนตรี",
+    "scheduledDate": "09/11/2026",
     "postponeCount": 0,
     "isPostponedInSheet": false,
     "sheetRowIndex": 33,
-    "status": "pending",
-    "rawStatus": "รอการบรรจุ",
-    "isAnswered": false,
+    "status": "completed",
+    "rawStatus": "ตอบแล้ว",
+    "isAnswered": true,
+    "answeredDate": "2026-11-09",
     "isWithdrawn": false
   },
   {
@@ -937,11 +1151,12 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "แนวทางการส่งเสริมและกำกับดูแลผู้สร้างเนื้อหาดิจิทัล (Content Creator) ให้มีมาตรฐานและความรับผิดชอบต่อสังคม",
     "asker": "นายสุทนต์ กล้าการขาย",
     "minister": "นายกรัฐมนตรี",
+    "scheduledDate": "16/11/2026",
     "postponeCount": 0,
     "isPostponedInSheet": false,
     "sheetRowIndex": 34,
     "status": "pending",
-    "rawStatus": "รอการบรรจุ",
+    "rawStatus": "บรรจุแล้ว",
     "isAnswered": false,
     "isWithdrawn": false
   },
@@ -979,11 +1194,29 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "การเร่งรัดและติดตามความคืบหน้าโครงการปรับปรุงฝายธงน้อย จังหวัดน่าน",
     "asker": "นายมังกร ศรีเจริญกูล",
     "minister": "รัฐมนตรีว่าการกระทรวงพลังงาน",
-    "postponeCount": 0,
-    "isPostponedInSheet": false,
+    "scheduledDate": "09/11/2026",
+    "postponedDate": "2026-11-16",
+    "postponedSheetRaw": "ครั้งที่ 1 (D): 16/11/2026",
+    "postponedDates": [
+      "2026-11-16"
+    ],
+    "postponeHistoryItems": [
+      {
+        "round": 1,
+        "colLetter": "D",
+        "rawDate": "16/11/2026",
+        "isoDate": "2026-11-16",
+        "thaiFormatted": "16 พ.ย. 2569"
+      }
+    ],
+    "postponeCount": 1,
+    "postponeHistory": [
+      "16/11/2026"
+    ],
+    "isPostponedInSheet": true,
     "sheetRowIndex": 37,
-    "status": "pending",
-    "rawStatus": "รอการบรรจุ",
+    "status": "postponed",
+    "rawStatus": "เลื่อนตอบ",
     "isAnswered": false,
     "isWithdrawn": false
   },
@@ -993,11 +1226,12 @@ export const INITIAL_QUESTIONS: QuestionItem[] = [
     "topic": "การแบ่งเงินค่าบริการและเงินค่าตอบแทนในอุทยานแห่งชาติ วนอุทยาน สวนพฤกษศาสตร์หรือสวนรุกขชาติ ให้แก่เทศบาลหรือองค์การบริหารส่วนตำบล",
     "asker": "นายพิสิษฐ์ อภิวัฒนาพงศ์",
     "minister": "รัฐมนตรีว่าการกระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม",
+    "scheduledDate": "16/11/2026",
     "postponeCount": 0,
     "isPostponedInSheet": false,
     "sheetRowIndex": 38,
     "status": "pending",
-    "rawStatus": "รอการบรรจุ",
+    "rawStatus": "บรรจุแล้ว",
     "isAnswered": false,
     "isWithdrawn": false
   },

@@ -299,7 +299,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 สถานะ: เลื่อนวันตอบ
                 {scheduledItem.postponeRound && scheduledItem.postponeRound > 1 ? (
                   <span className="ml-1.5 text-amber-950 font-extrabold bg-amber-200 px-1.5 py-0.5 rounded border border-amber-400 text-[10px]">
-                    ครั้งที่ {scheduledItem.postponeRound} (คอลัมน์ {scheduledItem.postponeColLetter || (scheduledItem.postponeRound === 2 ? 'E' : scheduledItem.postponeRound === 3 ? 'F' : scheduledItem.postponeRound === 4 ? 'G' : scheduledItem.postponeRound === 5 ? 'H' : 'D')})
+                    ครั้งที่ {scheduledItem.postponeRound} (คอลัมน์ {scheduledItem.postponeColLetter || (['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'][(scheduledItem.postponeRound || 1) - 1] || 'D')})
                   </span>
                 ) : (
                   scheduledItem.postponeColLetter && (

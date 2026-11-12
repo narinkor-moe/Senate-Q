@@ -357,7 +357,10 @@ export async function fetchPostponeMapFromSheet(
   let colPostponed3 = 5; // Col F (เลื่อนตอบ ครั้งที่ 3)
   let colPostponed4 = 6; // Col G (เลื่อนตอบ ครั้งที่ 4)
   let colPostponed5 = 7; // Col H (เลื่อนตอบ ครั้งที่ 5)
-  let colStatus = 11; // Col L
+  let colPostponed6 = 8; // Col I (เลื่อนตอบ ครั้งที่ 6)
+  let colPostponed7 = 9; // Col J (เลื่อนตอบ ครั้งที่ 7)
+  let colPostponed8 = 10; // Col K (เลื่อนตอบ ครั้งที่ 8)
+  let colStatus = 15; // Col P
 
   for (let r = 0; r < Math.min(rows.length, 5); r++) {
     const row = rows[r];
@@ -370,6 +373,9 @@ export async function fetchPostponeMapFromSheet(
     const p3Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('3') || c.includes('๓')));
     const p4Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('4') || c.includes('๔')));
     const p5Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('5') || c.includes('๕')));
+    const p6Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('6') || c.includes('๖')));
+    const p7Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('7') || c.includes('๗')));
+    const p8Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('8') || c.includes('๘')));
     const genericPIdx = strRow.findIndex((c) => c.includes('เลื่อนตอบ') || c.includes('เลื่อน') || c.includes('ขอเลื่อน'));
     const stIdx = strRow.findIndex((c) => c.includes('สถานะ') || c.includes('status'));
 
@@ -382,6 +388,9 @@ export async function fetchPostponeMapFromSheet(
       if (p3Idx !== -1) colPostponed3 = p3Idx;
       if (p4Idx !== -1) colPostponed4 = p4Idx;
       if (p5Idx !== -1) colPostponed5 = p5Idx;
+      if (p6Idx !== -1) colPostponed6 = p6Idx;
+      if (p7Idx !== -1) colPostponed7 = p7Idx;
+      if (p8Idx !== -1) colPostponed8 = p8Idx;
       if (stIdx !== -1) colStatus = stIdx;
       break;
     }
@@ -528,8 +537,8 @@ export async function savePostponeDateToSheet(
 }> {
   // First, find the exact row number for this submittedOrder
   let targetRowNumber = -1;
-  const roundLetters = ['D', 'E', 'F', 'G', 'H'];
-  let targetColLetter = roundLetters[Math.max(0, Math.min(postponeRound - 1, 4))] || 'D';
+  const roundLetters = ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
+  let targetColLetter = roundLetters[Math.max(0, Math.min(postponeRound - 1, 7))] || 'D';
 
   try {
     const sheetMap = await fetchPostponeMapFromSheet(spreadsheetId, sheetName);
@@ -573,11 +582,14 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
   let colPostponed3 = 5; // Col F (เลื่อนตอบ ครั้งที่ 3)
   let colPostponed4 = 6; // Col G (เลื่อนตอบ ครั้งที่ 4)
   let colPostponed5 = 7; // Col H (เลื่อนตอบ ครั้งที่ 5)
-  let colTopic = 8;
-  let colAsker = 9;
-  let colMinister = 10;
-  let colStatus = 11;
-  let colAnswered = -1;
+  let colPostponed6 = 8; // Col I (เลื่อนตอบ ครั้งที่ 6)
+  let colPostponed7 = 9; // Col J (เลื่อนตอบ ครั้งที่ 7)
+  let colPostponed8 = 10; // Col K (เลื่อนตอบ ครั้งที่ 8)
+  let colTopic = 12; // Col M (กระทู้ถามเรื่อง)
+  let colAsker = 13; // Col N (ผู้ตั้งถาม)
+  let colMinister = 14; // Col O (ถามรัฐมนตรี)
+  let colStatus = 15; // Col P (สถานะ)
+  let colAnswered = 16; // Col Q (วันที่ตอบ)
 
   // 1. Try to detect header row
   for (let r = 0; r < Math.min(rows.length, 5); r++) {
@@ -598,6 +610,9 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
     const p3Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('3') || c.includes('๓')));
     const p4Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('4') || c.includes('๔')));
     const p5Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('5') || c.includes('๕')));
+    const p6Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('6') || c.includes('๖')));
+    const p7Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('7') || c.includes('๗')));
+    const p8Idx = strRow.findIndex((c) => c.includes('เลื่อน') && (c.includes('8') || c.includes('๘')));
     const genericPIdx = strRow.findIndex((c) => c.includes('เลื่อนตอบ') || c.includes('เลื่อน') || c.includes('ขอเลื่อน'));
 
     if (tIdx !== -1 || aIdx !== -1) {
@@ -616,6 +631,9 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
       if (p3Idx !== -1) colPostponed3 = p3Idx;
       if (p4Idx !== -1) colPostponed4 = p4Idx;
       if (p5Idx !== -1) colPostponed5 = p5Idx;
+      if (p6Idx !== -1) colPostponed6 = p6Idx;
+      if (p7Idx !== -1) colPostponed7 = p7Idx;
+      if (p8Idx !== -1) colPostponed8 = p8Idx;
       break;
     }
   }
@@ -645,6 +663,9 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
       { round: 3, colLetter: 'F', idx: colPostponed3 },
       { round: 4, colLetter: 'G', idx: colPostponed4 },
       { round: 5, colLetter: 'H', idx: colPostponed5 },
+      { round: 6, colLetter: 'I', idx: colPostponed6 },
+      { round: 7, colLetter: 'J', idx: colPostponed7 },
+      { round: 8, colLetter: 'K', idx: colPostponed8 },
     ];
 
     if (headerIndex !== -1) {
@@ -661,8 +682,26 @@ export function parseSheetRowsToQuestions(rows: (string | number | undefined)[][
         postponeRoundsRaw.push({ round, colLetter, raw: val });
       });
     } else {
-      if (row.length >= 12) {
-        // Full layout: [Order (0), Scheduled (1), FirstAgenda (2), Postpone1 (3 - Col D), Postpone2 (4 - Col E), Postpone3 (5 - Col F), Postpone4 (6 - Col G), Postpone5 (7 - Col H), Topic (8), Asker (9), Minister (10), Status (11)]
+      if (row.length >= 15) {
+        // Full layout with 8 postpone rounds:
+        // [0:Order, 1:Scheduled, 2:FirstAgenda, 3:P1(D), 4:P2(E), 5:P3(F), 6:P4(G), 7:P5(H), 8:P6(I), 9:P7(J), 10:P8(K), 11:Special, 12:Topic, 13:Asker, 14:Minister, 15:Status]
+        rawOrder = String(row[0] || '').trim();
+        scheduledVal = String(row[1] || '').trim();
+        postponeRoundsRaw.push({ round: 1, colLetter: 'D', raw: String(row[3] || '').trim() });
+        postponeRoundsRaw.push({ round: 2, colLetter: 'E', raw: String(row[4] || '').trim() });
+        postponeRoundsRaw.push({ round: 3, colLetter: 'F', raw: String(row[5] || '').trim() });
+        postponeRoundsRaw.push({ round: 4, colLetter: 'G', raw: String(row[6] || '').trim() });
+        postponeRoundsRaw.push({ round: 5, colLetter: 'H', raw: String(row[7] || '').trim() });
+        postponeRoundsRaw.push({ round: 6, colLetter: 'I', raw: String(row[8] || '').trim() });
+        postponeRoundsRaw.push({ round: 7, colLetter: 'J', raw: String(row[9] || '').trim() });
+        postponeRoundsRaw.push({ round: 8, colLetter: 'K', raw: String(row[10] || '').trim() });
+        topicVal = String(row[12] || row[8] || '').trim();
+        askerVal = String(row[13] || row[9] || '').trim();
+        ministerVal = String(row[14] || row[10] || '').trim();
+        statusVal = String(row[15] || row[11] || '').trim();
+      } else if (row.length >= 12) {
+        // Layout with 5 postpone rounds:
+        // [Order (0), Scheduled (1), FirstAgenda (2), P1 (3 - Col D) ... P5 (7 - Col H), Topic (8), Asker (9), Minister (10), Status (11)]
         rawOrder = String(row[0] || '').trim();
         scheduledVal = String(row[1] || '').trim();
         postponeRoundsRaw.push({ round: 1, colLetter: 'D', raw: String(row[3] || '').trim() });

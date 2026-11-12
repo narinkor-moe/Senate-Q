@@ -87,6 +87,9 @@ const ROUND_COLUMNS: { round: number; colLetter: string; name: string }[] = [
   { round: 3, colLetter: 'F', name: 'ครั้งที่ 3 (คอลัมน์ F)' },
   { round: 4, colLetter: 'G', name: 'ครั้งที่ 4 (คอลัมน์ G)' },
   { round: 5, colLetter: 'H', name: 'ครั้งที่ 5 (คอลัมน์ H)' },
+  { round: 6, colLetter: 'I', name: 'ครั้งที่ 6 (คอลัมน์ I)' },
+  { round: 7, colLetter: 'J', name: 'ครั้งที่ 7 (คอลัมน์ J)' },
+  { round: 8, colLetter: 'K', name: 'ครั้งที่ 8 (คอลัมน์ K)' },
 ];
 
 /**

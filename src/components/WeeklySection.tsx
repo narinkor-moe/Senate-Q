@@ -1,7 +1,7 @@
 import React from 'react';
 import { WeeklySchedule, QuestionItem } from '../types';
 import { QuestionCard } from './QuestionCard';
-import { formatThaiDateWithDayOfWeek } from '../scheduler';
+import { formatThaiDateWithDayOfWeek, formatThaiShortDate } from '../scheduler';
 import { Calendar, AlertTriangle, CheckCircle2, Printer, CalendarOff, Landmark, Sparkles, FileCheck, FileDown, GraduationCap, CalendarCheck, XCircle, ArrowRight } from 'lucide-react';
 
 interface WeeklySectionProps {
@@ -154,6 +154,11 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
                     ? `เลื่อนระเบียบวาระกระทู้ถามไปจัดในวันประชุมเป็นพิเศษ: ${formatThaiDateWithDayOfWeek(schedule.rescheduledToSpecialDate)} ในสัปดาห์นี้`
                     : 'เลื่อนระเบียบวาระกระทู้ถามไปจัดในวันจันทร์ของสัปดาห์ถัดไป'})
                 </span>
+                {schedule.questions.length > 0 && (
+                  <span className="bg-rose-50 text-rose-800 px-2 py-0.5 rounded border border-rose-200 font-bold text-[11px]">
+                    คาดการณ์หากไม่งดประชุม: {schedule.questions.length} เรื่อง
+                  </span>
+                )}
               </p>
             ) : (
               <p className="text-slate-500 text-xs mt-0.5">
@@ -256,30 +261,69 @@ export const WeeklySection: React.FC<WeeklySectionProps> = ({
       {/* Cards 3-Column Grid */}
       <div className="p-6">
         {isCancelled ? (
-          <div className="rounded-xl border-2 border-dashed border-rose-300 bg-rose-50/70 p-8 text-center shadow-xs">
-            <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 mb-3 border border-rose-200 shadow-2xs">
-              <CalendarOff className="w-6 h-6" />
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-600 text-white text-xs font-bold mb-2 shadow-2xs">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span>สัปดาห์นี้งดการประชุมวุฒิสภา</span>
-            </div>
-            <h4 className="text-base font-bold text-rose-950 mt-1">
-              {schedule.cancelledReason || schedule.holidayName || 'งดการประชุมตามระเบียบวาระ'}
-            </h4>
-            <p className="text-xs text-rose-800 mt-1.5 max-w-lg mx-auto leading-relaxed">
-              {schedule.rescheduledToSpecialDate
-                ? `สัปดาห์นี้มีวันนัดประชุมเป็นพิเศษใน ${formatThaiDateWithDayOfWeek(schedule.rescheduledToSpecialDate)}`
-                : 'สัปดาห์นี้ไม่มีการจัดประชุม และไม่ได้มีวันนัดประชุมเป็นพิเศษในสัปดาห์นี้'}
-            </p>
-            <div className="mt-4 pt-3 border-t border-rose-200/80 inline-flex items-center gap-2 text-xs font-bold text-rose-900 bg-white/95 px-4 py-2 rounded-lg border border-rose-300 shadow-2xs">
-              <ArrowRight className="w-4 h-4 text-rose-600 shrink-0" />
-              <span>
+          <div className="space-y-6">
+            <div className="rounded-xl border-2 border-dashed border-rose-300 bg-rose-50/70 p-6 text-center shadow-xs">
+              <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 mb-3 border border-rose-200 shadow-2xs">
+                <CalendarOff className="w-6 h-6" />
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-600 text-white text-xs font-bold mb-2 shadow-2xs">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>สัปดาห์นี้งดการประชุมวุฒิสภา</span>
+              </div>
+              <h4 className="text-base font-bold text-rose-950 mt-1">
+                {schedule.cancelledReason || schedule.holidayName || 'งดการประชุมตามระเบียบวาระ'}
+              </h4>
+              <p className="text-xs text-rose-800 mt-1.5 max-w-lg mx-auto leading-relaxed">
                 {schedule.rescheduledToSpecialDate
-                  ? `เลื่อนระเบียบวาระกระทู้ถามไปจัดในวันนัดประชุมเป็นพิเศษ (${formatThaiDateWithDayOfWeek(schedule.rescheduledToSpecialDate)}) ในสัปดาห์นี้`
-                  : 'เลื่อนระเบียบวาระกระทู้ถามของสัปดาห์นี้ ไปจัดระเบียบวาระกระทู้ถามในวันจันทร์ของสัปดาห์ถัดไป'}
-              </span>
+                  ? `สัปดาห์นี้มีวันนัดประชุมเป็นพิเศษใน ${formatThaiDateWithDayOfWeek(schedule.rescheduledToSpecialDate)}`
+                  : 'สัปดาห์นี้ไม่มีการจัดประชุม และไม่ได้มีวันนัดประชุมเป็นพิเศษในสัปดาห์นี้'}
+              </p>
+              <div className="mt-4 pt-3 border-t border-rose-200/80 inline-flex items-center gap-2 text-xs font-bold text-rose-900 bg-white/95 px-4 py-2 rounded-lg border border-rose-300 shadow-2xs">
+                <ArrowRight className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>
+                  {schedule.rescheduledToSpecialDate
+                    ? `เลื่อนระเบียบวาระกระทู้ถามไปจัดในวันนัดประชุมเป็นพิเศษ (${formatThaiDateWithDayOfWeek(schedule.rescheduledToSpecialDate)}) ในสัปดาห์นี้`
+                    : 'เลื่อนระเบียบวาระกระทู้ถามของสัปดาห์นี้ ไปจัดระเบียบวาระกระทู้ถามในวันจันทร์ของสัปดาห์ถัดไป'}
+                </span>
+              </div>
             </div>
+
+            {/* Projected questions cards for this week if not cancelled */}
+            {schedule.questions.length > 0 && (
+              <div className="pt-2">
+                <div className="flex items-center justify-between pb-3 mb-2 border-b border-rose-200/60 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                    <h5 className="text-sm font-bold text-rose-950">
+                      กระทู้ถามที่คาดการณ์ระเบียบวาระในสัปดาห์นี้ (กรณีไม่มีการงดประชุม)
+                    </h5>
+                    <span className="bg-rose-100 text-rose-800 text-xs px-2.5 py-0.5 rounded-full font-bold border border-rose-200">
+                      {schedule.questions.length} เรื่อง
+                    </span>
+                  </div>
+                  <span className="text-xs text-rose-700 font-medium bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">
+                    {schedule.rescheduledToSpecialDate
+                      ? `* เลื่อนไปจัดในวันประชุมพิเศษ ${formatThaiShortDate(schedule.rescheduledToSpecialDate)}`
+                      : '* เลื่อนไปจัดในวันจันทร์ถัดไปตามเกณฑ์'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                  {schedule.questions.map((item) => (
+                    <QuestionCard
+                      key={item.question.id}
+                      scheduledItem={item}
+                      onOpenPostponeModal={onOpenPostponeModal}
+                      isAdmin={isAdmin}
+                      meetingDate={schedule.date}
+                      meetingThaiDate={schedule.thaiDateFormatted}
+                      isSpecialMeeting={schedule.isSpecialMeeting}
+                      specialMeetingReason={schedule.specialMeetingReason}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : schedule.questions.length === 0 ? (
           <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">

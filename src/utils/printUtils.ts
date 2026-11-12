@@ -227,11 +227,13 @@ export function generateReportHtml(
             <tbody>
               ${schedule.isCancelledMeeting ? `
                 <tr>
-                  <td colspan="5" style="text-align: center; color: #991b1b; padding: 16px; font-weight: bold; background: #fff1f2; font-size: 10.5pt;">
-                    สถานะ: งดประชุม (${escapeHtml(schedule.cancelledReason || schedule.holidayName || 'งดการประชุมวุฒิสภา')}) — ${schedule.rescheduledToSpecialDate ? `เลื่อนระเบียบวาระกระทู้ถามไปจัดในวันประชุมเป็นพิเศษ (${escapeHtml(formatThaiDateWithDayOfWeek(schedule.rescheduledToSpecialDate))}) ในสัปดาห์นี้` : 'เลื่อนระเบียบวาระกระทู้ถามไปจัดในวันจันทร์ของสัปดาห์ถัดไป'}
+                  <td colspan="5" style="text-align: center; color: #991b1b; padding: 12px; font-weight: bold; background: #fff1f2; font-size: 10.5pt; border-bottom: 2px solid #fecdd3;">
+                    สถานะ: งดประชุม (${escapeHtml(schedule.cancelledReason || schedule.holidayName || 'งดการประชุมวุฒิสภา')}) &bull; ${schedule.rescheduledToSpecialDate ? `เลื่อนระเบียบวาระไปจัดในวันประชุมเป็นพิเศษ (${escapeHtml(formatThaiDateWithDayOfWeek(schedule.rescheduledToSpecialDate))}) ในสัปดาห์นี้` : 'เลื่อนระเบียบวาระไปจัดในวันจันทร์ของสัปดาห์ถัดไป'}
+                    ${schedule.questions.length > 0 ? `<br/><span style="font-size: 9.5pt; font-weight: normal; color: #b91c1c;">(แสดงรายการกระทู้ถามที่คาดการณ์ระเบียบวาระในสัปดาห์นี้ กรณีไม่มีการงดประชุม จำนวน ${schedule.questions.length} เรื่อง)</span>` : ''}
                   </td>
                 </tr>
-              ` : schedule.questions.length === 0 ? `
+              ` : ''}
+              ${(!schedule.isCancelledMeeting && schedule.questions.length === 0) ? `
                 <tr>
                   <td colspan="5" style="text-align: center; color: #64748b; padding: 14px;">
                     - ไม่มีการบรรจุกระทู้ถามในสัปดาห์นี้ -
@@ -241,6 +243,11 @@ export function generateReportHtml(
                 let noteHtml = isOfficial 
                   ? '<span class="status-badge status-official">บรรจุในระเบียบวาระ</span>' 
                   : '<span class="status-badge status-projected">คาดการณ์ตามลำดับ</span>';
+
+                if (schedule.isCancelledMeeting) {
+                  const targetFormatted = item.rescheduledToDate ? formatThaiShortDate(item.rescheduledToDate) : (schedule.rescheduledToSpecialDate ? formatThaiShortDate(schedule.rescheduledToSpecialDate) : '');
+                  noteHtml = `<span class="status-badge" style="background-color: #ffe4e6; color: #9f1239; border: 1px solid #fda4af; font-weight: bold;">คาดการณ์กรณีไม่งดประชุม${targetFormatted ? ` (ย้ายไปจัด ${targetFormatted})` : ''}</span>`;
+                }
                 
                 const isWithdrawn = item.question.isWithdrawn === true || item.question.status === 'withdrawn' || (item.question.rawStatus && (item.question.rawStatus.includes('ถอน') || item.question.rawStatus.toLowerCase().includes('withdrawn')));
                 const isAnswered = !isWithdrawn && (item.question.isAnswered === true || item.question.status === 'completed' || item.question.status === 'answered' || (item.question.rawStatus && item.question.rawStatus.includes('ตอบแล้ว')));
